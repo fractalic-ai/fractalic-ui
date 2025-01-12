@@ -1,0 +1,453 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 0 0% 0%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 0 0% 15%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+}
+
+.notebook-container {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* Scrollbar styling for xterm only */
+.xterm ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.xterm ::-webkit-scrollbar-track {
+  background: #2e2e2e;
+}
+
+.xterm ::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+  border: 2px solid #2e2e2e;
+}
+
+.xterm ::-webkit-scrollbar-thumb:hover {
+  background-color: #777;
+}
+
+.xterm {
+  height: 100%;
+}
+
+.xterm-viewport {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100% !important;
+}
+
+button[aria-selected="true"] {
+  background-color:  #111827 !important; /* Tailwind's blue-600 */
+  color: #FFFFFF !important; /* White text */
+}
+
+/* Remove conflicting hover styles for selected button */
+button[aria-selected="true"]:hover {
+  background-color:  #1f2c49; 
+  color: #FFFFFF !important;
+}
+
+/* globals.css */
+
+.selected-file {
+  @apply bg-blue-600 bg-opacity-100 text-white;
+}
+
+/* Add these after your existing CSS */
+
+/* Define notebook theme colors */
+.notebook-theme {
+  --notebook-bg: #111827 !important;
+  --notebook-node-bg: #111827;
+  --notebook-hover-bg: #111827;
+  --notebook-active-bg: #111827;
+  background-color: var(--notebook-bg);
+}
+
+/* Component specific styles */
+.notebook-node {
+  background-color: var(--notebook-node-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.notebook-node:hover {
+  background-color: var(--notebook-hover-bg);
+}
+
+.notebook-node.dragging * {
+  pointer-events: none;
+}
+
+/* Style for the drag target indicator */
+[data-drag-target="true"]::before {
+  content: '';
+  position: absolute;
+  left: -2px; /* Extend beyond borders */
+  right: -2px;
+  height: 3px; /* Thicker line */
+  background-color: hsl(var(--primary));
+  z-index: 1000; /* Highest z-index to overlay all elements */
+  pointer-events: none; /* Prevent interference */
+  border-radius: 2px; /* Rounded line */
+  box-shadow: 0 0 4px rgba(0,0,0,0.2); /* Subtle shadow for depth */
+}
+
+/* Position indicator above or below based on drop position */
+[data-drag-target="true"][data-drag-position="before"]::before {
+  top: -1.5px;
+}
+
+[data-drag-target="true"][data-drag-position="after"]::before {
+  bottom: -1.5px;
+}
+
+/* Ensure node content doesn't overlap */
+.node-header,
+.node-content {
+  position: relative;
+  z-index: 2;
+}
+
+/* Update DraggableList drag indicator if needed */
+.drag-indicator {
+  z-index: 50;
+  pointer-events: none;
+}
+
+.operation-editor, 
+.monaco-editor, 
+.monaco-editor-background,
+.monaco-editor .overflow-guard {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Only apply special styling to Monaco editors within notebook context */
+.notebook-theme .operation-editor .monaco-editor, 
+.notebook-theme .operation-editor .monaco-editor-background,
+.notebook-theme .operation-editor .monaco-editor .overflow-guard {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Keep default Monaco editor styling for edit and diff modes */
+.monaco-editor:not(.notebook-theme *),
+.monaco-editor-background:not(.notebook-theme *),
+.monaco-editor .overflow-guard:not(.notebook-theme *) {
+  /* This will preserve default Monaco editor styling */
+  background-color: inherit;
+}
+
+/* Override any inherited dark backgrounds */
+.notebook-theme * {
+  --background: var(--notebook-bg);
+  --card-background: var(--notebook-node-bg);
+  --popover-background: var(--notebook-node-bg);
+}
+
+/* Update monaco.css */
+
+/* its main editor styling */
+/* Default styling for all Monaco editors outside notebook */
+.monaco-editor:not(.notebook-theme *),
+.monaco-editor .overflow-guard:not(.notebook-theme *),
+.monaco-editor-background:not(.notebook-theme *) {
+  background-color: #202020 !important; /* black background */
+}
+
+/* its main editor styling */
+/* Line numbers margin styling for main editors */
+.monaco-editor:not(.notebook-theme *) .margin {
+  background-color: #202020 !important; /* gray background */
+}
+
+/* Fix notebook specific Monaco editor styling */
+.notebook-theme .operation-editor .monaco-editor,
+.notebook-theme .operation-editor .monaco-editor-background,
+.notebook-theme .operation-editor .monaco-editor .overflow-guard {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Fix notebook editor line numbers margin to use node background */
+.notebook-theme .operation-editor .monaco-editor .margin {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Keep the rest of Monaco editor styles */
+.monaco-editor {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.monaco-editor .overflow-guard {
+  border-radius: 0 !important;
+}
+
+.monaco-editor .monaco-scrollable-element {
+  border-radius: 0 !important;
+}
+
+.monaco-editor .mtk1 {
+  color: rgb(243, 244, 246) !important;
+}
+
+/* Rest of existing Monaco editor styles... */
+
+/* Add to app/globals.css */
+
+/* Make line numbers margin match node background */
+.notebook-node .monaco-editor .margin,
+.notebook-node .monaco-editor .monaco-editor-background {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Also ensure operation editors have consistent styling */
+.notebook-theme .node-content .monaco-editor .margin,
+.notebook-theme .node-content .monaco-editor-background {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Override any potential conflicting styles */
+.monaco-editor .margin[role="presentation"] {
+  background-color: inherit !important;
+}
+
+.notebook-theme .monaco-editor .margin {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Custom scrollbar styling for notebook theme */
+.notebook-theme::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.notebook-theme::-webkit-scrollbar-track {
+  background: var(--notebook-node-bg);
+}
+
+.notebook-theme::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  border: 2px solid var(--notebook-node-bg);
+  transition: background-color 0.2s;
+}
+
+.notebook-theme::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Also apply to any scrollable containers within notebook */
+.notebook-theme *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.notebook-theme *::-webkit-scrollbar-track {
+  background: var(--notebook-node-bg);
+}
+
+.notebook-theme *::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  border: 2px solid var(--notebook-node-bg);
+  transition: background-color 0.2s;
+}
+
+.notebook-theme *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Hide borders and controls when focus mode is active */
+.notebook-node.focus-mode {
+  border: none;
+}
+
+.notebook-node.focus-mode .node-header,
+.notebook-node.focus-mode .node-content {
+  border: none;
+}
+
+.notebook-node.focus-mode .node-controls {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Show border on hover */
+.notebook-node.focus-mode:hover {
+  border: 1px solid rgba(255, 255, 255, 0.15); /* Adjust border style as needed */
+}
+
+/* Show borders of node header and content on hover */
+.notebook-node.focus-mode:hover .node-header,
+.notebook-node.focus-mode:hover .node-content {
+  border: none;
+}
+
+/* Show controls on hover */
+.notebook-node.focus-mode:hover .node-controls {
+  opacity: 1;
+}
+
+/* Update in globals.css */
+
+/* Base focus mode styles */
+.notebook-node.focus-mode {
+  border-color: transparent;
+  transition: border-color 0.2s;
+}
+
+.notebook-node.focus-mode .node-header,
+.notebook-node.focus-mode .node-content {
+  border-color: transparent;
+  transition: border-color 0.2s;
+}
+
+.notebook-node.focus-mode .node-controls {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+/* Restore normal state on hover */
+.notebook-node.focus-mode:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.notebook-node.focus-mode:hover .node-header,
+.notebook-node.focus-mode:hover .node-content {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.notebook-node.focus-mode:hover .node-controls {
+  opacity: 1;
+}
+
+/* In globals.css - Update/add these rules */
+
+/* Base node controls state */
+.node-controls {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show controls on node hover (non-focus mode) */
+.notebook-node:hover .node-controls {
+  opacity: 1;
+}
+
+/* Focus mode specific */
+.notebook-node.focus-mode .node-controls {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show controls on hover in focus mode */
+.notebook-node.focus-mode:hover .node-controls {
+  opacity: 1;
+}
+
+/* At the end of globals.css */
+/* Editor visibility hierarchy */
+.monaco-editor {
+  isolation: isolate;
+}
+
+/* Git diff editor specific */
+.git-diff-editor {
+  position: relative;
+  z-index: 10;
+}
+
+.git-diff-editor .monaco-editor,
+.git-diff-editor .monaco-editor-background,
+.git-diff-editor .monaco-scrollable-element {
+  background-color: #1e1e1e !important; 
+}
+
+/* Interactive elements */
+.monaco-editor .view-lines,
+.monaco-editor .margin,
+.monaco-editor .scrollbar {
+  pointer-events: auto !important;
+}
+
+.notebook-node:last-child {
+  margin-bottom: 1rem;
+}
+
+/* Add padding-bottom to the parent container */
+.parent-container {
+  padding-bottom: 1rem;
+}
+

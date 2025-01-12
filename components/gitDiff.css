@@ -1,0 +1,38 @@
+/* gitDiff.css */
+/* Reset and isolate git diff editor styles */
+/* .git-diff-editor {
+  isolation: isolate;
+} */
+.git-diff-editor {
+    position: relative;
+    z-index: 1; /* Ensure the diff editor is above other elements */
+  }
+  
+  /* Force git diff editor visibility */
+  .git-diff-editor .monaco-editor,
+  .git-diff-editor .monaco-editor-background,
+  .git-diff-editor .monaco-scrollable-element {
+    background-color: #1e1e1e !important;
+    z-index: 2; /* Place Monaco editor elements above the diff editor */
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Override any inherited styles */
+  .git-diff-editor .monaco-editor * {
+    pointer-events: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Ensure text is visible */
+  .git-diff-editor .monaco-editor .mtk1 {
+    color: #d4d4d4 !important;
+  }
+  
+  /* Keep scrollbars visible and working */
+  .git-diff-editor .monaco-editor .scrollbar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }

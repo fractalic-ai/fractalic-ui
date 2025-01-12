@@ -1,0 +1,190 @@
+/* monaco.css */
+/* Base editor styles */
+.monaco-editor {
+  padding: 0 !important;
+  border: none !important;
+  z-index: 1;
+  isolation: isolate;
+  position: relative;
+}
+
+/* Notebook specific styles */
+.notebook-theme .monaco-editor,
+.notebook-theme .monaco-editor-background {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+.monaco-editor .overflow-guard {
+  border-radius: 0 !important;
+  pointer-events: auto !important; /* Changed from none */
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.monaco-editor .monaco-scrollable-element {
+  border-radius: 0 !important;
+  pointer-events: auto !important; /* Changed from none */
+  z-index: 3 !important;
+}
+
+.monaco-editor,
+.monaco-editor .overflow-guard,
+.monaco-editor-background {
+  background-color: #111827 !important;
+}
+
+/* Different styling for git diff editors vs notebook editors */
+.monaco-editor:not(.notebook-theme *),
+.monaco-editor-background:not(.notebook-theme *),
+.monaco-editor .overflow-guard:not(.notebook-theme *) {
+  background-color: #1e1e1e !important; /* Dark background for git diff */
+  z-index: 15 !important; /* Even higher for non-notebook editors */
+}
+
+/* Leave git diff styles to gitDiff.css */
+.monaco-editor:not(.git-diff-editor *):not(.notebook-theme *) {
+  background-color: #1e1e1e !important;
+  transition: opacity 0.2s ease;
+  opacity: 1 !important;
+}
+
+/* Git diff specific styling */
+.git-diff-editor .monaco-editor,
+.git-diff-editor .monaco-editor-background,
+.git-diff-editor .monaco-editor .overflow-guard,
+.git-diff-editor .monaco-scrollable-element {
+  background-color: #1e1e1e !important;
+  pointer-events: auto !important;
+  z-index: 20 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure git diff editors are visible and interactive */
+.git-diff-editor {
+  position: relative !important;
+  z-index: 10 !important; /* Higher than editor components */
+  isolation: isolate;
+}
+
+/* Reset pointer events for git diff editors */
+.git-diff-editor * {
+  pointer-events: auto !important;
+}
+
+/* Force git diff editor visibility */
+.git-diff-editor .monaco-editor,
+.git-diff-editor .monaco-editor-background,
+.git-diff-editor .monaco-scrollable-element {
+  background-color: #1e1e1e !important;
+  z-index: auto !important;
+}
+
+/* Override any inherited styles */
+.git-diff-editor .monaco-editor * {
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure text is visible */
+.git-diff-editor .monaco-editor .mtk1 {
+  color: #d4d4d4 !important;
+}
+
+/* Keep scrollbars visible and working */
+.git-diff-editor .monaco-editor .scrollbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.monaco-editor .margin,
+.monaco-editor .monaco-editor-background {
+  background-color: #112714 !important;
+  pointer-events: none !important;
+}
+
+/* Fix text color to be brighter */
+.monaco-editor .mtk1 {
+  color: rgb(243, 244, 246) !important;
+}
+
+/* Style placeholder text to be darker */
+.monaco-editor .placeholder {
+  color: rgb(156, 163, 175) !important;
+  opacity: 0.6;
+}
+
+/* Align line numbers to the left and reduce content padding */
+.monaco-editor .margin-view-overlays .line-numbers {
+  padding-left: 0 !important;
+  text-align: left !important;
+  color: rgba(156, 163, 175, 0.6) !important;
+}
+
+.monaco-editor .margin {
+  padding-left: 4px !important;
+  width: 28px !important; /* Reduced margin width */
+  background-color: #1e1e1e !important;
+  pointer-events: auto !important;
+}
+
+/* Add padding to content area */
+.monaco-editor .lines-content {
+  padding-left: 4px !important; /* Reduced padding before text */
+  margin-left: 0 !important;
+}
+
+/* Operation node multiline editor specific styles */
+.operation-editor .monaco-editor .lines-content {
+  padding-left: 8px !important; /* Slightly more padding for operation editors */
+}
+
+/* Adjust line number width */
+.monaco-editor .line-numbers {
+  width: 24px !important; /* Match margin width */
+}
+
+/* Scrollbar styling */
+.monaco-editor .scrollbar {
+  pointer-events: auto !important;
+}
+
+.monaco-editor .scrollbar.vertical {
+  width: 10px !important;
+  background-color: transparent !important;
+}
+
+.monaco-editor .scrollbar.vertical .slider {
+  width: 10px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Essential elements must be clickable */
+.monaco-editor .view-lines,
+.monaco-editor .margin,
+.monaco-editor .scrollbar,
+.monaco-editor .slider {
+  pointer-events: auto !important;
+  z-index: 20 !important; /* Highest z-index for interactive elements */
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.monaco-editor .scrollbar.vertical .slider:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Only enable pointer events for the content area */
+.monaco-editor .view-lines {
+  pointer-events: auto !important;
+}
+
+/* Notebook context - lower priority */
+.notebook-theme .operation-editor .monaco-editor,
+.notebook-theme .operation-editor .monaco-editor-background {
+  z-index: 5;
+  background-color: var(--notebook-node-bg) !important;
+}
+
+
