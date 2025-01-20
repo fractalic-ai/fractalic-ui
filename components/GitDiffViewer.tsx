@@ -159,6 +159,7 @@ export default function GitDiffViewer() {
       } else {
         if (mode === 'edit') {
           handleFileSelect(folder);
+          { setSelectedItem(folder.path) }
         }
       }
     },

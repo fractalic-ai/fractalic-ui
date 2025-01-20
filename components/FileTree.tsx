@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Folder, File, GitBranch, Plus, FolderPlus } from 'lucide-react'
+import { Folder, File, Plus, FolderPlus } from 'lucide-react'
 import { useState, KeyboardEvent } from 'react'
 import { Input } from "@/components/ui/input"
 
@@ -46,49 +46,10 @@ export default function FileTree({
   }
 
   const startNewFolder = () => {
-    setIsEditing('folder') 
+    setIsEditing('folder')
     setNewItemName('')
   }
 
-  const renderFileTree = (files: any[]) => (
-    <ul className="space-y-1">
-      {files.map((file) => (
-        <li key={file.path} className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`w-full justify-start ${
-              mode === 'edit' && selectedItem === file.path
-                ? 'bg-blue-600 bg-opacity-100 text-white'
-                : 'hover:bg-accent hover:text-accent-foreground'
-            }`}
-            onClick={() => handleFolderSelect(file)}
-          >
-            {file.is_dir || file.name === '..' ? (
-              <Folder className="mr-2 h-4 w-4" />
-            ) : (
-              <File className="mr-2 h-4 w-4" />
-            )}
-            {file.name}
-            {file.is_git_repo && <GitBranch className="ml-auto h-4 w-4 text-muted-foreground" />}
-          </Button>
-        </li>
-      ))}
-      {isEditing && (
-        <li className="px-2 py-1">
-          <Input
-            type="text"
-            placeholder={`New ${isEditing}...`}
-            value={newItemName}
-            onChange={(e) => setNewItemName(e.target.value)}
-            onKeyDown={handleKeyPress}
-            autoFocus
-          />
-        </li>
-      )}
-    </ul>
-  )
-  
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
@@ -109,7 +70,45 @@ export default function FileTree({
           </div>
         )}
       </div>
-      {renderFileTree(currentFiles)}
+      <ul className="space-y-1">
+        {currentFiles.map((file) => (
+          <li key={file.path} className="space-y-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-selected={selectedItem === file.path}
+              className={`w-full justify-start ${
+                selectedItem === file.path
+                  ? 'bg-blue-600 text-white'
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
+              onClick={() => {
+                handleFolderSelect(file)
+                console.log('Selected Item:', file.path)
+              }}
+            >
+              {file.is_dir || file.name === '..' ? (
+                <Folder className="mr-2 h-4 w-4" />
+              ) : (
+                <File className="mr-2 h-4 w-4" />
+              )}
+              {file.name}
+            </Button>
+          </li>
+        ))}
+        {isEditing && (
+          <li className="px-2 py-1">
+            <Input
+              type="text"
+              placeholder={`New ${isEditing}...`}
+              value={newItemName}
+              onChange={(e) => setNewItemName(e.target.value)}
+              onKeyDown={handleKeyPress}
+              autoFocus
+            />
+          </li>
+        )}
+      </ul>
     </div>
   )
 }
