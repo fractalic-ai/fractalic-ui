@@ -110,9 +110,9 @@ export const operationSchema = {
         description: "Optional input text or block reference to pass to the executed file"
       },
       block: {
-        type: 'string',
+        type: ['string', 'array'],
         xProcess: 'block-path',
-        description: "Optional block reference to pass to the executed file"
+        description: "Blocks references to use alone or in combination with prompt"
       },
       'use-header': {
         type: 'string',
@@ -167,9 +167,9 @@ export const operationSchema = {
         description: "Literal text to return"
       },
       block: {
-        type: 'string',
+        type: ['string', 'array'],
         xProcess: 'block-path',
-        description: "Block reference to return content from"
+        description: "Blocks references to use with or without prompt"
       },
       'use-header': {
         type: 'string',
