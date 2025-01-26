@@ -43,6 +43,7 @@ const modelOptions: Record<string, string[]> = {
 
 interface ProviderSettings {
   apiKey: string;
+  base_url: string; // Added field
   model: string;
   temperature: number;
   topP: number;
@@ -70,6 +71,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       ...acc,
       [provider.id]: {
         apiKey: "",
+        base_url: "", // Added field
         model: modelOptions[provider.id][0],
         temperature: 0.7,
         topP: 1,
@@ -103,6 +105,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             ...acc,
             [provider.id]: {
               apiKey: data.settings.settings[provider.id]?.apiKey || "",
+              base_url: data.settings.settings[provider.id]?.base_url || "", // Added field
               model: data.settings.settings[provider.id]?.model || modelOptions[provider.id][0],
               temperature: data.settings.settings[provider.id]?.temperature ?? 0.7,
               topP: data.settings.settings[provider.id]?.topP ?? 1,
@@ -296,24 +299,46 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                         aria-autocomplete="none"
                       />
                     </div>
+                    {activeProvider === "openai" && (
+                      <div className="space-y-2">
+                        <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-white">Base URL</Label>
+                        <Input
+                          id={`${uniqueId}-${sessionId}-${activeProvider}-base-url`}
+                          value={settings[activeProvider]?.base_url || ''}
+                          onChange={(e) => handleSettingChange(activeProvider, "base_url", e.target.value)}
+                          type="text"
+                          className="bg-gray-900 text-white border-gray-800"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-white">Model</Label>
-                      <Select
-                        value={settings[activeProvider]?.model || ''}
-                        onValueChange={(value) => handleSettingChange(activeProvider, "model", value)}
-                        data-form-type="other"
-                      >
-                        <SelectTrigger id={`${uniqueId}-settings-modal-${activeProvider}-model`} className="bg-gray-900 text-white border-gray-800">
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 text-white border-gray-800">
-                          {modelOptions[activeProvider].map((model) => (
-                            <SelectItem key={model} value={model}>
-                              {model}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {activeProvider === "openai" ? (
+                        <Input
+                          type="text"
+                          id={`${uniqueId}-settings-modal-${activeProvider}-model`}
+                          value={settings[activeProvider]?.model || ''}
+                          onChange={(e) => handleSettingChange(activeProvider, "model", e.target.value)}
+                          className="bg-gray-900 text-white border-gray-800"
+                        />
+                      ) : (
+                        <Select
+                          value={settings[activeProvider]?.model || ''}
+                          onValueChange={(value) => handleSettingChange(activeProvider, "model", value)}
+                          data-form-type="other"
+                        >
+                          <SelectTrigger id={`${uniqueId}-settings-modal-${activeProvider}-model`} className="bg-gray-900 text-white border-gray-800">
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-900 text-white border-gray-800">
+                            {modelOptions[activeProvider].map((model) => (
+                              <SelectItem key={model} value={model}>
+                                {model}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                     {/* Temperature */}
                     <div className="flex items-center space-x-4">
