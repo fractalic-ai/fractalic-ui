@@ -192,8 +192,22 @@ const OperationControls: React.FC<OperationControlsProps> = ({
   const allFields = [...requiredFields, ...optionalFields];
 
   const renderField = (fieldName: string) => {
-      const fieldSchema = (schema.properties as Record<string, any>)[fieldName];
+    const fieldSchema = (schema.properties as Record<string, any>)[fieldName];
     if (!fieldSchema) return null;
+
+    if (fieldName === 'block' && Array.isArray(fieldSchema.type)) {
+      return (
+        <ArrayField
+          fieldName={fieldName}
+          values={Array.isArray(values[fieldName]) ? values[fieldName] : [values[fieldName]]}
+          onChange={(newValues) => handleFieldChange(fieldName, newValues)}
+          fieldSchema={fieldSchema}
+          showLineNumbers={showLineNumbers}
+          wordWrap={wordWrap}
+          operationType={operationType}
+        />
+      );
+    }
 
     if (isArrayField(fieldSchema)) {
       return (
@@ -214,7 +228,7 @@ const OperationControls: React.FC<OperationControlsProps> = ({
         <div className="w-full border border-gray-700 rounded">
           <MonacoPromptEditor
             value={values[fieldName] || ''}
-            onChange={(value) => handleFieldChange(fieldName, value)}
+            onChange={(newValue) => handleFieldChange(fieldName, newValue)}
             placeholder={fieldSchema.description}
             showLineNumbers={showLineNumbers}
             wordWrap={wordWrap}

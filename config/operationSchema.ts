@@ -88,6 +88,20 @@ export const operationSchema = {
         type: 'string',
         xProcess: 'block-path',
         description: "Target block where LLM response will be placed"
+      },
+      provider: {
+        type: 'string',
+        description: "Optional LLM provider to override the default setting."
+      },
+      model: {
+        type: 'string',
+        description: "Optional model to override the default setting."
+      },
+      temperature: {
+        type: 'number',
+        minimum: 0,
+        maximum: 1,
+        description: "Optional temperature setting for LLM call to control randomness."
       }
     },
     anyOf: [
