@@ -130,16 +130,29 @@ const PromptNode: React.FC<PromptNodeProps> = ({
     setIsEditing(false);
   };
 
-  const parseTitle = (title: string) => {
+  function toKebabCase(str: string) {
+    return str
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .toLowerCase();
+  }
+
+  function parseTitle(title: string) {
     const match = title.match(/^(#{1,6})\s+(.+?)(?:\s+{id=([^}]+)})?$/);
-    if (!match) return { level: 1, text: title };
-    return { 
-      level: match[1].length, 
-      text: match[2],
-      id: match[3],
-      raw: title 
+    if (!match) {
+      // Provide default level & text, generate an ID
+      return { level: 1, text: title, id: toKebabCase(title), raw: title };
+    }
+    const headingText = match[2];
+    const foundId = match[3] || toKebabCase(headingText);
+    return {
+      level: match[1].length,
+      text: headingText,
+      id: foundId,
+      raw: title
     };
-  };
+  }
 
   const getHeadingClass = (level: number) => {
     const sizes = {
@@ -237,14 +250,14 @@ const PromptNode: React.FC<PromptNodeProps> = ({
                         setIsEditing(true);
                       }
                     }}
+                    title={titleData.id}
                   >
                     {titleData.text}
                   </span>
-                  {titleData.id && (
-                    <span className="px-2 py-0.5 text-xs bg-gray-800 text-gray-300 rounded-md">
-                      {titleData.id}
-                    </span>
-                  )}
+                  {/* Always show ID badge */}
+                  <span className="px-2 py-0.5 text-xs bg-gray-800 text-gray-300 rounded-md">
+                    {titleData.id}
+                  </span>
                 </div>
               )
             ) : (
