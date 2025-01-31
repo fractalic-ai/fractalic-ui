@@ -80,6 +80,30 @@ export default function GitDiffViewer() {
       fetchBranchesAndCommits(repoPath);
     }
   }, [repoPath]);
+  
+  const handleFileSelect = useCallback(async (file: any) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
+      );
+      if (response.ok) {
+        const data = await response.text();
+        setEditedContent(data);
+        setSelectedFile(file);
+        setCurrentFilePath(file.path);
+      } else {
+        console.error('Error fetching file content:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching file content:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedItem && selectedItem.endsWith('.tsx')) { // Adjust the file extension as needed
+      handleFileSelect(selectedItem);
+    }
+  }, [selectedItem, handleFileSelect]);
 
   const handlePanelResize = useCallback(() => {
     // Handle any logic needed when the panel resizes
@@ -122,23 +146,7 @@ export default function GitDiffViewer() {
     }
   }, []);
 
-  const handleFileSelect = useCallback(async (file: any) => {
-    try {
-      const response = await fetch(
-        `http://localhost:8000/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
-      );
-      if (response.ok) {
-        const data = await response.text();
-        setEditedContent(data);
-        setSelectedFile(file);
-        setCurrentFilePath(file.path);
-      } else {
-        console.error('Error fetching file content:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching file content:', error);
-    }
-  }, []);
+
 
   const handleFolderSelect = useCallback(
     (folder: any) => {
@@ -180,9 +188,18 @@ export default function GitDiffViewer() {
           method: 'POST',
         }
       )
-        .then((response) => {
+        .then(async (response) => {
           if (response.ok) {
-            fetchDirectoryContents(currentEditPath, false);
+            await fetchDirectoryContents(currentEditPath, false);
+            const newFilePath = `${currentEditPath}/${fileName}`;
+            setSelectedItem(newFilePath);
+            // Create file object and call handleFileSelect
+            const newFile = {
+              path: newFilePath,
+              name: fileName,
+              is_dir: false
+            };
+            handleFileSelect(newFile);
           } else {
             console.error('Error creating file:', response.statusText);
           }
