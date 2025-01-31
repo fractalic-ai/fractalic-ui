@@ -247,6 +247,71 @@ function EditorComponent(props: EditorProps) {
     };
   }, []);
 
+  const renderEditorSettings = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm" 
+          className="hover:bg-accent hover:text-accent-foreground"
+        >
+          <Sliders className="mr-2 h-4 w-4" />
+          Editor Settings
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuLabel>
+          {/* Font Size Selector */}
+          <div className="flex flex-col space-y-1 py-2 px-3">
+            <label htmlFor="fontSize" className="text-sm text-foreground">
+              Font Size
+            </label>
+            <select
+              id="fontSize"
+              value={fontSize}
+              onChange={(e) => setFontSize(parseInt(e.target.value))}
+              className="border rounded px-2 py-1 bg-black text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {[12,14,16,18,20].map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {/* Word Wrap Toggle */}
+          <div className="flex items-center space-x-2 py-2 px-3">
+            <Switch
+              id="wordWrap"
+              checked={wordWrap}
+              onCheckedChange={handleWordWrapChange}
+              className="bg-black"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <label htmlFor="wordWrap" className="text-sm text-foreground">
+              Word Wrap
+            </label>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {/* Line Numbers Switch */}
+          <div className="flex items-center space-x-2 py-2 px-3">
+            <Switch
+              id="lineNumbers"
+              checked={lineNumbers}
+              onCheckedChange={handleLineNumbersChange}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <label htmlFor="lineNumbers" className="text-sm text-foreground">
+              Line Numbers
+            </label>
+          </div>
+        </DropdownMenuLabel>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const renderEditor = () => {
     // Force editor visibility in git diff mode
     if (mode === "git") {
@@ -264,8 +329,9 @@ function EditorComponent(props: EditorProps) {
               language="plaintext"
               theme={props.theme === 'dark' ? 'vs-dark' : 'vs-light'}
               options={{
-                fontSize: 14,
-                lineNumbers: 'on',
+                fontSize: fontSize,
+                lineNumbers: lineNumbers ? 'on' : 'off',
+                wordWrap: wordWrap ? 'on' : 'off',
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 renderSideBySide: selectedView === 'sideBySide',
@@ -370,6 +436,7 @@ function EditorComponent(props: EditorProps) {
                   <FileText className="mr-2 h-4 w-4" />
                   Report
                 </Button>
+                {renderEditorSettings()} {/* Add settings button */}
               </>
             ) : (
               <>
@@ -399,71 +466,7 @@ function EditorComponent(props: EditorProps) {
                   <Book className="mr-2 h-4 w-4" />
                   Notebook
                 </Button>
-                {/* Editor Settings Button */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Sliders className="mr-2 h-4 w-4" />
-                      Editor Settings
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuLabel>
-                      {/* Font Size Selector */}
-                      <div className="flex flex-col space-y-1 py-2 px-3">
-                        <label htmlFor="fontSize" className="text-sm text-foreground">
-                          Font Size
-                        </label>
-                        <select
-                          id="fontSize"
-                          value={fontSize}
-                          onChange={(e) => setFontSize(parseInt(e.target.value))}
-                          className="border rounded px-2 py-1 bg-black text-white"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <option value={12}>12</option>
-                          <option value={14}>14</option>
-                          <option value={16}>16</option>
-                          <option value={18}>18</option>
-                          <option value={20}>20</option>
-                        </select>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuLabel>
-                      {/* Word Wrap Toggle with Switch */}
-                      <div className="flex items-center space-x-2 py-2 px-3">
-                        <Switch
-                          id="wordWrap"
-                          checked={wordWrap}
-                          onCheckedChange={handleWordWrapChange}
-                          className="bg-black"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <label htmlFor="wordWrap" className="text-sm text-foreground">
-                          Word Wrap
-                        </label>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuLabel>
-                      {/* Line Numbers Switch */}
-                      <div className="flex items-center space-x-2 py-2 px-3">
-                        <Switch
-                          id="lineNumbers"
-                          checked={lineNumbers}
-                          onCheckedChange={handleLineNumbersChange}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <label htmlFor="lineNumbers" className="text-sm text-foreground">
-                          Line Numbers
-                        </label>
-                      </div>
-                    </DropdownMenuLabel>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {renderEditorSettings()} {/* Add settings button */}
               </>
             )}
           </div>
