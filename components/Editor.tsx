@@ -326,7 +326,7 @@ function EditorComponent(props: EditorProps) {
             <DiffEditor
               original={props.diffContent.original}
               modified={props.diffContent.modified}
-              language="plaintext"
+              language="markdown"
               theme={props.theme === 'dark' ? 'vs-dark' : 'vs-light'}
               options={{
                 fontSize: fontSize,
