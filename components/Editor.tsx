@@ -522,14 +522,14 @@ function EditorComponent(props: EditorProps) {
           </div>
         </div>
         {mode === "git" && selectedCommit && selectedCommit.length > 0 && (
-          <div className="flex items-center text-sm bg-muted p-2 rounded-md">
+          <div className="flex items-center text-sm bg-gray-900 p-2 rounded-md text-white">
             {selectedCommit.map((node: any, index: number) => (
               <span key={index} className="flex items-center">
                 {index > 0 && (
                   <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
                 )}
                 <button
-                  className="text-primary hover:underline"
+                  className="text-white hover:underline"
                   onClick={() => handleBreadcrumbClick(node)}
                 >
                   {node.text}
