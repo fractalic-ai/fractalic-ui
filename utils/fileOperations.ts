@@ -5,24 +5,42 @@ import { type Node } from './types';
 export const exportToMarkdown = (nodes: Node[]): string => {
   return nodes
     .map((node, index) => {
+      let content = '';
+
       if (node.type === 'default') {
-        return `${node.title}\n${node.promptText || ''}\n`;
+        content = `${node.title}\n${node.promptText || ''}`;
       } else if (node.type === 'operation') {
-        const operation = node.selectedOperation?.replace('@', '') as OperationType;
-        if (!operation || !operationSchema[operation]) return '';
-        
-        // Add empty lines before and after each operation block
-        const yamlContent = generateYamlOperation(
+        let operationValues = { ...node.operationValues }; // Create a copy
+
+        // Explicitly handle the use-header field
+        if (operationValues && operationValues['use-header'] && typeof operationValues['use-header'] === 'string') {
+          if (operationValues['use-header'].includes('#')) {
+            operationValues['use-header'] = `"${operationValues['use-header']}"`; // Add double quotes
+          }
+        }
+
+        content = generateYamlOperation(
           node.selectedOperation || '@import',
-          node.operationValues || {}
+          operationValues // Use the modified copy
         );
-        // Always add newline before and after operation blocks
-        return `\n${yamlContent}\n`;
+      } else {
+        return '';
       }
-      return '';
+
+      let prefix = '';
+      if (index > 0) {
+        prefix = '\n';
+      }
+
+      let suffix = '';
+      if (index < nodes.length - 1) {
+        suffix = '\n';
+      }
+
+      return `${prefix}${content}${suffix}`;
     })
     .filter(Boolean)
-    .join('\n');
+    .join('');
 };
 
 export const importFromMarkdown = (content: string): Node[] => {
@@ -31,8 +49,8 @@ export const importFromMarkdown = (content: string): Node[] => {
   let contentBuffer: string[] = [];
   let yamlBuffer: string[] = [];
   let isCollectingYaml = false;
-  let lastLineEmpty = true; // Track empty lines
-  let isFirstLine = true; // Track if we're at file start
+  let lastLineEmpty = true;
+  let isFirstLine = true;
 
   const finalizeNode = () => {
     if (!currentNode) return;
@@ -45,7 +63,11 @@ export const importFromMarkdown = (content: string): Node[] => {
       }
       yamlBuffer = [];
     } else if (currentNode.type === 'default') {
-      currentNode.promptText = contentBuffer.join('\n').trim();
+      // Trim trailing empty lines ONLY for default nodes on import.
+      while (contentBuffer.length > 0 && contentBuffer[contentBuffer.length - 1].trim() === '') {
+        contentBuffer.pop();
+      }
+      currentNode.promptText = contentBuffer.join('\n');
     }
 
     nodes.push(currentNode as Node);
@@ -55,28 +77,31 @@ export const importFromMarkdown = (content: string): Node[] => {
   };
 
   const lines = content.split('\n');
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
 
     // Handle empty lines
-    if (!trimmedLine) {
-      if (isCollectingYaml && yamlBuffer.length > 0) {
-        finalizeNode();
+    if (trimmedLine.length === 0) {
+      if (isCollectingYaml) {
+        yamlBuffer.push(line);
+      } else {
+        if (currentNode) {
+          contentBuffer.push(line); // Correct: Always add if within a node
+        }
       }
       lastLineEmpty = true;
-      isFirstLine = false;
       continue;
     }
 
-    // Handle operation nodes
+    // Handle operation nodes.
     if (trimmedLine.startsWith('@') && (lastLineEmpty || isFirstLine)) {
       finalizeNode();
       currentNode = {
         id: Date.now() + i,
         type: 'operation',
-        title: 'Operation'
+        title: 'Operation',
       };
       isCollectingYaml = true;
       yamlBuffer.push(trimmedLine);
@@ -85,14 +110,14 @@ export const importFromMarkdown = (content: string): Node[] => {
       continue;
     }
 
-    // Handle heading nodes - only if preceded by empty line or at file start
+    // Handle heading nodes.
     if (trimmedLine.startsWith('#') && (lastLineEmpty || isFirstLine)) {
       finalizeNode();
       currentNode = {
         id: Date.now() + i,
         type: 'default',
         title: trimmedLine,
-        promptText: ''
+        promptText: '',
       };
       lastLineEmpty = false;
       isFirstLine = false;
@@ -100,22 +125,20 @@ export const importFromMarkdown = (content: string): Node[] => {
     }
 
     // Handle content
-    if (currentNode?.type === 'default') {
-      contentBuffer.push(line); // Keep original line with indentation
-    } else if (isCollectingYaml) {
-      yamlBuffer.push(line);
-    } else if (trimmedLine && !isCollectingYaml) {
-      // Handle content without a heading as regular text
+    if (isCollectingYaml) {
+      yamlBuffer.push(line); // Add the ENTIRE line to yamlBuffer
+    } else {
       if (!currentNode) {
         currentNode = {
           id: Date.now() + i,
           type: 'default',
           title: '',
-          promptText: ''
+          promptText: '',
         };
       }
       contentBuffer.push(line);
     }
+
     lastLineEmpty = false;
     isFirstLine = false;
   }
