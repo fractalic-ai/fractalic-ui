@@ -48,6 +48,12 @@ export const operationSchema = {
         type: 'string',
         xProcess: 'block-path', 
         description: "Target block path where content will be placed, supports nested flag"
+      },
+      "run-once": {
+        type: "enum",
+        enum: ['false', 'true'],
+        default: 'false',
+        description: "If true, operation will be executed only once"
       }
     }
   },
@@ -102,6 +108,12 @@ export const operationSchema = {
         minimum: 0,
         maximum: 1,
         description: "Optional temperature setting for LLM call to control randomness."
+      },
+      "run-once": {
+        type: "enum",
+        enum: ['false', 'true'],
+        default: 'false',
+        description: "If true, operation will be executed only once"
       }
     },
     anyOf: [
@@ -142,6 +154,12 @@ export const operationSchema = {
         type: 'string',
         xProcess: 'block-path',
         description: "Target block where execution results will be placed"
+      },
+      "run-once": {
+        type: "enum",
+        enum: ['false', 'true'],
+        default: 'false',
+        description: "If true, operation will be executed only once"
       }
     }
   },
@@ -169,6 +187,12 @@ export const operationSchema = {
         type: 'string',
         xProcess: 'block-path',
         description: "Target block where command output will be placed"
+      },
+      "run-once": {
+        type: "enum",
+        enum: ['false', 'true'],
+        default: 'false',
+        description: "If true, operation will be executed only once"
       }
     }
   },
@@ -204,6 +228,12 @@ export const operationSchema = {
         type: 'string',
         xProcess: 'block-path-no-nested',
         description: "Target block to navigate to (no nested flags allowed)"
+      },
+      "run-once": {
+        type: "enum",
+        enum: ['false', 'true'],
+        default: 'false',
+        description: "If true, operation will be executed only once"
       }
     }
   }
