@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Settings, Moon, Sun } from 'lucide-react'
 import SettingsModal from './SettingsModal'
+import Image from 'next/image'
 
 interface HeaderProps {
   theme: 'dark' | 'light'
@@ -13,8 +14,19 @@ interface HeaderProps {
 export default function Header({ theme, setTheme, isSettingsOpen, setIsSettingsOpen }: HeaderProps) {
   return (
     <div className="flex items-center justify-between p-2 border-b">
-      <div className="flex items-center">
-        <span className="text-2xl font-bold text-white bg-blue-900 px-2 py-1 rounded-md">L*</span>
+      <div className="flex items-center space-x-2">
+        <Image 
+          src="/static/F_icon_logo.png" 
+          alt="logo" 
+          width={42} 
+          height={42} 
+        />
+        <Image 
+          src="/static/F_logo_logo.png" 
+          alt="Fractalic" 
+          width={110}
+          height={32}
+        />
       </div>
       <div className="flex items-center space-x-4">
         <Button variant="ghost" size="sm" onClick={() => setIsSettingsOpen(true)}>
