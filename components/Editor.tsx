@@ -4,6 +4,9 @@ import React, { useState, useCallback, RefObject, useEffect } from 'react';
 import { importFromMarkdown, exportToMarkdown } from '@/utils/fileOperations';
 import './gitDiff.css';
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import MarkdownViewer from './MarkdownViewer';
+import styles from '@/components/MarkdownViewer.module.css';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -313,33 +316,38 @@ function EditorComponent(props: EditorProps) {
   );
 
   const renderEditor = () => {
-    // Force editor visibility in git diff mode
-    if (mode === "git") {
-      return (
-        <div className="git-diff-editor" style={{ 
-          position: 'relative',
-          height: '100%',
-          visibility: 'visible',
-          display: 'block'
-        }}>
-          <div style={{ height: '100%', visibility: 'visible' }}>
-            <DiffEditor
-              original={props.diffContent.original}
-              modified={props.diffContent.modified}
-              language="markdown"
-              theme={props.theme === 'dark' ? 'vs-dark' : 'vs-light'}
-              options={{
-                fontSize: fontSize,
-                lineNumbers: lineNumbers ? 'on' : 'off',
-                wordWrap: wordWrap ? 'on' : 'off',
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                renderSideBySide: selectedView === 'sideBySide',
-                readOnly: true,
-                domReadOnly: false
-              }}
-            />
+    if (mode === 'git') {
+      if (selectedView === 'report' && diffContent.modified) {
+        return (
+          <div className="h-full w-full">
+            <ScrollArea className="h-full">
+              <MarkdownViewer 
+                content={diffContent.modified} 
+                className={styles.markdownContent}
+              />
+            </ScrollArea>
           </div>
+        );
+      }
+  
+      return (
+        <div className="h-full">
+          <DiffEditor
+            original={diffContent.original}
+            modified={diffContent.modified}
+            language="markdown"
+            theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+            options={{
+              fontSize: fontSize,
+              lineNumbers: lineNumbers ? 'on' : 'off',
+              wordWrap: wordWrap ? 'on' : 'off',
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              renderSideBySide: selectedView === 'sideBySide',
+              readOnly: true,
+              domReadOnly: false
+            }}
+          />
         </div>
       );
     }

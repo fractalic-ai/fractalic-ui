@@ -11,6 +11,8 @@ import dynamic from 'next/dynamic';
 import SettingsModal from './SettingsModal';
 import '@xterm/xterm/css/xterm.css';
 import path from 'path';
+import { DiffEditor } from "@monaco-editor/react";
+import MarkdownViewer from './MarkdownViewer';
 
 interface ConsoleProps {
   // We keep the same props as before but no longer need "ref".
@@ -391,6 +393,42 @@ export default function GitDiffViewer() {
     },
     [branchesData, setSelectedCommit, fetchDiffContent, repoPath]
   );
+
+  const renderEditor = () => {
+    if (selectedView === 'report' && diffContent.modified) {
+      // Add debug log to verify the condition is being met
+      console.log('Showing report view:', diffContent.modified.slice(0, 100));
+      
+      return (
+        <div className="h-full w-full">
+          <ScrollArea className="h-full">
+            <MarkdownViewer 
+              content={diffContent.modified} 
+              className={styles.markdownContent}
+            />
+          </ScrollArea>
+        </div>
+      );
+    }
+    
+    return (
+      <DiffEditor
+        original={diffContent.original}
+        modified={diffContent.modified}
+        language="markdown"
+        theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
+        options={{
+          fontSize: 14,
+          lineNumbers: 'on',
+          wordWrap: 'on',
+          minimap: { enabled: false },
+          scrollBeyondLastLine: false,
+          renderSideBySide: selectedView === 'sideBySide',
+          readOnly: true,
+        }}
+      />
+    );
+  };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
