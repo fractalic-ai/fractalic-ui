@@ -6,13 +6,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './MarkdownViewer.module.css';
+import MermaidDiagram from './MermaidDiagram';
 
 interface MarkdownViewerProps {
   content: string;
   className?: string;
+  isDarkMode: boolean;
 }
 
-const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = '' }) => {
+const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = '', isDarkMode }) => {
   return (
     <ScrollArea className={`h-full w-full ${className}`}>
       <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
@@ -23,6 +25,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = ''
             components={{
               code({ node, inline, className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '');
+                if (match && match[1] === 'mermaid') {
+                  return <MermaidDiagram chart={String(children).trim()} isDarkMode={isDarkMode} />;
+                }
                 return !inline && match ? (
                   <SyntaxHighlighter
                     style={tomorrow}
