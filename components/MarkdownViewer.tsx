@@ -16,7 +16,7 @@ interface MarkdownViewerProps {
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = '', isDarkMode }) => {
   return (
-    <ScrollArea className={`h-full w-full ${className}`}>
+    <ScrollArea className="h-full w-full">
       <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
         <div className={styles.markdownContent}>
           <ReactMarkdown
@@ -34,6 +34,13 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = ''
                     language={match[1]}
                     PreTag="div"
                     {...props}
+                    wrapLongLines={true}
+                    customStyle={{
+                      margin: '1em 0',
+                      //padding: '1em',
+                      overflow: 'auto',
+                      maxWidth: '100%'
+                    }}
                   >
                     {String(children).replace(/\n$/, '')}
                   </SyntaxHighlighter>
@@ -41,7 +48,11 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = ''
                   <code
                     className={className}
                     {...props}
-                    style={{ whiteSpace: 'pre-wrap' }}
+                    style={{ 
+                      whiteSpace: 'pre-wrap',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}
                   >
                     {children}
                   </code>

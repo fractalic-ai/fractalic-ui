@@ -400,8 +400,8 @@ export default function GitDiffViewer() {
       console.log('Showing report view:', diffContent.modified.slice(0, 100));
       
       return (
-        <div className="h-full w-full">
-          <ScrollArea className="h-full">
+        <div className="h-full w-full flex flex-col flex-grow">
+          <ScrollArea className="h-full flex-grow">
             <MarkdownViewer 
               content={diffContent.modified} 
               className={styles.markdownContent}
