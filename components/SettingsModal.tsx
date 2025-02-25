@@ -313,32 +313,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                     )}
                     <div className="space-y-2">
                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-white">Model</Label>
-                      {activeProvider === "openai" ? (
-                        <Input
-                          type="text"
-                          id={`${uniqueId}-settings-modal-${activeProvider}-model`}
-                          value={settings[activeProvider]?.model || ''}
-                          onChange={(e) => handleSettingChange(activeProvider, "model", e.target.value)}
-                          className="bg-gray-900 text-white border-gray-800"
-                        />
-                      ) : (
-                        <Select
-                          value={settings[activeProvider]?.model || ''}
-                          onValueChange={(value) => handleSettingChange(activeProvider, "model", value)}
-                          data-form-type="other"
-                        >
-                          <SelectTrigger id={`${uniqueId}-settings-modal-${activeProvider}-model`} className="bg-gray-900 text-white border-gray-800">
-                            <SelectValue placeholder="Select model" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-900 text-white border-gray-800">
-                            {modelOptions[activeProvider].map((model) => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Input
+                        type="text"
+                        id={`${uniqueId}-settings-modal-${activeProvider}-model`}
+                        value={settings[activeProvider]?.model || ''}
+                        onChange={(e) => handleSettingChange(activeProvider, "model", e.target.value)}
+                        className="bg-gray-900 text-white border-gray-800"
+                      />
                     </div>
                     {/* Temperature */}
                     <div className="flex items-center space-x-4">
