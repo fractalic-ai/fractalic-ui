@@ -1,106 +1,144 @@
 .markdownRoot {
-  background-color: rgb(30, 30, 30);
-  color: #d4d4d4;
+  background-color: #22272e; /* GitHub dark dimmed background */
+  color: #adbac7; /* GitHub dark dimmed text */
   width: 100%;
   height: 100%;
-  padding: 1.5rem;
+  padding: 2rem;
   position: relative;
   overflow: visible; /* Allow content to be fully visible */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
 }
 
 .markdownContent {
-  font-size: 1rem;
-  line-height: 1.5;
-  color: #d4d4d4;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #adbac7; /* GitHub dark dimmed text */
   width: 100%;
   height: auto;
   min-height: 100%;
   display: block;
-  word-wrap: break-word;
-  word-break: break-word;
   overflow-wrap: break-word;
-  white-space: pre-wrap;
+  word-wrap: break-word; /* For older browsers */
+  word-break: break-word; /* Enhanced word breaking for long words */
+  white-space: normal; /* Changed from pre-wrap to fix line wrapping */
+  max-width: 100%; /* Ensure content doesn't exceed container */
+  box-sizing: border-box;
 }
 
-.markdownContent h1,
-.markdownContent h2,
-.markdownContent h3,
-.markdownContent h4,
-.markdownContent h5,
-.markdownContent h6 {
-  color: hsl(var(--foreground));
-  margin: 1.5rem 0 0.5rem 0;
+/* Fix for bottom content visibility */
+.bottomPadding {
+  height: 2rem;
+  width: 100%;
+}
+
+/* Headers with improved text wrapping */
+.markdownHeading {
+  color: #adbac7;
+  margin: 1.25rem 0 0.75rem 0; /* Reduced top margin */
   font-weight: 600;
   line-height: 1.25;
+  padding-bottom: 0.3em;
   background: transparent !important;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+  display: block;
 }
 
 .markdownContent h1 {
   font-size: 2em;
-  margin-bottom: 0.5em;
-  color: #d4d4d4;
+  border-bottom: 1px solid #373e47;
+  margin-bottom: 0.75em; /* Reduced margin */
 }
 
 .markdownContent h2 {
   font-size: 1.5em;
-  margin-bottom: 0.5em;
-  color: #d4d4d4;
+  border-bottom: 1px solid #373e47;
+  margin-bottom: 0.5em; /* Reduced margin */
 }
 
 .markdownContent h3 {
   font-size: 1.25em;
-  margin-bottom: 0.5em;
-  color: #d4d4d4;
+  margin-bottom: 0.4em; /* Reduced margin */
 }
 
-.markdownContent h4 { font-size: 1.125em; }
-.markdownContent h5 { font-size: 1em; }
-.markdownContent h6 { font-size: 0.875em; }
+.markdownContent h4 { font-size: 1em; }
+.markdownContent h5 { font-size: 0.875em; }
+.markdownContent h6 { font-size: 0.85em; }
 
-.markdownContent p {
-  margin: 0 0 1rem 0;
-  color: #d4d4d4;
+/* Paragraphs with improved wrapping */
+.markdownParagraph {
+  margin: 0 0 0.75rem 0; /* Reduced bottom margin */
+  color: #adbac7;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .inlineCode {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
+  background: #2d333b; /* GitHub dark dimmed inline code background */
+  color: #adbac7;
   padding: 0.2rem 0.4rem;
   border-radius: 0.3rem;
-  font-family: var(--font-mono);
-  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 85%;
+  white-space: normal; /* Allow inline code to wrap */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
+/* Code block wrapper to ensure proper containment */
+.codeWrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+/* Code blocks - fixed double border issue */
 .markdownContent pre {
-  background-color: #1e1e1e !important;
-  padding: 1em;
+  margin: 0.75rem 0; /* Reduced margin */
+  padding: 0; /* No padding as it's provided by SyntaxHighlighter */
   border-radius: 6px;
   max-width: 100%;
   overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  background-color: transparent !important; /* Remove background */
+  border: none; /* Remove border as it's added by SyntaxHighlighter */
 }
 
+/* Blockquotes */
 .markdownContent blockquote {
-  border-left: 4px solid #404040;
-  margin: 0;
-  padding-left: 1em;
-  color: #808080;
+  border-left: 4px solid #444c56; /* GitHub dark dimmed blockquote border */
+  margin: 0 0 0.75em 0; /* Reduced bottom margin */
+  padding: 0 1em;
+  color: #768390; /* GitHub dark dimmed blockquote text */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
 }
 
-/* List styling */
+/* List styling with reduced spacing */
+.markdownContent ul,
+.markdownContent ol {
+  padding-left: 1.5em; /* Slightly reduced padding */
+  margin: 0 0 0.75rem 0; /* Reduced bottom margin */
+}
+
 .markdownContent ul {
   list-style-type: disc;
-  margin: 0 0 1rem 1.5rem;
 }
 
 .markdownContent ol {
   list-style-type: decimal;
-  margin: 0 0 1rem 1.5rem;
 }
 
 .markdownContent ul ul {
   list-style-type: circle;
+  margin-bottom: 0; /* Remove margin between nested lists */
 }
 
 .markdownContent ul ul ul {
@@ -108,45 +146,149 @@
 }
 
 .markdownContent li {
-  margin-bottom: 0.5em;
-  display: list-item;
+  margin-bottom: 0.15em; /* Reduced margin */
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
+.markdownContent li + li {
+  margin-top: 0.15em; /* Reduced margin */
+}
+
+/* Links */
 .markdownContent a {
-  color: #3794ff;
+  color: #539bf5; /* GitHub link blue */
   text-decoration: none;
+  word-break: break-all; /* Break long URLs anywhere */
 }
 
 .markdownContent a:hover {
   text-decoration: underline;
 }
 
+/* Text formatting */
+.markdownContent strong {
+  font-weight: 600;
+  color: #adbac7;
+}
+
+.markdownContent em {
+  font-style: italic;
+}
+
 .markdownContent code {
-  background-color: #1e1e1e;
+  background-color: #2d333b;
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 85%;
+  white-space: break-spaces; /* Allow code to break */
+  word-break: break-all; /* More aggressive breaking for code */
 }
 
-.markdownContent table {
-  border-collapse: collapse;
+/* Table container to control width based on content */
+.tableContainer {
   width: 100%;
-  max-width: 100%;
   overflow-x: auto;
-  display: block;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
-.markdownContent th, .markdownContent td {
-  border: 1px solid #404040;
-  padding: 0.5em;
-  color: #d4d4d4;
+/* Tables that respect content width */
+.markdownTable {
+  border-collapse: collapse;
+  width: auto; /* Changed from 100% to auto to respect content width */
+  max-width: 100%;
+  table-layout: auto; /* Changed from fixed to auto to allow content-based sizing */
+  margin-bottom: 0;
+  border-spacing: 0;
+  border: 1px solid #444c56;
+  display: table; /* Changed from block to table */
 }
 
-.markdownContent img {
+.markdownTableCell {
+  border: 1px solid #444c56;
+  padding: 6px 13px;
+  color: #adbac7;
+  word-break: normal; /* Less aggressive breaking for table cells */
+  overflow-wrap: break-word;
+}
+
+.markdownContent thead {
+  background-color: #2d333b;
+}
+
+.markdownContent th, 
+.markdownContent td {
+  border: 1px solid #444c56;
+  padding: 6px 13px;
+  color: #adbac7;
+}
+
+.markdownContent tr {
+  background-color: #22272e;
+  border-top: 1px solid #444c56;
+}
+
+.markdownContent tr:nth-child(2n) {
+  background-color: #2d333b;
+}
+
+/* Improved image handling */
+.markdownImage {
   max-width: 100%;
   height: auto;
   display: block;
+  margin: 0.75em 0; /* Reduced margin */
+  border-radius: 6px;
+}
+
+.markdownContent hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 16px 0; /* Reduced margin */
+  background-color: #444c56;
+  border: 0;
+}
+
+.markdownContent kbd {
+  background-color: #2d333b;
+  border: 1px solid #444c56;
+  border-radius: 3px;
+  box-shadow: inset 0 -1px 0 #444c56;
+  color: #adbac7;
+  display: inline-block;
+  font-size: 11px;
+  line-height: 10px;
+  padding: 3px 5px;
+  vertical-align: middle;
+}
+
+.markdownContent details {
+  margin: 0.75em 0; /* Reduced margin */
+}
+
+.markdownContent summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin: -0.5em -0.5em 0;
+  padding: 0.5em;
+}
+
+.markdownContent details[open] summary {
+  margin-bottom: 0.4em; /* Reduced margin */
+}
+
+/* Fix spacing between consecutive elements */
+.markdownContent > *:not(:first-child) {
+  margin-top: 0.75rem;
+}
+
+/* Ensure code blocks have proper margins and wrapping */
+.markdownContent div[data-language] {
+  margin: 0.75rem 0; /* Consistent margin */
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
