@@ -35,7 +35,7 @@
 /* Headers with improved text wrapping and increased top margin */
 .markdownHeading {
   color: #adbac7;
-  margin: 2rem 0 0.75rem 0; /* Increased top margin from 1.25rem to 2rem */
+  margin: 2rem 0 0.5rem 0; 
   font-weight: 600;
   line-height: 1.25;
   padding-bottom: 0.3em;
@@ -59,18 +59,18 @@
 .markdownContent h1 {
   font-size: 2em;
   border-bottom: 1px solid #373e47;
-  margin-bottom: 1em; /* Increased margin */
+  margin-bottom: 0.5em; 
 }
 
 .markdownContent h2 {
   font-size: 1.5em;
   border-bottom: 1px solid #373e47;
-  margin-bottom: 0.75em; /* Increased margin */
+  margin-bottom: 0.5em; 
 }
 
 .markdownContent h3 {
   font-size: 1.25em;
-  margin-bottom: 0.5em; /* Increased margin */
+  margin-bottom: 0.4em; 
 }
 
 .markdownContent h4 { font-size: 1em; }
@@ -131,11 +131,11 @@
   max-width: 100%;
 }
 
-/* List styling with increased spacing */
+/* List styling with tighter spacing */
 .markdownContent ul,
 .markdownContent ol {
-  padding-left: 1.5em; /* Slightly reduced padding */
-  margin: 0 0 1rem 0; /* Increased bottom margin */
+  padding-left: 1.5em;
+  margin: 0 0 1rem 0;
 }
 
 .markdownContent ul {
@@ -146,25 +146,43 @@
   list-style-type: decimal;
 }
 
-.markdownContent ul ul {
+.markdownContent ul ul,
+.markdownContent ol ul {
   list-style-type: circle;
-  margin-bottom: 0; /* Remove margin between nested lists */
+  margin-bottom: 0;
+  margin-top: 0; /* Ensure no extra space between nested lists */
 }
 
-.markdownContent ul ul ul {
+.markdownContent ul ul ul,
+.markdownContent ol ul ul {
   list-style-type: square;
 }
 
+/* Fix the excessive spacing between list items */
 .markdownContent li {
-  margin-bottom: 0.25em; /* Increased margin */
-  line-height: 1.6;
+  margin-bottom: 0.1em; /* Reduced from 0.25em */
+  margin-top: 0; /* Reset any top margin */
+  line-height: 1.5; /* Slightly reduced line height */
   overflow-wrap: break-word;
   word-break: break-word;
-  white-space: pre-wrap; /* Added to preserve line breaks */
 }
 
+/* Remove the additional spacing between list items */
 .markdownContent li + li {
-  margin-top: 0.25em; /* Increased margin */
+  margin-top: 0.1em; /* Reduced from 0.25em */
+}
+
+/* Remove white-space: pre-wrap from list items to prevent extra spacing */
+.markdownContent li p {
+  white-space: normal;
+  margin-bottom: 0.5rem;
+}
+
+/* Ensure proper spacing for nested lists */
+.markdownContent li > ul,
+.markdownContent li > ol {
+  margin-top: 0.1em;
+  margin-bottom: 0;
 }
 
 /* Links */

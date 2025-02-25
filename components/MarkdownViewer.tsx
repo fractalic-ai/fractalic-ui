@@ -198,11 +198,17 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 return <h6 className={styles.markdownHeading} {...props}>{children}</h6>;
               },
               
-              // Preserve line breaks in list items
+              // Preserve line breaks in list items but prevent excessive spacing
               li({ children, ...props }) {
                 return (
                   <li {...props}>
-                    {typeof children === 'string' ? preserveLineBreaks(children) : children}
+                    {React.Children.map(children, child => {
+                      // Only apply preserveLineBreaks to plain strings, not elements
+                      if (typeof child === 'string') {
+                        return preserveLineBreaks(child);
+                      }
+                      return child;
+                    })}
                   </li>
                 );
               }
