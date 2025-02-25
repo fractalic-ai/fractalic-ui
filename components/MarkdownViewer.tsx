@@ -13,8 +13,10 @@ interface MarkdownViewerProps {
   content: string;
   className?: string;
   isDarkMode?: boolean;
+  showLineNumbers?: boolean;
 }
 
+// Create a custom theme for regular code blocks
 const customTomorrowTheme = {
   ...tomorrow,
   'code[class*="language-"]': {
@@ -23,18 +25,59 @@ const customTomorrowTheme = {
     color: '#adbac7',
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
-    overflowWrap: 'break-word'
+    overflowWrap: 'break-word',
+    margin: 0,
+    padding: 0
   },
   'pre[class*="language-"]': {
     ...tomorrow['pre[class*="language-"]'],
     backgroundColor: '#2d333b',
     color: '#adbac7',
-    margin: '0',
-    padding: '1rem',
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
-    overflowWrap: 'break-word'
+    overflowWrap: 'break-word',
+    margin: 0,
+    padding: 0
   }
+};
+
+// CSS class to inject
+const customCSS = `
+  /* Fix for line display in code blocks */
+  .markdown-code-wrapper span[style*="display: flex"] {
+    display: block !important;
+  }
+  
+  .markdown-code-wrapper .react-syntax-highlighter-line-number {
+    display: inline-block !important;
+    min-width: 2.5em !important;
+    padding-right: 1em !important;
+    text-align: right !important;
+    user-select: none !important;
+    color: #6e7681 !important;
+    border-right: 1px solid #444c56 !important;
+    margin-right: 1em !important;
+  }
+`;
+
+// Style injector component
+const StyleInjector = () => {
+  React.useEffect(() => {
+    const id = 'markdown-code-fix-styles';
+    if (!document.getElementById(id)) {
+      const styleElement = document.createElement('style');
+      styleElement.id = id;
+      styleElement.innerHTML = customCSS;
+      document.head.appendChild(styleElement);
+      
+      return () => {
+        const element = document.getElementById(id);
+        if (element) document.head.removeChild(element);
+      };
+    }
+  }, []);
+  
+  return null;
 };
 
 // Helper function to preserve line breaks in text
@@ -57,13 +100,15 @@ const preserveLineBreaks = (text: string) => {
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
   content, 
   className = '', 
-  isDarkMode = true 
+  isDarkMode = true,
+  showLineNumbers = true
 }) => {
   // Preprocess the markdown source before rendering
   const transformedContent = transformCustomYAMLBlocks(content);
 
   return (
     <ScrollArea className="h-full w-full relative pb-12" scrollHideDelay={0}>
+      <StyleInjector />
       <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
         <div className={`${styles.markdownContent} ${className}`}>
           <ReactMarkdown
@@ -77,29 +122,80 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 if (match && match[1] === 'mermaid') {
                   return <MermaidDiagram chart={String(children).trim()} isDarkMode={isDarkMode} />;
                 }
-                
+
                 // Handle code blocks with syntax highlighting
                 if (!inline && match) {
+                  // Check if this is a custom operation block
+                  const codeContent = String(children).trim();
+                  const allowedPrefixes = ['@run', '@llm', '@goto', '@shell', '@import', '@return', '@operation'];
+                  const isCustomOperation = allowedPrefixes.some(prefix => 
+                    codeContent.startsWith(prefix)
+                  );
+                  
+                  // Check if this block should show line numbers
+                  const hasLineNumbersMeta = /\{showLineNumbers(=true|=false)?\}/.test(className || '');
+                  const lineNumbersDisabled = /\{showLineNumbers=false\}/.test(className || '');
+                  const lineNumbersEnabled = hasLineNumbersMeta && !lineNumbersDisabled;
+                  
+                  // Determine whether to show line numbers for this block
+                  const shouldShowLineNumbers = lineNumbersEnabled || (showLineNumbers && !lineNumbersDisabled);
+                  
+                  // Set styles directly on the container for better control
+                  const wrapperStyle: React.CSSProperties = {
+                    marginTop: '1rem',
+                    marginBottom: '1rem',
+                    borderRadius: '6px',
+                    overflow: 'hidden', // Ensure content doesn't overflow rounded corners
+                    border: '1px solid #444c56',
+                    width: '100%',
+                    maxWidth: '100%' // Ensure it doesn't exceed container
+                  };
+                  
+                  // Apply special styling for custom operations
+                  if (isCustomOperation) {
+                    Object.assign(wrapperStyle, {
+                      boxShadow: 'rgba(0, 0, 0, 0.5) 0px 0px 10px 0px inset',
+                      backgroundImage: 'radial-gradient(rgb(60, 60, 62) 0.5px, rgba(0, 0, 0, 0) 0.5px), radial-gradient(rgb(67, 67, 69) 0.5px, rgb(16, 25, 50) 0.5px)',
+                      backgroundSize: '20px 20px, 20px 20px',
+                      backgroundPosition: '0px 0px, 10px 10px',
+                      backgroundColor: 'rgb(16, 25, 50)', // #101932
+                      opacity: 0.8
+                    });
+                  }
+                  
+                  // Style for the SyntaxHighlighter itself
+                  const codeBlockStyle: React.CSSProperties = {
+                    margin: 0,
+                    padding: '1rem',
+                    width: '100%',
+                    backgroundColor: isCustomOperation ? 'transparent' : '#2d333b',
+                    // Always wrap text for all code blocks
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word'
+                  };
+                  
                   return (
-                    <div className={styles.codeWrapper}>
+                    <div 
+                      className="markdown-code-wrapper" 
+                      style={wrapperStyle}
+                    >
                       <SyntaxHighlighter
                         style={customTomorrowTheme}
                         language={match[1]}
                         PreTag="div"
                         {...props}
-                        wrapLongLines={true}
-                        customStyle={{
-                          marginTop: '1rem',
-                          marginBottom: '1rem', 
-                          padding: '1rem',
-                          width: '100%',
-                          overflow: 'auto',
-                          backgroundColor: '#2d333b',
-                          border: '1px solid #444c56',
-                          borderRadius: '6px',
-                          wordBreak: 'break-word',
-                          whiteSpace: 'pre-wrap',
-                          overflowWrap: 'break-word'
+                        customStyle={codeBlockStyle}
+                        showLineNumbers={shouldShowLineNumbers}
+                        wrapLongLines={true}  // Always wrap lines
+                        lineNumberStyle={{
+                          minWidth: '2.5em',
+                          paddingRight: '1em',
+                          textAlign: 'right',
+                          userSelect: 'none',
+                          color: '#6e7681',
+                          borderRight: '1px solid #444c56',
+                          marginRight: '1em'
                         }}
                       >
                         {String(children).replace(/\n$/, '')}
@@ -107,7 +203,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     </div>
                   );
                 }
-                
+
                 // Handle inline code
                 return (
                   <code
@@ -119,7 +215,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Improve link rendering with proper wrapping
+              // Rest of the component renderers remain unchanged
               a({ node, children, href, ...props }) {
                 return (
                   <a 
@@ -133,7 +229,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Improve image rendering
               img({ src, alt, ...props }) {
                 return (
                   <img 
@@ -146,7 +241,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Fix table rendering to respect content width
               table({ children }) {
                 return (
                   <div className={styles.tableContainer}>
@@ -155,7 +249,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Improve table cells to handle text wrapping
               td({ children, ...props }) {
                 return (
                   <td 
@@ -167,9 +260,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Ensure paragraphs preserve line breaks
               p({ children }) {
-                // Pass the children through our helper function to preserve line breaks
                 return (
                   <p className={styles.markdownParagraph}>
                     {typeof children === 'string' ? preserveLineBreaks(children) : children}
@@ -177,12 +268,10 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Handle line breaks directly
               br() {
                 return <br />;
               },
               
-              // Add proper heading wrapping
               h1({ children, ...props }) {
                 return <h1 className={styles.markdownHeading} {...props}>{children}</h1>;
               },
@@ -202,12 +291,10 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 return <h6 className={styles.markdownHeading} {...props}>{children}</h6>;
               },
               
-              // Preserve line breaks in list items but prevent excessive spacing
               li({ children, ...props }) {
                 return (
                   <li {...props}>
                     {React.Children.map(children, child => {
-                      // Only apply preserveLineBreaks to plain strings, not elements
                       if (typeof child === 'string') {
                         return preserveLineBreaks(child);
                       }
@@ -220,7 +307,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           >
             {transformedContent}
           </ReactMarkdown>
-          {/* Add increased bottom padding to ensure last item is visible */}
           <div className={styles.bottomPadding}></div>
         </div>
       </div>

@@ -321,3 +321,11 @@
   overflow-wrap: break-word;
   word-break: break-word;
 }
+
+.customCodeBlock {
+  background-color: #202646 !important; /* Dark blue background */
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow: auto;
+}
