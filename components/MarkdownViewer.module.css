@@ -26,16 +26,16 @@
   box-sizing: border-box;
 }
 
-/* Fix for bottom content visibility */
+/* Fix for bottom content visibility - increased from 2rem to 5rem */
 .bottomPadding {
-  height: 2rem;
+  height: 5rem;
   width: 100%;
 }
 
-/* Headers with improved text wrapping */
+/* Headers with improved text wrapping and increased top margin */
 .markdownHeading {
   color: #adbac7;
-  margin: 1.25rem 0 0.75rem 0; /* Reduced top margin */
+  margin: 2rem 0 0.75rem 0; /* Increased top margin from 1.25rem to 2rem */
   font-weight: 600;
   line-height: 1.25;
   padding-bottom: 0.3em;
@@ -46,37 +46,47 @@
   display: block;
 }
 
+/* First heading should have less top margin */
+.markdownContent > h1:first-child,
+.markdownContent > h2:first-child,
+.markdownContent > h3:first-child,
+.markdownContent > h4:first-child,
+.markdownContent > h5:first-child,
+.markdownContent > h6:first-child {
+  margin-top: 0.5rem;
+}
+
 .markdownContent h1 {
   font-size: 2em;
   border-bottom: 1px solid #373e47;
-  margin-bottom: 0.75em; /* Reduced margin */
+  margin-bottom: 1em; /* Increased margin */
 }
 
 .markdownContent h2 {
   font-size: 1.5em;
   border-bottom: 1px solid #373e47;
-  margin-bottom: 0.5em; /* Reduced margin */
+  margin-bottom: 0.75em; /* Increased margin */
 }
 
 .markdownContent h3 {
   font-size: 1.25em;
-  margin-bottom: 0.4em; /* Reduced margin */
+  margin-bottom: 0.5em; /* Increased margin */
 }
 
 .markdownContent h4 { font-size: 1em; }
 .markdownContent h5 { font-size: 0.875em; }
 .markdownContent h6 { font-size: 0.85em; }
 
-/* Paragraphs with improved wrapping */
+/* Paragraphs with improved wrapping and spacing */
 .markdownParagraph {
-  margin: 0 0 0.75rem 0; /* Reduced bottom margin */
+  margin: 0 0 1rem 0; /* Increased bottom margin from 0.75rem to 1rem */
   color: #adbac7;
   line-height: 1.6;
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
   max-width: 100%;
-  white-space: normal;
+  white-space: pre-wrap; /* Changed from normal to preserve line breaks */
 }
 
 .inlineCode {
@@ -96,12 +106,12 @@
   width: 100%;
   max-width: 100%;
   overflow: hidden;
-  margin: 0.75rem 0;
+  margin: 1rem 0; /* Increased margin from 0.75rem to 1rem */
 }
 
 /* Code blocks - fixed double border issue */
 .markdownContent pre {
-  margin: 0.75rem 0; /* Reduced margin */
+  margin: 1rem 0; /* Increased margin */
   padding: 0; /* No padding as it's provided by SyntaxHighlighter */
   border-radius: 6px;
   max-width: 100%;
@@ -110,22 +120,22 @@
   border: none; /* Remove border as it's added by SyntaxHighlighter */
 }
 
-/* Blockquotes */
+/* Blockquotes with increased margin */
 .markdownContent blockquote {
   border-left: 4px solid #444c56; /* GitHub dark dimmed blockquote border */
-  margin: 0 0 0.75em 0; /* Reduced bottom margin */
-  padding: 0 1em;
+  margin: 0 0 1em 0; /* Increased bottom margin */
+  padding: 0.5em 1em; /* Added vertical padding */
   color: #768390; /* GitHub dark dimmed blockquote text */
   overflow-wrap: break-word;
   word-break: break-word;
   max-width: 100%;
 }
 
-/* List styling with reduced spacing */
+/* List styling with increased spacing */
 .markdownContent ul,
 .markdownContent ol {
   padding-left: 1.5em; /* Slightly reduced padding */
-  margin: 0 0 0.75rem 0; /* Reduced bottom margin */
+  margin: 0 0 1rem 0; /* Increased bottom margin */
 }
 
 .markdownContent ul {
@@ -146,14 +156,15 @@
 }
 
 .markdownContent li {
-  margin-bottom: 0.15em; /* Reduced margin */
+  margin-bottom: 0.25em; /* Increased margin */
   line-height: 1.6;
   overflow-wrap: break-word;
   word-break: break-word;
+  white-space: pre-wrap; /* Added to preserve line breaks */
 }
 
 .markdownContent li + li {
-  margin-top: 0.15em; /* Reduced margin */
+  margin-top: 0.25em; /* Increased margin */
 }
 
 /* Links */
@@ -191,7 +202,7 @@
 .tableContainer {
   width: 100%;
   overflow-x: auto;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem; /* Increased margin */
 }
 
 /* Tables that respect content width */
@@ -234,19 +245,19 @@
   background-color: #2d333b;
 }
 
-/* Improved image handling */
+/* Improved image handling with increased margin */
 .markdownImage {
   max-width: 100%;
   height: auto;
   display: block;
-  margin: 0.75em 0; /* Reduced margin */
+  margin: 1em 0; /* Increased margin */
   border-radius: 6px;
 }
 
 .markdownContent hr {
   height: 0.25em;
   padding: 0;
-  margin: 16px 0; /* Reduced margin */
+  margin: 2rem 0; /* Increased margin */
   background-color: #444c56;
   border: 0;
 }
@@ -265,7 +276,7 @@
 }
 
 .markdownContent details {
-  margin: 0.75em 0; /* Reduced margin */
+  margin: 1em 0; /* Increased margin */
 }
 
 .markdownContent summary {
@@ -276,17 +287,17 @@
 }
 
 .markdownContent details[open] summary {
-  margin-bottom: 0.4em; /* Reduced margin */
+  margin-bottom: 0.5em; /* Increased margin */
 }
 
 /* Fix spacing between consecutive elements */
 .markdownContent > *:not(:first-child) {
-  margin-top: 0.75rem;
+  margin-top: 1rem; /* Increased margin from 0.75rem to 1rem */
 }
 
 /* Ensure code blocks have proper margins and wrapping */
 .markdownContent div[data-language] {
-  margin: 0.75rem 0; /* Consistent margin */
+  margin: 1rem 0; /* Increased margin */
   width: 100%;
   max-width: 100%;
   overflow-wrap: break-word;

@@ -36,13 +36,30 @@ const customTomorrowTheme = {
   }
 };
 
+// Helper function to preserve line breaks in text
+const preserveLineBreaks = (text: string) => {
+  if (typeof text !== 'string') return text;
+  
+  // Split text by newlines and wrap with React fragments to preserve breaks
+  const parts = text.split(/\n/).reduce((acc: React.ReactNode[], part, i, arr) => {
+    if (i < arr.length - 1) {
+      acc.push(part, <br key={i} />);
+    } else {
+      acc.push(part);
+    }
+    return acc;
+  }, []);
+  
+  return <>{parts}</>;
+};
+
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
   content, 
   className = '', 
   isDarkMode = true 
 }) => {
   return (
-    <ScrollArea className="h-full w-full relative pb-8" scrollHideDelay={0}>
+    <ScrollArea className="h-full w-full relative pb-12" scrollHideDelay={0}>
       <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
         <div className={`${styles.markdownContent} ${className}`}>
           <ReactMarkdown
@@ -68,8 +85,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         {...props}
                         wrapLongLines={true}
                         customStyle={{
-                          marginTop: '0.75rem',
-                          marginBottom: '0.75rem', 
+                          marginTop: '1rem',
+                          marginBottom: '1rem', 
                           padding: '1rem',
                           width: '100%',
                           overflow: 'auto',
@@ -91,7 +108,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 return (
                   <code
                     className={`${styles.inlineCode} ${className || ''}`}
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                     {...props}
                   >
                     {children}
@@ -106,7 +122,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     href={href} 
                     target={href?.startsWith('http') ? '_blank' : undefined}
                     rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    style={{ wordBreak: 'break-all', overflowWrap: 'break-word' }}
                     {...props}
                   >
                     {children}
@@ -148,13 +163,19 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Ensure paragraphs have proper spacing and word wrapping
+              // Ensure paragraphs preserve line breaks
               p({ children }) {
+                // Pass the children through our helper function to preserve line breaks
                 return (
                   <p className={styles.markdownParagraph}>
-                    {children}
+                    {typeof children === 'string' ? preserveLineBreaks(children) : children}
                   </p>
                 );
+              },
+              
+              // Handle line breaks directly
+              br() {
+                return <br />;
               },
               
               // Add proper heading wrapping
@@ -175,12 +196,21 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               },
               h6({ children, ...props }) {
                 return <h6 className={styles.markdownHeading} {...props}>{children}</h6>;
+              },
+              
+              // Preserve line breaks in list items
+              li({ children, ...props }) {
+                return (
+                  <li {...props}>
+                    {typeof children === 'string' ? preserveLineBreaks(children) : children}
+                  </li>
+                );
               }
             }}
           >
             {content}
           </ReactMarkdown>
-          {/* Add bottom padding to ensure last item is visible */}
+          {/* Add increased bottom padding to ensure last item is visible */}
           <div className={styles.bottomPadding}></div>
         </div>
       </div>
