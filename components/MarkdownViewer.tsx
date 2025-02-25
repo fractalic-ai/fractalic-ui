@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './MarkdownViewer.module.css';
 import MermaidDiagram from './MermaidDiagram';
+import { transformCustomYAMLBlocks } from '../utils/transformCustomYAMLBlocks';
 
 interface MarkdownViewerProps {
   content: string;
@@ -58,6 +59,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   className = '', 
   isDarkMode = true 
 }) => {
+  // Preprocess the markdown source before rendering
+  const transformedContent = transformCustomYAMLBlocks(content);
+
   return (
     <ScrollArea className="h-full w-full relative pb-12" scrollHideDelay={0}>
       <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
@@ -214,7 +218,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               }
             }}
           >
-            {content}
+            {transformedContent}
           </ReactMarkdown>
           {/* Add increased bottom padding to ensure last item is visible */}
           <div className={styles.bottomPadding}></div>
