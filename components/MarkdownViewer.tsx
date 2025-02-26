@@ -27,7 +27,8 @@ const customTomorrowTheme = {
     whiteSpace: 'pre-wrap',
     overflowWrap: 'break-word',
     margin: 0,
-    padding: 0
+    padding: 0,
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace'
   },
   'pre[class*="language-"]': {
     ...tomorrow['pre[class*="language-"]'],
@@ -37,7 +38,35 @@ const customTomorrowTheme = {
     whiteSpace: 'pre-wrap',
     overflowWrap: 'break-word',
     margin: 0,
-    padding: 0
+    padding: 0,
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace'
+  }
+};
+
+// Create a transparent theme for custom operation blocks
+const transparentTheme = {
+  ...tomorrow,
+  'code[class*="language-"]': {
+    ...tomorrow['code[class*="language-"]'],
+    backgroundColor: 'transparent',
+    color: '#adbac7',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'break-word',
+    margin: 0,
+    padding: 0,
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace'
+  },
+  'pre[class*="language-"]': {
+    ...tomorrow['pre[class*="language-"]'],
+    backgroundColor: 'transparent',
+    color: '#adbac7',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'break-word',
+    margin: 0,
+    padding: 0,
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace'
   }
 };
 
@@ -101,7 +130,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   content, 
   className = '', 
   isDarkMode = true,
-  showLineNumbers = true
+  showLineNumbers = false
 }) => {
   // Preprocess the markdown source before rendering
   const transformedContent = transformCustomYAMLBlocks(content);
@@ -169,7 +198,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     padding: '1rem',
                     width: '100%',
                     backgroundColor: isCustomOperation ? 'transparent' : '#2d333b',
-                    // Always wrap text for all code blocks
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     overflowWrap: 'break-word'
@@ -181,7 +209,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                       style={wrapperStyle}
                     >
                       <SyntaxHighlighter
-                        style={customTomorrowTheme}
+                        style={isCustomOperation ? transparentTheme : customTomorrowTheme}
                         language={match[1]}
                         PreTag="div"
                         {...props}
