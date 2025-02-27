@@ -16,7 +16,8 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [isPanMode, setIsPanMode] = useState(false);
+  // Set pan mode to true by default
+  const [isPanMode, setIsPanMode] = useState(true);
   
   // Store the rendered diagram to prevent re-rendering on zoom/pan
   const renderedDiagramRef = useRef<string | null>(null);
@@ -173,6 +174,7 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
             mermaidDiv.id = chartId.current;
             mermaidDiv.className = 'mermaid';
             mermaidDiv.textContent = chart;
+            mermaidDiv.style.backgroundColor = 'transparent';
             elementRef.current.appendChild(mermaidDiv);
             
             // Render the mermaid diagram
@@ -189,11 +191,35 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
               svgElement.style.minHeight = '200px';
               svgElement.style.display = 'block'; // Prevent inline display issues
               svgElement.style.overflow = 'visible'; // Prevent clipping
+              svgElement.style.backgroundColor = 'transparent';
               
-              // Remove any background rectangles that might be causing the gray background
-              const backgroundRects = svgElement.querySelectorAll('rect[fill="#0F172A"], rect[fill="#2d333b"]');
-              backgroundRects.forEach(rect => {
-                rect.setAttribute('fill', 'transparent'); 
+              // More aggressive approach to remove backgrounds
+              const allRects = svgElement.querySelectorAll('rect');
+              allRects.forEach(rect => {
+                const fill = rect.getAttribute('fill');
+                // If it's a background rect (based on size or position)
+                if (rect.getAttribute('width') === '100%' || 
+                    rect.getAttribute('width') === svgElement.getAttribute('width') ||
+                    rect.getAttribute('height') === svgElement.getAttribute('height') ||
+                    !rect.getAttribute('class') || // Background rects usually don't have classes
+                    rect.getAttribute('x') === '0' && rect.getAttribute('y') === '0' ||
+                    fill === '#0F172A' || fill === '#2d333b' || fill === '#1e293b' ||
+                    fill && fill.toLowerCase().includes('bg')
+                ) {
+                    rect.setAttribute('fill', 'transparent');
+                    rect.setAttribute('fill-opacity', '0');
+                }
+              });
+              
+              // Fix background color for foreignObjects (HTML labels)
+              const foreignObjects = svgElement.querySelectorAll('foreignObject');
+              foreignObjects.forEach(obj => {
+                const divs = obj.querySelectorAll('div');
+                divs.forEach(div => {
+                  if (div.style.backgroundColor) {
+                    div.style.backgroundColor = 'transparent';
+                  }
+                });
               });
               
               // Make SVG interactive
@@ -222,6 +248,19 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
               const textElements = svgElement.querySelectorAll('text');
               textElements.forEach(text => {
                 text.style.fill = theme.textColor;
+              });
+              
+              // Remove any remnants of background styling
+              const styles = svgElement.querySelectorAll('style');
+              styles.forEach(style => {
+                let cssText = style.textContent || '';
+                cssText = cssText
+                  .replace(/background-color:[^;]+;/g, 'background-color:transparent;')
+                  .replace(/fill:#0[fF]172[aA];/g, 'fill:transparent;')
+                  .replace(/fill:#2[dD]333[bB];/g, 'fill:transparent;')
+                  .replace(/background:#0[fF]172[aA];/g, 'background:transparent;')
+                  .replace(/background:#2[dD]333[bB];/g, 'background:transparent;');
+                style.textContent = cssText;
               });
             }
             
@@ -311,16 +350,53 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
     }
   };
 
+  // Add global style to fix mermaid bg
+  useEffect(() => {
+    // Create and inject a style element to override mermaid's backgrounds
+    const styleId = 'mermaid-transparent-bg';
+    if (!document.getElementById(styleId)) {
+      const styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      styleEl.innerHTML = `
+        .mermaid {
+          background-color: transparent !important;
+          border: none !important;
+        }
+        .mermaid svg {
+          background-color: transparent !important;
+        }
+        .mermaid svg rect {
+          fill-opacity: 1 !important;
+        }
+        .mermaid .rect.basic, .mermaid rect.basic {
+          fill: #2d333b !important;
+        }
+        .mermaid .label {
+          background-color: transparent !important;
+        }
+        .mermaid g[class*="root"] > rect {
+          fill: transparent !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+      
+      return () => {
+        const el = document.getElementById(styleId);
+        if (el) document.head.removeChild(el);
+      };
+    }
+  }, []);
+
   return (
     <div 
       ref={containerRef} 
-      className={`my-4 relative group ${isPanMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      className={`my-4 relative group cursor-grab active:cursor-grabbing`}
       onWheel={handleWheel}
       style={{ 
-        border: '1px solid rgba(75, 85, 99, 0.4)',
         borderRadius: '6px',
         padding: '16px',
-        overflow: 'hidden' // Prevent scrollbars from appearing
+        overflow: 'hidden', // Prevent scrollbars from appearing
+        backgroundColor: 'transparent' // Ensure transparent background
       }}
     >
       {/* Controls overlay */}
@@ -363,15 +439,18 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, isDarkMode }) =>
       </div>
       
       {/* Diagram content - using a wrapper to maintain proper sizing */}
-      <div className="w-full" style={{ maxWidth: '100%' }}>
+      <div className="w-full" style={{ maxWidth: '100%', backgroundColor: 'transparent', border: 'none' }}>
         <div 
           ref={elementRef} 
+          className="bg-transparent"
           style={{ 
             transform: `scale(${zoom}) translate(${position.x}px, ${position.y}px)`,
             transformOrigin: 'top left',
             transition: isDragging ? 'none' : 'transform 0.1s ease-out',
             willChange: 'transform',
             width: '100%',
+            backgroundColor: 'transparent',
+            border: 'none',
             // Create space for the diagram to move without causing scrollbars
             margin: `0 ${zoom > 1 ? '5%' : '0'}`
           }}
