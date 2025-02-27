@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './MarkdownViewer.module.css';
-import MermaidDiagram from './MermaidDiagram';
 import { transformCustomYAMLBlocks } from '../utils/transformCustomYAMLBlocks';
 
 interface MarkdownViewerProps {
@@ -43,7 +42,7 @@ const customTomorrowTheme = {
   }
 };
 
-// Create a transparent theme for custom operation blocks
+// For custom operation blocks
 const transparentTheme = {
   ...tomorrow,
   'code[class*="language-"]': {
@@ -87,11 +86,26 @@ const customCSS = `
     border-right: 1px solid #444c56 !important;
     margin-right: 1em !important;
   }
+
+  /* Mermaid styling */
+  .mermaid {
+    background-color: #2d333b;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 16px 0;
+    border: 1px solid #444c56;
+    overflow: auto;
+  }
+  
+  .mermaid svg {
+    display: block;
+    margin: 0 auto;
+  }
 `;
 
 // Style injector component
 const StyleInjector = () => {
-  React.useEffect(() => {
+  useEffect(() => {
     const id = 'markdown-code-fix-styles';
     if (!document.getElementById(id)) {
       const styleElement = document.createElement('style');
@@ -113,7 +127,6 @@ const StyleInjector = () => {
 const preserveLineBreaks = (text: string) => {
   if (typeof text !== 'string') return text;
   
-  // Split text by newlines and wrap with React fragments to preserve breaks
   const parts = text.split(/\n/).reduce((acc: React.ReactNode[], part, i, arr) => {
     if (i < arr.length - 1) {
       acc.push(part, <br key={i} />);
@@ -132,13 +145,52 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   isDarkMode = true,
   showLineNumbers = false
 }) => {
+  // Reference to track rendered mermaid diagrams
+  const mermaidRef = useRef<HTMLDivElement>(null);
+  
+  // Effect to initialize and render mermaid diagrams after component mount
+  useEffect(() => {
+    const renderMermaidDiagrams = async () => {
+      if (typeof window !== 'undefined' && mermaidRef.current) {
+        try {
+          // Dynamically import mermaid to avoid SSR issues
+          const mermaid = (await import('mermaid')).default;
+          
+          // Configure mermaid
+          mermaid.initialize({
+            theme: isDarkMode ? 'dark' : 'default',
+            startOnLoad: false,
+            securityLevel: 'loose',
+            fontFamily: 'inherit',
+            flowchart: {
+              curve: 'basis',
+              padding: 15,
+            }
+          });
+          
+          // Find and render all mermaid diagrams
+          await mermaid.run();
+        } catch (error) {
+          console.error('Failed to initialize Mermaid:', error);
+        }
+      }
+    };
+    
+    // Small timeout to ensure DOM is ready
+    const timer = setTimeout(() => {
+      renderMermaidDiagrams();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [content, isDarkMode]);
+
   // Preprocess the markdown source before rendering
   const transformedContent = transformCustomYAMLBlocks(content);
 
   return (
     <ScrollArea className="h-full w-full relative pb-12" scrollHideDelay={0}>
       <StyleInjector />
-      <div className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
+      <div ref={mermaidRef} className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
         <div className={`${styles.markdownContent} ${className}`}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -147,9 +199,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               code({ node, inline, className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '');
                 
-                // Handle Mermaid diagrams
+                // Check if this is a mermaid diagram
                 if (match && match[1] === 'mermaid') {
-                  return <MermaidDiagram chart={String(children).trim()} isDarkMode={isDarkMode} />;
+                  return <pre className="mermaid">{String(children).trim()}</pre>;
                 }
 
                 // Handle code blocks with syntax highlighting
@@ -174,10 +226,10 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     marginTop: '1rem',
                     marginBottom: '1rem',
                     borderRadius: '6px',
-                    overflow: 'hidden', // Ensure content doesn't overflow rounded corners
+                    overflow: 'hidden',
                     border: '1px solid #444c56',
                     width: '100%',
-                    maxWidth: '100%' // Ensure it doesn't exceed container
+                    maxWidth: '100%'
                   };
                   
                   // Apply special styling for custom operations
@@ -187,12 +239,11 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                       backgroundImage: 'radial-gradient(rgb(60, 60, 62) 0.5px, rgba(0, 0, 0, 0) 0.5px), radial-gradient(rgb(67, 67, 69) 0.5px, rgb(16, 25, 50) 0.5px)',
                       backgroundSize: '20px 20px, 20px 20px',
                       backgroundPosition: '0px 0px, 10px 10px',
-                      backgroundColor: 'rgb(16, 25, 50)', // #101932
+                      backgroundColor: 'rgb(16, 25, 50)',
                       opacity: 0.8
                     });
                   }
                   
-                  // Style for the SyntaxHighlighter itself
                   const codeBlockStyle: React.CSSProperties = {
                     margin: 0,
                     padding: '1rem',
@@ -215,7 +266,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         {...props}
                         customStyle={codeBlockStyle}
                         showLineNumbers={shouldShowLineNumbers}
-                        wrapLongLines={true}  // Always wrap lines
+                        wrapLongLines={true}
                         lineNumberStyle={{
                           minWidth: '2.5em',
                           paddingRight: '1em',
@@ -243,7 +294,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              // Rest of the component renderers remain unchanged
+              // Other component renderers...
               a({ node, children, href, ...props }) {
                 return (
                   <a 
@@ -303,18 +354,23 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               h1({ children, ...props }) {
                 return <h1 className={styles.markdownHeading} {...props}>{children}</h1>;
               },
+              
               h2({ children, ...props }) {
                 return <h2 className={styles.markdownHeading} {...props}>{children}</h2>;
               },
+              
               h3({ children, ...props }) {
                 return <h3 className={styles.markdownHeading} {...props}>{children}</h3>;
               },
+              
               h4({ children, ...props }) {
                 return <h4 className={styles.markdownHeading} {...props}>{children}</h4>;
               },
+              
               h5({ children, ...props }) {
                 return <h5 className={styles.markdownHeading} {...props}>{children}</h5>;
               },
+              
               h6({ children, ...props }) {
                 return <h6 className={styles.markdownHeading} {...props}>{children}</h6>;
               },
