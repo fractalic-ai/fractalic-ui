@@ -329,3 +329,53 @@
   margin: 1rem 0;
   overflow: auto;
 }
+
+/* Add to your existing styles */
+
+.mermaidContainer {
+  background-color: #2d333b;
+  border-radius: 6px;
+  border: 1px solid #444c56;
+  margin: 16px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.mermaidControls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  background-color: rgba(45, 51, 59, 0.8);
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+}
+
+.mermaidContainer:hover .mermaidControls {
+  opacity: 1;
+}
+
+.mermaidControl {
+  padding: 4px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #adbac7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.mermaidControl:hover {
+  background-color: rgba(68, 76, 86, 0.7);
+}
+
+.mermaidControl.active {
+  background-color: #2e5cb8;
+}

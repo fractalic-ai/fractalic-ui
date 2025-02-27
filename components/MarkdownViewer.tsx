@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './MarkdownViewer.module.css';
 import { transformCustomYAMLBlocks } from '../utils/transformCustomYAMLBlocks';
+import MermaidDiagram from './MermaidDiagram';
 
 interface MarkdownViewerProps {
   content: string;
@@ -147,43 +148,30 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 }) => {
   // Reference to track rendered mermaid diagrams
   const mermaidRef = useRef<HTMLDivElement>(null);
+  // Store mermaid diagrams content
+  const [mermaidDiagrams, setMermaidDiagrams] = useState<Map<string, string>>(new Map());
   
-  // Effect to initialize and render mermaid diagrams after component mount
+  // Effect to extract mermaid diagrams from content
   useEffect(() => {
-    const renderMermaidDiagrams = async () => {
-      if (typeof window !== 'undefined' && mermaidRef.current) {
-        try {
-          // Dynamically import mermaid to avoid SSR issues
-          const mermaid = (await import('mermaid')).default;
-          
-          // Configure mermaid
-          mermaid.initialize({
-            theme: isDarkMode ? 'dark' : 'default',
-            startOnLoad: false,
-            securityLevel: 'loose',
-            fontFamily: 'inherit',
-            flowchart: {
-              curve: 'basis',
-              padding: 15,
-            }
-          });
-          
-          // Find and render all mermaid diagrams
-          await mermaid.run();
-        } catch (error) {
-          console.error('Failed to initialize Mermaid:', error);
-        }
+    const extractMermaidDiagrams = () => {
+      const diagramMap = new Map<string, string>();
+      
+      // Find all mermaid code blocks in the content
+      const regex = /```mermaid\n([\s\S]*?)```/g;
+      let match;
+      let index = 0;
+      
+      while ((match = regex.exec(content)) !== null) {
+        const id = `mermaid-${index++}`;
+        diagramMap.set(id, match[1].trim());
       }
+      
+      setMermaidDiagrams(diagramMap);
     };
     
-    // Small timeout to ensure DOM is ready
-    const timer = setTimeout(() => {
-      renderMermaidDiagrams();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [content, isDarkMode]);
-
+    extractMermaidDiagrams();
+  }, [content]);
+  
   // Preprocess the markdown source before rendering
   const transformedContent = transformCustomYAMLBlocks(content);
 
@@ -201,7 +189,21 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 
                 // Check if this is a mermaid diagram
                 if (match && match[1] === 'mermaid') {
-                  return <pre className="mermaid">{String(children).trim()}</pre>;
+                  const diagramContent = String(children).trim();
+                  const diagramId = Object.keys(Object.fromEntries(mermaidDiagrams))
+                    .find(key => mermaidDiagrams.get(key) === diagramContent);
+                    
+                  // If we have an ID, use the MermaidDiagram component
+                  if (diagramId) {
+                    return <MermaidDiagram 
+                      key={diagramId} 
+                      chart={diagramContent} 
+                      isDarkMode={isDarkMode} 
+                    />;
+                  }
+                  
+                  // Fallback to simple mermaid rendering
+                  return <pre className="mermaid">{diagramContent}</pre>;
                 }
 
                 // Handle code blocks with syntax highlighting
