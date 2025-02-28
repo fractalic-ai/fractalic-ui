@@ -102,6 +102,48 @@ const customCSS = `
     display: block;
     margin: 0 auto;
   }
+
+  /* List styling - improved for proper number alignment */
+  .markdown-list {
+    padding-left: 2em;
+    margin: 1em 0;
+    color: #adbac7;
+  }
+  
+  .markdown-ordered-list {
+    list-style-type: decimal;
+    list-style-position: outside; /* Key property for proper alignment */
+  }
+  
+  .markdown-unordered-list {
+    list-style-type: disc;
+    list-style-position: outside; /* Key property for proper alignment */
+  }
+  
+  .markdown-list-item {
+    margin: 0.25em 0;
+    line-height: 1.6;
+    display: list-item; /* Ensure proper list item display */
+  }
+  
+  /* Fix for multi-line list items */
+  .markdown-list-item > p {
+    margin: 0;
+    display: inline; /* Changed from inline-block to inline */
+  }
+  
+  /* Nested lists */
+  .markdown-list .markdown-list {
+    margin: 0.25em 0 0.25em 1em;
+  }
+  
+  .markdown-unordered-list .markdown-unordered-list {
+    list-style-type: circle;
+  }
+  
+  .markdown-unordered-list .markdown-unordered-list .markdown-unordered-list {
+    list-style-type: square;
+  }
 `;
 
 // Style injector component
@@ -341,7 +383,12 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 );
               },
               
-              p({ children }) {
+              p({ children, node }) {
+                // We don't want to use the special handling of line breaks in list items
+                if (node.parent && (node.parent.type === "listItem")) {
+                  return <p>{children}</p>;
+                }
+                
                 return (
                   <p className={styles.markdownParagraph}>
                     {typeof children === 'string' ? preserveLineBreaks(children) : children}
@@ -377,16 +424,28 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 return <h6 className={styles.markdownHeading} {...props}>{children}</h6>;
               },
               
+              // Update the li component renderer - make it extremely simple
               li({ children, ...props }) {
                 return (
-                  <li {...props}>
-                    {React.Children.map(children, child => {
-                      if (typeof child === 'string') {
-                        return preserveLineBreaks(child);
-                      }
-                      return child;
-                    })}
+                  <li className="markdown-list-item" {...props}>
+                    {children}
                   </li>
+                );
+              },
+              
+              ul({ children, ...props }) {
+                return (
+                  <ul className="markdown-list markdown-unordered-list" {...props}>
+                    {children}
+                  </ul>
+                );
+              },
+              
+              ol({ children, ...props }) {
+                return (
+                  <ol className="markdown-list markdown-ordered-list" {...props}>
+                    {children}
+                  </ol>
                 );
               }
             }}

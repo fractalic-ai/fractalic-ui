@@ -131,59 +131,12 @@
   max-width: 100%;
 }
 
-/* List styling with tighter spacing */
-.markdownContent ul,
-.markdownContent ol {
-  padding-left: 1.5em;
-  margin: 0 0 1rem 0;
-}
 
-.markdownContent ul {
-  list-style-type: disc;
-}
 
-.markdownContent ol {
-  list-style-type: decimal;
-}
 
-.markdownContent ul ul,
-.markdownContent ol ul {
-  list-style-type: circle;
-  margin-bottom: 0;
-  margin-top: 0; /* Ensure no extra space between nested lists */
-}
 
-.markdownContent ul ul ul,
-.markdownContent ol ul ul {
-  list-style-type: square;
-}
 
-/* Fix the excessive spacing between list items */
-.markdownContent li {
-  margin-bottom: 0.1em; /* Reduced from 0.25em */
-  margin-top: 0; /* Reset any top margin */
-  line-height: 1.5; /* Slightly reduced line height */
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
 
-/* Remove the additional spacing between list items */
-.markdownContent li + li {
-  margin-top: 0.1em; /* Reduced from 0.25em */
-}
-
-/* Remove white-space: pre-wrap from list items to prevent extra spacing */
-.markdownContent li p {
-  white-space: normal;
-  margin-bottom: 0.5rem;
-}
-
-/* Ensure proper spacing for nested lists */
-.markdownContent li > ul,
-.markdownContent li > ol {
-  margin-top: 0.1em;
-  margin-bottom: 0;
-}
 
 /* Links */
 .markdownContent a {
@@ -379,3 +332,4 @@
 .mermaidControl.active {
   background-color: #2e5cb8;
 }
+
