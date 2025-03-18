@@ -217,8 +217,71 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   // Preprocess the markdown source before rendering
   const transformedContent = transformCustomYAMLBlocks(content);
 
+  // Add an effect to apply styles directly to scrollbar elements
+  useEffect(() => {
+    const addScrollbarStyles = () => {
+      const styleId = 'markdown-scrollbar-fix';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          /* Make scrollbar visible */
+          .markdown-scroll-area [data-radix-scroll-area-viewport] {
+            height: 100% !important;
+            width: 100% !important;
+          }
+          
+          /* Target the actual scrollbar classes from Radix UI */
+          .markdown-scroll-area [data-orientation="vertical"] {
+            position: absolute !important;
+            z-index: 50 !important; 
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            right: 2px !important;
+            width: 8px !important;
+            background: transparent !important;
+            display: flex !important;
+            visibility: visible !important;
+            transition: opacity 0.15s;
+          }
+          
+          /* Target the thumb */
+          .markdown-scroll-area [data-orientation="vertical"] > div {
+            background-color: rgba(255, 255, 255, 0.3) !important;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            width: 6px !important;
+            border-radius: 3px !important;
+            flex: 1;
+          }
+          
+          /* Show more visible thumb on hover */
+          .markdown-scroll-area:hover [data-orientation="vertical"] > div {
+            background-color: rgba(255, 255, 255, 0.5) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    };
+    
+    addScrollbarStyles();
+    
+    return () => {
+      const styleElement = document.getElementById('markdown-scrollbar-fix');
+      if (styleElement) {
+        document.head.removeChild(styleElement);
+      }
+    };
+  }, []);
+
   return (
-    <ScrollArea className="h-full w-full relative pb-12" scrollHideDelay={0}>
+    <ScrollArea 
+      className="h-full w-full relative pb-12 markdown-scroll-area" 
+      scrollHideDelay={0}
+      style={{ 
+        position: "relative"
+      }}
+    >
       <StyleInjector />
       <div ref={mermaidRef} className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
         <div className={`${styles.markdownContent} ${className}`}>
