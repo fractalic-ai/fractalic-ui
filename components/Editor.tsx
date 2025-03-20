@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MarkdownViewer from './MarkdownViewer';
 import styles from '@/components/MarkdownViewer.module.css';
+import { TraceView } from "./TraceView";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,12 @@ import {
   Sliders,
   Save,
   Loader2,
+  ArrowLeftCircle,
+  GitCommit,
+  Maximize,
+  Minimize,
+  Columns,
+  ArrowLeft,
 } from "lucide-react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
 import {
@@ -37,8 +44,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface EditorProps {
   mode: "edit" | "git";
-  selectedView: "sideBySide" | "inline" | "report";
-  setSelectedView: (view: "sideBySide" | "inline" | "report") => void;
+  selectedView: "sideBySide" | "inline" | "report" | "trace";
+  setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace") => void;
   selectedCommit: any[];
   editMode: "plainText" | "notebook";
   setEditMode: (mode: "plainText" | "notebook") => void;
@@ -106,6 +113,13 @@ function EditorComponent(props: EditorProps) {
   const [currentFilePathState, setCurrentFilePathState] = useState(props.currentFilePath);
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = React.useRef<any>(null);
+  // Add isFullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Add toggleFullscreen function
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
 
   // Define fetchFileContent
   const fetchFileContent = async (filePath: string): Promise<string> => {
@@ -329,6 +343,24 @@ function EditorComponent(props: EditorProps) {
           </div>
         );
       }
+      
+      // Add a new view condition for 'trace'
+      if (selectedView === 'trace' && selectedCommit.length > 0) {
+        const currentCommit = selectedCommit[selectedCommit.length - 1];
+        
+        return (
+          <div className="h-full w-full">
+            <ScrollArea className="h-full">
+              <TraceView 
+                repoPath={repoPath}
+                traceFile={currentCommit.trc_file}
+                traceCommitHash={currentCommit.trc_commit_hash}
+                className={styles.markdownContent}
+              />
+            </ScrollArea>
+          </div>
+        );
+      }
   
       return (
         <div className="h-full">
@@ -399,154 +431,176 @@ function EditorComponent(props: EditorProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 space-y-4 border-b">
-        <div className="flex justify-between items-center">
-          <div className="space-x-2">
-            {mode === "git" ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedView("sideBySide")}
-                  className={
-                    selectedView === "sideBySide"
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }
-                >
-                  <GitCompare className="mr-2 h-4 w-4" />
-                  Side by Side
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedView("inline")}
-                  className={
-                    selectedView === "inline"
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }
-                >
-                  <AlignJustify className="mr-2 h-4 w-4" />
-                  Inline
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedView("report")}
-                  className={
-                    selectedView === "report"
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Report
-                </Button>
-                {renderEditorSettings()} {/* Add settings button */}
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditModeChange("plainText")} // Changed from setEditMode
-                  className={
-                    editMode === "plainText"
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }
-                >
-                  <Type className="mr-2 h-4 w-4" />
-                  Plain text
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEditModeChange("notebook")} // Changed from setEditMode
-                  className={
-                    editMode === "notebook"
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }
-                >
-                  <Book className="mr-2 h-4 w-4" />
-                  Notebook
-                </Button>
-                {renderEditorSettings()} {/* Add settings button */}
-              </>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {branchNotification && (
+    <div
+      className={cn(
+        "h-full w-full relative flex flex-col",
+        isFullscreen && "fixed top-0 left-0 z-50 bg-background"
+      )}
+    >
+      <div className="w-full flex justify-between p-2 border-b">
+        <div className="flex items-center space-x-2">
+          {isFullscreen && (
+            <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+              <ArrowLeftCircle className="mr-2 h-4 w-4" />
+              Exit Fullscreen
+            </Button>
+          )}
+          {mode === "git" ? (
+            <>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className={`${
-                  isButtonClicked
-                    ? "bg-transparent text-primary"
-                    : "bg-green-900 text-white"
-                }`}
-                onClick={handleBranchSelectWithState}
+                onClick={() => setSelectedView("inline")}
+                className={
+                  selectedView === "inline"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
               >
-                <Eye className="mr-2 h-4 w-4" />
-                View Changes
+                <AlignJustify className="mr-2 h-4 w-4" />
+                Inline
               </Button>
-            )}
-
-            <div className="flex items-center gap-2">
               <Button
-                onClick={handleSave}
-                disabled={!isDirty || isSaving || !currentFilePathState}
-                variant="outline" 
+                variant="ghost"
                 size="sm"
-                className={cn("relative")}
+                onClick={() => setSelectedView("sideBySide")}
+                className={
+                  selectedView === "sideBySide"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
               >
-                <div className="flex items-center gap-2">
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
+                <Columns className="mr-2 h-4 w-4" />
+                Side by Side
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedView("report")}
+                className={
+                  selectedView === "report"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Report
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedView("trace")}
+                className={
+                  selectedView === "trace"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
+              >
+                <GitCommit className="mr-2 h-4 w-4" />
+                Trace
+              </Button>
+              {renderEditorSettings()} {/* Add settings button */}
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditModeChange("plainText")} // Changed from setEditMode
+                className={
+                  editMode === "plainText"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
+              >
+                <Type className="mr-2 h-4 w-4" />
+                Plain text
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEditModeChange("notebook")} // Changed from setEditMode
+                className={
+                  editMode === "notebook"
+                    ? "bg-accent text-accent-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }
+              >
+                <Book className="mr-2 h-4 w-4" />
+                Notebook
+              </Button>
+              {renderEditorSettings()} {/* Add settings button */}
+            </>
+          )}
+        </div>
+        <div className="flex items-center space-x-2">
+          {branchNotification && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={`${
+                isButtonClicked
+                  ? "bg-transparent text-primary"
+                  : "bg-green-900 text-white"
+              }`}
+              onClick={handleBranchSelectWithState}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View Changes
+            </Button>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={!isDirty || isSaving || !currentFilePathState}
+              variant="outline" 
+              size="sm"
+              className={cn("relative")}
+            >
+              <div className="flex items-center gap-2">
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                <span>
+                  Save
+                  {isDirty && (
+                    <span className="ml-1 inline-block w-2 h-2 rounded-full bg-primary" />
                   )}
-                  <span>
-                    Save
-                    {isDirty && (
-                      <span className="ml-1 inline-block w-2 h-2 rounded-full bg-primary" />
-                    )}
-                  </span>
-                </div>
-              </Button>
+                </span>
+              </div>
+            </Button>
 
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={handleRunWithStateReset}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Run
-              </Button>
-            </div>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleRunWithStateReset}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Run
+            </Button>
           </div>
         </div>
-        {mode === "git" && selectedCommit && selectedCommit.length > 0 && (
-          <div className="flex items-center text-sm bg-gray-900 p-2 rounded-md text-white">
-            {selectedCommit.map((node: any, index: number) => (
-              <span key={index} className="flex items-center">
-                {index > 0 && (
-                  <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
-                )}
-                <button
-                  className="text-white hover:underline"
-                  onClick={() => handleBreadcrumbClick(node)}
-                >
-                  {node.text}
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
+      {mode === "git" && selectedCommit && selectedCommit.length > 0 && (
+        <div className="flex items-center text-sm bg-gray-900 p-2 rounded-md text-white">
+          {selectedCommit.map((node: any, index: number) => (
+            <span key={index} className="flex items-center">
+              {index > 0 && (
+                <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
+              )}
+              <button
+                className="text-white hover:underline"
+                onClick={() => handleBreadcrumbClick(node)}
+              >
+                {node.text}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className={`${mode === 'git' ? 'git-diff-editor' : ''} relative h-full`}>
         {renderEditor()}
       </div>

@@ -395,7 +395,31 @@ export default function GitDiffViewer() {
   );
 
   const renderEditor = () => {
-    if (selectedView === 'report' && diffContent.modified) {
+    if (selectedView === 'trace' && selectedCommit.length > 0) {
+      const currentCommit = selectedCommit[selectedCommit.length - 1];
+      
+      // Check if trace file information exists in the commit
+      if (currentCommit.trc_file && currentCommit.trc_commit_hash) {
+        return (
+          <div className="h-full w-full flex flex-col flex-grow">
+            <TraceView 
+              repoPath={repoPath}
+              traceFile={currentCommit.trc_file} 
+              traceCommitHash={currentCommit.trc_commit_hash}
+            />
+          </div>
+        );
+      } else {
+        // Show a message if trace information is missing
+        return (
+          <div className="h-full w-full flex flex-col flex-grow p-4">
+            <div className="p-4 bg-yellow-100 text-yellow-700 rounded-md">
+              No trace file information available for this commit.
+            </div>
+          </div>
+        );
+      }
+    } else if (selectedView === 'report' && diffContent.modified) {
       // Add debug log to verify the condition is being met
       console.log('Showing report view:', diffContent.modified.slice(0, 100));
       
