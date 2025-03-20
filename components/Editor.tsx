@@ -349,15 +349,13 @@ function EditorComponent(props: EditorProps) {
         const currentCommit = selectedCommit[selectedCommit.length - 1];
         
         return (
-          <div className="h-full w-full">
-            <ScrollArea className="h-full">
-              <TraceView 
-                repoPath={repoPath}
-                traceFile={currentCommit.trc_file}
-                traceCommitHash={currentCommit.trc_commit_hash}
-                className={styles.markdownContent}
-              />
-            </ScrollArea>
+          <div className="h-full w-full overflow-hidden">
+            <TraceView 
+              repoPath={repoPath}
+              traceFile={currentCommit.trc_file}
+              traceCommitHash={currentCommit.trc_commit_hash}
+              className={styles.markdownContent}
+            />
           </div>
         );
       }

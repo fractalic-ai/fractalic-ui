@@ -65,9 +65,57 @@ export const TraceView: React.FC<TraceViewProps> = ({
     }
   }, [repoPath, traceFile, traceCommitHash, content]);
 
+  // Add CSS to ensure proper scrollbar placement
+  useEffect(() => {
+    const styleId = 'trace-view-styles';
+    if (!document.getElementById(styleId)) {
+      const styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      styleEl.textContent = `
+        .trace-view-container {
+          width: 100%;
+          height: 100%;
+        }
+        
+        .trace-view-content {
+          width: 100%;
+          height: 100%;
+         
+          box-sizing: border-box;
+        }
+        
+        .trace-view-scroll-area {
+          width: 100% !important;
+          height: calc(100vh - 12rem) !important;
+        }
+        
+        .trace-view-scroll-area [data-radix-scroll-area-viewport] {
+          height: 100% !important;
+          width: 100% !important;
+        }
+        
+        .trace-view-pre {
+          margin: 0;
+          white-space: pre-wrap;
+          word-break: break-word;
+          font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace;
+          font-size: 14px;
+          line-height: 1.5;
+          width: 100%;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+    
+    return () => {
+      const el = document.getElementById(styleId);
+      if (el) document.head.removeChild(el);
+    };
+  }, []);
+
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden">
-      <div className={`p-4 flex-1 ${className || ''}`}>
+    <div className="trace-view-container">
+      <div className="trace-view-content">
         <h2 className="text-xl font-bold mb-4">Trace File</h2>
         
         {traceFile && (
@@ -88,8 +136,8 @@ export const TraceView: React.FC<TraceViewProps> = ({
           </div>
         ) : (
           traceContent ? (
-            <ScrollArea className="h-[calc(100%-5rem)] pr-2">
-              <pre className="p-4 bg-muted rounded-md whitespace-pre-wrap overflow-x-auto text-sm font-mono">
+            <ScrollArea className="trace-view-scroll-area">
+              <pre className="trace-view-pre p-4 bg-muted rounded-md">
                 {traceContent}
               </pre>
             </ScrollArea>
