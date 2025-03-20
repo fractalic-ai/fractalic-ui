@@ -344,7 +344,6 @@ function EditorComponent(props: EditorProps) {
         );
       }
       
-      // Add a new view condition for 'trace'
       if (selectedView === 'trace' && selectedCommit.length > 0) {
         const currentCommit = selectedCommit[selectedCommit.length - 1];
         
@@ -355,6 +354,7 @@ function EditorComponent(props: EditorProps) {
               traceFile={currentCommit.trc_file}
               traceCommitHash={currentCommit.trc_commit_hash}
               className={styles.markdownContent}
+              callTree={selectedCommit}  // Add this line to pass the entire call tree
             />
           </div>
         );
