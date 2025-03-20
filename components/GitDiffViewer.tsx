@@ -396,13 +396,15 @@ export default function GitDiffViewer() {
 
   const renderEditor = () => {
     if (selectedView === 'trace' && selectedCommit.length > 0) {
-      console.log("Rendering trace view with full callTree:", selectedCommit);
+      console.log("Rendering TraceView with selectedCommit:", selectedCommit);
       
+      // Only pass the first element as it's the root node
+      // This prevents the duplication issue
       return (
         <div className="h-full w-full flex flex-col flex-grow">
           <TraceView 
             repoPath={repoPath}
-            callTree={selectedCommit}  // Pass the entire selectedCommit array as the call tree
+            callTree={[selectedCommit[0]]}  // Pass only the root node
           />
         </div>
       );

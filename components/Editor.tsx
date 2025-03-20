@@ -345,16 +345,13 @@ function EditorComponent(props: EditorProps) {
       }
       
       if (selectedView === 'trace' && selectedCommit.length > 0) {
-        const currentCommit = selectedCommit[selectedCommit.length - 1];
-        
         return (
           <div className="h-full w-full overflow-hidden">
             <TraceView 
               repoPath={repoPath}
-              traceFile={currentCommit.trc_file}
-              traceCommitHash={currentCommit.trc_commit_hash}
+              // Pass ONLY the first element in the array (the root node)
+              callTree={selectedCommit.length > 0 ? [selectedCommit[0]] : undefined}
               className={styles.markdownContent}
-              callTree={selectedCommit}  // Add this line to pass the entire call tree
             />
           </div>
         );
