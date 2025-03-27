@@ -1,6 +1,7 @@
 /**
  * Monaco editor configuration for Fractalic
  */
+import * as monaco from 'monaco-editor';
 
 // Function to register Fractalic language with Monaco editor
 export function registerFractalicLanguage(monaco: any) {
@@ -75,7 +76,7 @@ export function registerFractalicLanguage(monaco: any) {
       // Explicit rules for Fractalic tokens
       { token: "operation-keyword", foreground: "#3EB467", fontStyle: "bold" },
       { token: "field-name", foreground: "#999999" },
-      { token: "punctuation.colon", foreground: "#D4D4D4" },
+      { token: "punctuation.colon", foreground: "#999999" },
       { token: "string", foreground: "#CE9178" },
       { token: "string.escape", foreground: "#D7BA7D" },
       { token: "literal-value", foreground: "#B5CEA8" },
@@ -330,167 +331,324 @@ export function registerFractalicHoverProvider(monaco: any) {
   });
 }
 
+// Helper function to generate suggestions for a given operation
+function getSuggestionsForOperation(operation: string, range: any, monaco: any, triggeredBySpace: boolean): monaco.languages.CompletionItem[] {
+  let suggestions: monaco.languages.CompletionItem[] = [];
+  const paramRange = range; // Use the provided range
+
+  // --- Helper to adjust snippet text based on trigger ---
+  const adjustSnippetText = (textLines: string[]): string => {
+    if (triggeredBySpace) {
+      // Prepend newline if triggered by '@op '
+      return '\n' + textLines.join('\n');
+    }
+    return textLines.join('\n');
+  };
+  // --- End Helper ---
+
+  // Using the structure from operationInfo for consistency
+  if (operation === 'llm') {
+    suggestions = [
+      // Fields from operationInfo (range remains paramRange)
+      { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Direct text string for input prompt", insertText: "prompt: ", range: paramRange },
+      { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference(s) to blocks for prompt content", insertText: "block: ", range: paramRange },
+      { label: "media", kind: monaco.languages.CompletionItemKind.Field, documentation: "File paths for additional media context", insertText: "media: ", range: paramRange },
+      { label: "save-to-file", kind: monaco.languages.CompletionItemKind.Field, documentation: "File path to save raw response", insertText: "save-to-file: ", range: paramRange },
+      { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for LLM response", insertText: "use-header: ", range: paramRange },
+      { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
+      { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
+      { label: "provider", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override for language model provider", insertText: "provider: ", range: paramRange },
+      { label: "model", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override for specific model", insertText: "model: ", range: paramRange },
+      { label: "temperature", kind: monaco.languages.CompletionItemKind.Field, documentation: "Controls randomness (0.0-1.0)", insertText: "temperature: ", range: paramRange },
+      // Snippets (adjust insertText and potentially range if triggeredBySpace)
+      {
+        label: "full-llm-operation (prompt)",
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        documentation: "Complete LLM operation using prompt",
+        insertText: adjustSnippetText(["prompt: ${1:Your prompt here}", "model: ${2:default-model}"]), // Use helper
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        range: paramRange // Range is handled in provideCompletionItems now
+      },
+      {
+        label: "full-llm-operation (block)",
+        kind: monaco.languages.CompletionItemKind.Snippet,
+        documentation: "Complete LLM operation using block",
+        insertText: adjustSnippetText(["block: ${1:block-reference}", "model: ${2:default-model}"]), // Use helper
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        range: paramRange // Range is handled in provideCompletionItems now
+      }
+    ];
+  } else if (operation === 'shell') {
+     suggestions = [
+        // Fields
+        { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Shell command to execute", insertText: "prompt: ", range: paramRange },
+        { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for command output", insertText: "use-header: ", range: paramRange },
+        { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
+        { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
+        // Snippets
+        {
+          label: "full-shell-operation",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete shell operation",
+          insertText: adjustSnippetText(["prompt: ${1:echo 'Hello World'}", "use-header: \"${2:# Shell Output}\""]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        }
+     ];
+  } else if (operation === 'import') {
+     suggestions = [
+        // Fields
+        { label: "file", kind: monaco.languages.CompletionItemKind.Field, documentation: "File path to import from", insertText: "file: ", range: paramRange },
+        { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference to specific section within source file", insertText: "block: ", range: paramRange },
+        { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "How content is merged (append, prepend, replace)", insertText: "mode: ", range: paramRange },
+        { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference in current document", insertText: "to: ", range: paramRange },
+        // Snippets
+        {
+          label: "full-import-operation",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete import operation",
+          insertText: adjustSnippetText(["file: ${1:path/to/file.md}", "block: ${2:section/subsection}", "mode: ${3:append}", "to: ${4:target-block}"]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        }
+     ];
+  } else if (operation === 'run') {
+     suggestions = [
+        // Fields
+        { label: "file", kind: monaco.languages.CompletionItemKind.Field, documentation: "Path to markdown file to execute", insertText: "file: ", range: paramRange },
+        { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Literal text input for workflow", insertText: "prompt: ", range: paramRange },
+        { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference(s) to blocks for input", insertText: "block: ", range: paramRange },
+        { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for workflow output", insertText: "use-header: ", range: paramRange },
+        { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
+        { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
+        // Snippets
+        {
+          label: "full-run-operation",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete run operation",
+          insertText: adjustSnippetText(["file: ${1:path/to/file.md}", "prompt: ${2:Input for workflow}", "use-header: \"${3:# Workflow Output}\""]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        }
+     ];
+  } else if (operation === 'return') {
+     suggestions = [
+        // Fields
+        { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Literal text to return", insertText: "prompt: ", range: paramRange },
+        { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference(s) to blocks to return", insertText: "block: ", range: paramRange },
+        { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for returned content", insertText: "use-header: ", range: paramRange },
+        // Snippets
+        {
+          label: "full-return-operation (block)",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete return operation using block",
+          insertText: adjustSnippetText(["block: ${1:block-reference}", "use-header: \"${2:# Return Block}\""]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        },
+        {
+          label: "full-return-operation (prompt)",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete return operation using prompt",
+          insertText: adjustSnippetText(["prompt: ${1:Return text}", "use-header: \"${2:# Return Value}\""]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        },
+        {
+          label: "return-array-blocks",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Return multiple blocks",
+          insertText: adjustSnippetText(["block:", "  - ${1:first-block}", "  - ${2:second-block}", "use-header: \"${3:# Return Block}\""]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        }
+     ];
+  } else if (operation === 'goto') {
+     suggestions = [
+        // Fields
+        { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block to navigate to", insertText: "block: ", range: paramRange },
+        // Snippets
+        {
+          label: "full-goto-operation",
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: "Complete goto operation",
+          insertText: adjustSnippetText(["block: ${1:target-block-id}"]), // Use helper
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: paramRange
+        }
+     ];
+  }
+  return suggestions;
+}
+
 // Register auto-completion provider for Fractalic
 export function registerFractalicCompletionProvider(monaco: any) {
   monaco.languages.registerCompletionItemProvider("fractalic", {
-    // --- Add Trigger Characters ---
-    triggerCharacters: ['@', '#', ' '], // Trigger on @, #, and space (for params after indent)
-    // --- End Add Trigger Characters ---
+    triggerCharacters: ["@", " ", "\n", "#", "{", ":"], // Added ':' to potentially trigger after field name
     provideCompletionItems: (model: any, position: any) => {
       try {
         const currentLineNumber = position.lineNumber;
-        const textUntilPosition = model.getValueInRange({
-          startLineNumber: currentLineNumber,
-          startColumn: 1,
-          endLineNumber: currentLineNumber,
-          endColumn: position.column
-        });
-        const currentLine = model.getLineContent(currentLineNumber);
-        const word = model.getWordUntilPosition(position);
-        const currentWordRange = {
-          startLineNumber: currentLineNumber,
-          endLineNumber: currentLineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn
-        };
+        const currentLineContent = model.getLineContent(currentLineNumber);
+        const textUntilPosition = currentLineContent.substring(0, position.column - 1);
 
-        interface Suggestion {
-          label: string;
-          kind: any; // Monaco.languages.CompletionItemKind
-          documentation?: string;
-          insertText: string;
-          range: any;
-          insertTextRules?: any;
-        }
-        let suggestions: Suggestion[] = [];
-        let operationOnPreviousLine: string | null = null;
+        // Get previous line content
+        const previousLineNumber = currentLineNumber > 1 ? currentLineNumber - 1 : 0; // Use 0 if no previous line
+        const previousLineContent = previousLineNumber > 0 ? model.getLineContent(previousLineNumber) : "";
 
-        // Check previous line for an operation keyword
-        if (currentLineNumber > 1) {
-          const prevLine = model.getLineContent(currentLineNumber - 1);
-          const opMatch = prevLine.match(/^@(llm|shell|import|run|return|goto)\s*$/);
-          if (opMatch) {
-            operationOnPreviousLine = opMatch[1];
-          }
+        let suggestions: monaco.languages.CompletionItem[] = [];
+        let operationForParams: string | null = null;
+        let isWithinOperationBlock = false;
+        let triggerBasedOnCurrentLineWithSpace = false;
+
+        // --- Parameter/Snippet Suggestion Logic ---
+
+        // Check 1: Current line is "@op " and cursor is right after space
+        const opMatchCurrentSpace = currentLineContent.match(/^@(\w+)\s$/);
+        if (opMatchCurrentSpace && position.column === currentLineContent.length + 1) {
+            operationForParams = opMatchCurrentSpace[1];
+            triggerBasedOnCurrentLineWithSpace = true;
+            isWithinOperationBlock = true; // We are starting an operation block
         }
 
-        // --- Parameter Suggestions ---
-        // Trigger if previous line had an operation AND current line starts with whitespace
-        if (operationOnPreviousLine && currentLine.match(/^\s+/)) {
-          const paramRange = currentWordRange; // Use word range for replacing typed param name
-          // Populate suggestions based on the operation found on the previous line
-          if (operationOnPreviousLine === 'llm') {
-            suggestions = [
-              { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Direct text prompt...", insertText: "prompt: ", range: paramRange },
-              { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference to blocks...", insertText: "block: ", range: paramRange },
-              // ... Add ALL other llm params back ...
-              { label: "media", kind: monaco.languages.CompletionItemKind.Field, documentation: "File paths for media context", insertText: "media: ", range: paramRange },
-              { label: "save-to-file", kind: monaco.languages.CompletionItemKind.Field, documentation: "File path to save raw response", insertText: "save-to-file: ", range: paramRange },
-              { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for LLM response", insertText: "use-header: ", range: paramRange },
-              { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
-              { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
-              { label: "provider", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override LLM provider", insertText: "provider: ", range: paramRange },
-              { label: "model", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override specific model", insertText: "model: ", range: paramRange },
-              { label: "temperature", kind: monaco.languages.CompletionItemKind.Field, documentation: "Controls randomness (0.0-1.0)", insertText: "temperature: ", range: paramRange },
-              // Snippets
-              { label: "prompt-multiline", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Multiline prompt", insertText: "prompt: |\n  ${1:Your multi-line prompt here}", insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange },
-              { label: "full-llm-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete LLM operation", insertText: ["prompt: ${1:Your prompt here}", "block: ${2:block-reference}", "temperature: ${3:0.7}", "use-header: \"${4:# LLM Response}\"", "mode: ${5:append}"].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-            ];
-          } else if (operationOnPreviousLine === 'shell') {
-             suggestions = [
-                { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Shell command...", insertText: "prompt: ", range: paramRange },
-                { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for output", insertText: "use-header: \"# Shell Output\"", range: paramRange },
-                // ... Add ALL other shell params back ...
-                { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode", insertText: "mode: ", range: paramRange },
-                { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
-                // Snippets
-                { label: "full-shell-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete shell operation", insertText: ["prompt: ${1:command to execute}", "use-header: \"${2:# Shell Output}\"", "mode: ${3:append}"].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-             ];
-          } else if (operationOnPreviousLine === 'import') {
-             suggestions = [
-                { label: "file", kind: monaco.languages.CompletionItemKind.Field, documentation: "File path to import...", insertText: "file: ", range: paramRange },
-                { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Specific section...", insertText: "block: ", range: paramRange },
-                // ... Add ALL other import params back ...
-                { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "How content is merged", insertText: "mode: ", range: paramRange },
-                { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
-                // Snippets
-                { label: "full-import-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete import operation", insertText: ["file: ${1:path/to/file.md}", "block: ${2:section/subsection}", "mode: ${3:append}", "to: ${4:target-block}"].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-             ];
-          } else if (operationOnPreviousLine === 'run') {
-             suggestions = [
-                { label: "file", kind: monaco.languages.CompletionItemKind.Field, documentation: "Path to file to execute", insertText: "file: ", range: paramRange },
-                { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Literal text input...", insertText: "prompt: ", range: paramRange },
-                // ... Add ALL other run params back ...
-                { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference(s) to blocks for input", insertText: "block: ", range: paramRange },
-                { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for workflow output", insertText: "use-header: ", range: paramRange },
-                { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode", insertText: "mode: ", range: paramRange },
-                { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
-                // Snippets
-                { label: "full-run-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete run operation", insertText: ["file: ${1:path/to/file.md}", "prompt: ${2:Input for workflow}", "use-header: \"${3:# Workflow Output}\""].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-             ];
-          } else if (operationOnPreviousLine === 'return') {
-             suggestions = [
-                { label: "prompt", kind: monaco.languages.CompletionItemKind.Field, documentation: "Literal text to return", insertText: "prompt: ", range: paramRange },
-                { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference(s) to blocks...", insertText: "block: ", range: paramRange },
-                // ... Add ALL other return params back ...
-                 { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for returned content", insertText: "use-header: ", range: paramRange },
-                // Snippets
-                { label: "full-return-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete return operation", insertText: ["block: ${1:block-reference}", "use-header: \"${2:# Return Block}\""].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange },
-                { label: "return-array-blocks", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Return multiple blocks", insertText: ["block:", "  - ${1:first-block}", "  - ${2:second-block}", "use-header: \"${3:# Return Block}\""].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-             ];
-          } else if (operationOnPreviousLine === 'goto') {
-             suggestions = [
-                { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block...", insertText: "block: ", range: paramRange },
-                // Snippets
-                { label: "full-goto-operation", kind: monaco.languages.CompletionItemKind.Snippet, documentation: "Complete goto operation", insertText: ["block: ${1:target-block-id}"].join("\n"), insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet, range: paramRange }
-             ];
-          }
+        // Check 2: If not triggered by "@op ", check if we are inside an operation block
+        // by looking upwards for the nearest "@op" line before a separator (# or empty line).
+        if (!operationForParams) {
+            for (let lineNum = currentLineNumber - 1; lineNum >= 1; lineNum--) {
+                const lineContent = model.getLineContent(lineNum);
+                const trimmedLine = lineContent.trim();
+
+                // Found the start of the operation block?
+                const opMatchPrev = trimmedLine.match(/^@(\w+)\s*$/);
+                if (opMatchPrev) {
+                    operationForParams = opMatchPrev[1];
+                    isWithinOperationBlock = true;
+                    break; // Found the relevant operation
+                }
+
+                // Found a separator before finding an operation? Stop searching.
+                if (trimmedLine === '' || trimmedLine.startsWith('#')) {
+                    break;
+                }
+                // If we are on the current line and it's not empty, continue searching upwards
+                // Only stop if we hit an empty line or header on PREVIOUS lines.
+                if (lineNum === currentLineNumber && trimmedLine !== '') {
+                   continue;
+                } else if (trimmedLine === '') { // Stop if previous line was empty
+                   break;
+                }
+            }
+        }
+
+
+        // If we identified an operation context, generate suggestions
+        if (operationForParams && isWithinOperationBlock) {
+            let paramRange;
+
+            // Determine the insertion range
+            if (triggerBasedOnCurrentLineWithSpace) {
+                // Requirement 1: Triggered by '@op '. Replace the space.
+                paramRange = {
+                    startLineNumber: currentLineNumber,
+                    endLineNumber: currentLineNumber,
+                    startColumn: position.column -1, // Start at the space
+                    endColumn: position.column     // End after the space
+                };
+            } else if (textUntilPosition.trim() === '') {
+                // Requirement 2 (cont.): Current line is empty/whitespace. Insert at start.
+                 paramRange = {
+                    startLineNumber: currentLineNumber,
+                    endLineNumber: currentLineNumber,
+                    startColumn: 1, // Start of the line
+                    endColumn: 1  // Replace nothing initially
+                };
+            } else {
+                 // Requirement 2 (cont.): Typing on a non-empty line within the block. Insert at cursor.
+                 paramRange = {
+                    startLineNumber: currentLineNumber,
+                    endLineNumber: currentLineNumber,
+                    startColumn: position.column,
+                    endColumn: position.column
+                };
+            }
+
+            // Get suggestions (fields and snippets)
+            // Pass the trigger flag to adjust snippet text
+            suggestions = getSuggestionsForOperation(operationForParams, paramRange, monaco, triggerBasedOnCurrentLineWithSpace);
+
+             // Filter out snippets if not triggered by '@op ' or if not on an empty line start
+            if (!triggerBasedOnCurrentLineWithSpace && textUntilPosition.trim() !== '') {
+                suggestions = suggestions.filter(s => s.kind !== monaco.languages.CompletionItemKind.Snippet);
+            }
+             // Filter out fields if triggered by '@op ' (only show full snippets initially)
+            if (triggerBasedOnCurrentLineWithSpace) {
+                 suggestions = suggestions.filter(s => s.kind === monaco.languages.CompletionItemKind.Snippet);
+            }
+
         }
 
         // --- Operation Suggestions ---
-        // Trigger if the line starts with @ and no parameter suggestions were added.
+        // Trigger ONLY if the line starts with @ and NO parameter/snippet suggestions were added above.
         if (suggestions.length === 0 && textUntilPosition.match(/^@\w*$/)) {
-          // --- Define Specific Range for Operations ---
+          // ... (operation suggestions logic remains the same) ...
           const operationRange = {
             startLineNumber: currentLineNumber,
             endLineNumber: currentLineNumber,
             startColumn: 1, // Start from the beginning of the line (where '@' is)
             endColumn: position.column // End at the current cursor position
           };
-          // --- End Define Specific Range ---
           suggestions = [
-            // Use operationRange for all operation suggestions
-            { label: "@llm", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Send prompts...", insertText: "@llm\n", range: operationRange },
-            { label: "@shell", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute commands...", insertText: "@shell\n", range: operationRange },
-            { label: "@import", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Import content...", insertText: "@import\n", range: operationRange },
-            { label: "@run", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute workflow...", insertText: "@run\n", range: operationRange },
-            { label: "@return", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Produce output...", insertText: "@return\n", range: operationRange },
-            { label: "@goto", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Navigate sections...", insertText: "@goto\n", range: operationRange }
+            // Add back all operations
+            { label: "@llm", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Send prompts...", insertText: "@llm ", range: operationRange },
+            { label: "@shell", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute commands...", insertText: "@shell ", range: operationRange },
+            { label: "@import", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Import content...", insertText: "@import ", range: operationRange },
+            { label: "@run", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute workflow...", insertText: "@run ", range: operationRange },
+            { label: "@return", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Produce output...", insertText: "@return ", range: operationRange },
+            { label: "@goto", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Navigate sections...", insertText: "@goto ", range: operationRange } // Add space
           ];
         }
+
         // --- Header Suggestions ---
-        // Trigger if the line starts with # and no other suggestions were added.
-        else if (suggestions.length === 0 && textUntilPosition.match(/^#*\s*$/)) {
-           // --- Define Specific Range for Headers ---
+        // Trigger if:
+        // 1. No other suggestions were added.
+        // 2. The current line starts with # (or is empty/whitespace).
+        // 3. It's the first line OR the previous line is empty.
+        else if (suggestions.length === 0 &&
+                 textUntilPosition.match(/^#*\s*$/) &&
+                 (currentLineNumber === 1 || previousLineContent.trim() === ''))
+        {
+           // Define range for header snippet insertion/replacement
            const headerRange = {
              startLineNumber: currentLineNumber,
              endLineNumber: currentLineNumber,
              startColumn: 1, // Start from the beginning of the line
              endColumn: position.column // End at the current cursor position
            };
-           // --- End Define Specific Range ---
-          suggestions.push({
+          suggestions.push(
+            // Existing suggestion with ID
+            {
             label: "header-with-id",
             kind: monaco.languages.CompletionItemKind.Snippet,
             documentation: "Markdown header with custom ID",
             insertText: "# ${1:Heading Title} {id=${2:custom-id}}",
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: headerRange // Use headerRange
-          });
+              range: headerRange
+            },
+            // New suggestion without ID
+            {
+              label: "header-simple",
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              documentation: "Simple Markdown header",
+              insertText: "# ${1:Heading Title}",
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              range: headerRange
+            }
+          );
         }
 
+        // Return the generated suggestions (or an empty list)
         return { suggestions };
       } catch (error) {
+        // Log errors but return empty suggestions to avoid breaking editor
         console.warn('Error in completion provider:', error);
         return { suggestions: [] };
       }
