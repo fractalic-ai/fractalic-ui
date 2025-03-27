@@ -1,0 +1,353 @@
+/* Fix for Monaco editor visual artifacts */
+
+/* Remove white border around active line */
+.monaco-editor .view-overlays .current-line {
+  border: none !important;
+  background-color: rgba(45, 45, 48, 0.4) !important;
+}
+
+/* Fix padding and margins */
+.monaco-editor .lines-content {
+  padding: 0 !important;
+}
+
+/* Ensure proper content container size */
+.monaco-editor .monaco-scrollable-element {
+  width: 100% !important;
+}
+
+/* Base container styling */
+.monaco-editor-container {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+  display: block !important;
+  isolation: isolate;
+  transition: none !important;
+}
+
+/* Editor instance */
+.monaco-editor-container .monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Style inactive editors */
+.monaco-editor-container.monaco-editor-inactive .monaco-editor {
+  opacity: 0.85 !important;
+}
+
+/* Only focused editors should show cursor */
+.monaco-editor-container:not(.monaco-editor-focused) .monaco-editor .cursor {
+  visibility: hidden !important;
+  display: none !important;
+}
+
+/* Focus styling to give visual cue of active editor */
+.monaco-editor-focused {
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.6) !important;
+  z-index: 5 !important;
+}
+
+/* Add slight visual distinction to highlight focused editor */
+.monaco-editor-container.monaco-editor-focused .monaco-editor .view-lines {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Fix tooltip and hover widget display */
+.monaco-editor .monaco-hover {
+  z-index: 100 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  max-width: 500px !important;
+  overflow: hidden !important;
+}
+
+/* Only hide widgets we don't need */
+.monaco-editor .monaco-action-bar,
+.monaco-editor .editor-widget.suggest-widget,
+.monaco-editor .editor-widget.parameter-hints-widget,
+.monaco-editor .findMatch,
+.monaco-editor .decorationsOverviewRuler {
+  display: none !important;
+}
+
+/* Ensure we don't hide necessary widgets */
+.monaco-editor .overflowingContentWidgets {
+  visibility: visible !important;
+  display: block !important;
+  pointer-events: auto !important;
+}
+
+/* Prevent flickering */
+.monaco-editor,
+.monaco-editor-background,
+.monaco-editor .overflow-guard {
+  transition: none !important;
+  backface-visibility: hidden !important;
+  -webkit-font-smoothing: antialiased !important;
+  border-radius: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Improve scrollbar appearance */
+.monaco-editor .scrollbar {
+  opacity: 0.6 !important;
+}
+
+.monaco-editor .scrollbar:hover {
+  opacity: 1 !important;
+}
+
+/* Ensure z-index doesn't cause issues */
+.monaco-editor .cursors-layer {
+  z-index: 5 !important;
+}
+
+/* Fix cursor visibility */
+.monaco-editor .cursor {
+  background-color: #FFFFFF !important;
+  border-color: #FFFFFF !important;
+}
+
+/* Fix line number margin */
+.monaco-editor .margin {
+  background-color: inherit !important;
+}
+
+/* Fix for notebooks */
+.notebook-monaco-editor .monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fix infinite scrolling issue */
+.notebook-monaco-editor .monaco-editor .overflow-guard {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100px !important;
+  overflow: visible !important;
+}
+
+/* Prevent context conflicts */
+.monaco-editor-container.notebook-monaco-editor {
+  z-index: 1;
+}
+
+.monaco-editor-container.notebook-monaco-editor .monaco-editor {
+  z-index: 2;
+}
+
+/* Fix operation editor specific styles */
+.monaco-editor-container.operation-editor {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Ensure editor text area is properly isolated */
+.monaco-editor-container .monaco-editor .inputarea {
+  opacity: 1 !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+}
+
+/* Fix height calculation issues */
+.notebook-monaco-editor {
+  height: auto !important;
+  min-height: 100px !important;
+  transition: none !important; /* Remove transition to prevent jumps */
+}
+
+/* Add transparent background for notebook mode */
+.notebook-monaco-editor .monaco-editor,
+.notebook-monaco-editor .monaco-editor .overflow-guard,
+.notebook-monaco-editor .monaco-editor-background,
+.notebook-monaco-editor .monaco-editor .inputarea.ime-input {
+  background-color: transparent !important;
+}
+
+/* Fix line numbers */
+.monaco-editor .line-numbers {
+  color: #858585 !important;
+}
+
+/* Fix active line number */
+.monaco-editor .active-line-number {
+  color: #C6C6C6 !important;
+}
+
+/* Fix selection background */
+.monaco-editor .selected-text {
+  background-color: #264F78 !important;
+}
+
+/* Fix hover widget */
+.monaco-editor .monaco-hover {
+  background-color: #252526 !important;
+  border: 1px solid #454545 !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Adjust margins and padding for notebook mode */
+.notebook-monaco-editor {
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure editor takes full width */
+.notebook-monaco-editor .monaco-editor,
+.notebook-monaco-editor .overflow-guard {
+  width: 100% !important;
+}
+
+/* Remove any borders */
+.notebook-monaco-editor .monaco-editor,
+.notebook-monaco-editor .overflow-guard {
+  border: none !important;
+}
+
+/* Adjust line number colors for better visibility on transparent background */
+.notebook-monaco-editor .monaco-editor .line-numbers {
+  color: rgba(133, 133, 133, 0.8) !important;
+}
+
+/* Ensure text is readable on transparent background */
+.notebook-monaco-editor .monaco-editor .view-line {
+  text-shadow: 0 0 0.5px rgba(0, 0, 0, 0.2);
+}
+
+/* Notebook mode specific styles */
+.notebook-monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+}
+
+.notebook-monaco-editor .monaco-editor {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+.notebook-monaco-editor .monaco-editor .overflow-guard {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.notebook-monaco-editor .monaco-editor .view-lines {
+  padding: 8px 0 !important;
+}
+
+/* Ensure proper z-indexing in notebook mode */
+.notebook-theme .notebook-monaco-editor {
+  z-index: 1 !important;
+}
+
+.notebook-theme .notebook-monaco-editor .monaco-editor {
+  z-index: 2 !important;
+}
+
+/* Fix for editor initialization */
+.notebook-monaco-editor .monaco-editor-background {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Ensure content is properly sized */
+.notebook-monaco-editor .monaco-editor,
+.notebook-monaco-editor .monaco-editor .overflow-guard {
+  position: absolute !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Force proper editor size calculation */
+.notebook-theme .node-content {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+}
+
+/* Base container styles */
+.monaco-container {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+  display: block !important;
+}
+
+/* Remove conflicting styles */
+.notebook-monaco-editor .monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fix infinite scrolling issue */
+.notebook-monaco-editor .monaco-editor .overflow-guard {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100px !important;
+}
+
+/* Prevent flickering */
+.monaco-editor {
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.monaco-editor .overflow-guard {
+  overflow: visible !important;
+}
+
+/* Base container */
+.monaco-editor-container {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+  display: block !important;
+  isolation: isolate;
+}
+
+/* Editor instance */
+.monaco-editor-container .monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Prevent context conflicts */
+.monaco-editor-container.notebook-monaco-editor {
+  z-index: 1;
+}
+
+.monaco-editor-container.notebook-monaco-editor .monaco-editor {
+  z-index: 2;
+}
+
+/* Fix operation editor specific styles */
+.monaco-editor-container.operation-editor {
+  background-color: var(--notebook-node-bg) !important;
+}
+
+/* Remove conflicting styles */
+.monaco-editor-container .monaco-editor .overflow-guard {
+  position: relative !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 100px !important;
+  overflow: visible !important;
+} 

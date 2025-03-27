@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, RefObject, useEffect } from 'react';
 import { importFromMarkdown, exportToMarkdown } from '@/utils/fileOperations';
+import { setupFractalicLanguage } from '@/utils/monaco';
 import './gitDiff.css';
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -408,14 +409,28 @@ function EditorComponent(props: EditorProps) {
             <Editor
               value={editedContent}
               onChange={handleContentChangeWithDirty}
-              language="markdown"
-              theme="vs-dark"
+              language="fractalic"
+              theme="fractalicDarkTheme"
               options={{
                 wordWrap: wordWrap ? 'on' : 'off',
                 lineNumbers: lineNumbers ? 'on' : 'off',
                 fontSize: fontSize,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
+                quickSuggestions: true,
+                suggestOnTriggerCharacters: true,
+                acceptSuggestionOnEnter: "on",
+                tabCompletion: "on",
+                wordBasedSuggestions: "currentDocument",
+                parameterHints: {
+                  enabled: true
+                }
+              }}
+              beforeMount={(monaco) => {
+                if (!window.fractalicInitialized) {
+                  setupFractalicLanguage(monaco);
+                  window.fractalicInitialized = true;
+                }
               }}
             />
           </div>

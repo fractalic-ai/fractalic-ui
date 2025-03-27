@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { setupFractalicLanguage } from '../utils/monaco';
 
 interface MonacoState {
   isLoading: boolean;
@@ -10,6 +11,7 @@ declare global {
   interface Window {
     monaco: any;
     require: any;
+    fractalicInitialized?: boolean;
   }
 }
 
@@ -29,6 +31,10 @@ export const useMonaco = () => {
       
       try {
         if (window.monaco) {
+          if (!window.fractalicInitialized) {
+            setupFractalicLanguage(window.monaco);
+            window.fractalicInitialized = true;
+          }
           setState({ isLoading: false, error: null, monaco: window.monaco });
           return;
         }
@@ -41,6 +47,10 @@ export const useMonaco = () => {
           window.require(['vs/editor/editor.main'], () => {
             clearTimeout(timeout);
             if (!mountedRef.current) return;
+            if (!window.fractalicInitialized) {
+              setupFractalicLanguage(window.monaco);
+              window.fractalicInitialized = true;
+            }
             setState({ isLoading: false, error: null, monaco: window.monaco });
             resolve();
           });

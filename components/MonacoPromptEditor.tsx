@@ -50,12 +50,15 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
 
       try {
         const uri = monaco.Uri.parse(`file:///prompt-${Date.now()}.txt`);
-        modelRef.current = monaco.editor.getModel(uri) || monaco.editor.createModel(value, 'markdown', uri);
+        modelRef.current = monaco.editor.getModel(uri) || monaco.editor.createModel(value, 'fractalic', uri);
         modelRef.current.setValue(value);
+
+        // Force theme application before editor creation
+        monaco.editor.setTheme('fractalicDarkTheme');
 
         editorRef.current = monaco.editor.create(containerRef.current!, {
           model: modelRef.current,
-          theme: 'vs-dark',
+          theme: 'fractalicDarkTheme',
           fontSize: 14,
           lineHeight: 21,
           fontFamily: "'SF Mono', Menlo, Monaco, 'Courier New', monospace",
@@ -75,13 +78,9 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
             verticalHasArrows: false,
             horizontalHasArrows: false,
             verticalScrollbarSize: 0,
-
             horizontalScrollbarSize: 4,
-            handleMouseWheel: !wordWrap, 
-
-            //handleMouseWheel: false, // Disable mouse wheel handling
-            alwaysConsumeMouseWheel: false // Prevent scroll event capture
-        
+            handleMouseWheel: !wordWrap,
+            alwaysConsumeMouseWheel: false
           },
           overviewRulerLanes: 0,
           hideCursorInOverviewRuler: true,
@@ -96,6 +95,8 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
           codeLens: false,
           roundedSelection: false,
           padding: { top: 4, bottom: 4 },
+          // Disable web workers to prevent the errors
+          useWorker: false
         });
 
         disposablesRef.current.push(

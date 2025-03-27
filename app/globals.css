@@ -451,5 +451,24 @@ button[aria-selected="true"]:hover {
   padding-bottom: 1rem;
 }
 
+/* Ensure proper z-index stacking for notebook editors */
+.notebook-node .node-content {
+  position: relative;
+  z-index: 1;
+}
+
+.notebook-node .monaco-editor {
+  z-index: 2;
+  position: relative;
+}
+
+/* Ensure editor container is properly positioned */
+.notebook-monaco-editor {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 100px !important;
+  display: block !important;
+}
+
 
 
