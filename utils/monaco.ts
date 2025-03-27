@@ -495,6 +495,66 @@ export function registerFractalicCompletionProvider(monaco: any) {
         const previousLineNumber = currentLineNumber > 1 ? currentLineNumber - 1 : 0; // Use 0 if no previous line
         const previousLineContent = previousLineNumber > 0 ? model.getLineContent(previousLineNumber) : "";
 
+        // --- IMPROVED FIELD VALUE DETECTION ---
+        // Check if we're inside a field value context more precisely
+        const isInFieldValueContext = (() => {
+          // Check for classic field pattern: "field:" or "field: " where cursor is after colon
+          const fieldColonMatch = /^(\s*)([a-zA-Z0-9_-]+)(:)(\s*)/.exec(currentLineContent);
+          
+          if (fieldColonMatch && position.column > fieldColonMatch.index + fieldColonMatch[0].length) {
+            // We're on a line with a field and our cursor is after the "field: " part
+            return true;
+          }
+          
+          // Check for array item pattern: "  - " where cursor is after the hyphen
+          const arrayItemMatch = /^(\s+)(-)(\s+)/.exec(currentLineContent);
+          if (arrayItemMatch && position.column > arrayItemMatch.index + arrayItemMatch[0].length) {
+            return true;
+          }
+          
+          // Check if we're inside quoted string (field value)
+          const textBeforeCursor = currentLineContent.substring(0, position.column - 1);
+          // Count quotes before cursor to determine if we're inside a string
+          const doubleQuoteCount = (textBeforeCursor.match(/"/g) || []).length;
+          const singleQuoteCount = (textBeforeCursor.match(/'/g) || []).length;
+          
+          // If odd number of either quote type, we're inside a quoted string
+          if ((doubleQuoteCount % 2 === 1) || (singleQuoteCount % 2 === 1)) {
+            return true;
+          }
+          
+          // Check if we're on a continuation line (indented) after a field declaration
+          // This handles multiline field values
+          if (currentLineContent.trim() && currentLineContent.match(/^\s+/) && !currentLineContent.match(/^\s+[a-zA-Z0-9_-]+:/)) {
+            // We're on an indented line that's not a field declaration itself
+            // Look at previous lines to see if we're in a field value context
+            for (let i = currentLineNumber - 1; i > 0; i--) {
+              const prevLine = model.getLineContent(i);
+              if (!prevLine.trim()) continue; // Skip empty lines
+              
+              // If we hit a line with same or less indentation, check if it's a field
+              const currentIndent = currentLineContent.match(/^(\s*)/)[0].length;
+              const prevIndent = prevLine.match(/^(\s*)/)[0].length;
+              
+              if (prevIndent <= currentIndent) {
+                const fieldMatch = prevLine.match(/^(\s*)([a-zA-Z0-9_-]+)(:)(\s*)/);
+                if (fieldMatch) return true; // We're in a multiline value
+                if (prevLine.match(/^(\s+)(-)(\s+)/)) return true; // We're in an array value
+              }
+              
+              // If we hit a less indented line that's not a field, we're not in a value context
+              if (prevIndent < currentIndent) break;
+            }
+          }
+          
+          return false;
+        })();
+        
+        if (isInFieldValueContext) {
+          // We're entering a value context, don't provide suggestions
+          return { suggestions: [] };
+        }
+
         let suggestions: monaco.languages.CompletionItem[] = [];
         let operationForParams: string | null = null;
         let isWithinOperationBlock = false;
