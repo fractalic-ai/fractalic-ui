@@ -233,7 +233,7 @@ export default function FileTree({
               variant="ghost"
               size="sm"
               aria-selected={selectedItem === file.path}
-              className={`w-full justify-start ${
+              className={`w-full justify-start file-tree-button ${
                 selectedItem === file.path
                   ? 'bg-blue-600 text-white'
                   : 'hover:bg-accent hover:text-accent-foreground'
@@ -244,7 +244,7 @@ export default function FileTree({
               }}
             >
               <i className={getIconClass(file.name, file.is_dir)} />
-              {file.name}
+              <span>{file.name}</span>
             </Button>
           </li>
         ))}

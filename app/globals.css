@@ -67,9 +67,10 @@
   }
 }
 
+/* Notebook specific styles - separate from app theme */
 .notebook-container {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: #111827 !important;
+  color: #ffffff !important;
   height: 100vh;
   overflow-y: auto;
 }
@@ -121,15 +122,13 @@ button[aria-selected="true"]:hover {
   @apply bg-blue-600 bg-opacity-100 text-white;
 }
 
-/* Add these after your existing CSS */
-
-/* Define notebook theme colors */
+/* Define notebook theme colors - separate from app theme */
 .notebook-theme {
   --notebook-bg: #111827 !important;
   --notebook-node-bg: #111827;
   --notebook-hover-bg: #111827;
   --notebook-active-bg: #111827;
-  background-color: var(--notebook-bg);
+  background-color: #111827 !important;
 }
 
 /* Component specific styles */
@@ -198,7 +197,7 @@ button[aria-selected="true"]:hover {
 .notebook-theme .operation-editor .monaco-editor, 
 .notebook-theme .operation-editor .monaco-editor-background,
 .notebook-theme .operation-editor .monaco-editor .overflow-guard {
-  background-color: var(--notebook-node-bg) !important;
+  background-color: #111827 !important;
 }
 
 /* Keep default Monaco editor styling for edit and diff modes */
@@ -211,9 +210,9 @@ button[aria-selected="true"]:hover {
 
 /* Override any inherited dark backgrounds */
 .notebook-theme * {
-  --background: var(--notebook-bg);
-  --card-background: var(--notebook-node-bg);
-  --popover-background: var(--notebook-node-bg);
+  --background: #111827 !important;
+  --card-background: #111827 !important;
+  --popover-background: #111827 !important;
 }
 
 /* Update monaco.css */
@@ -236,7 +235,7 @@ button[aria-selected="true"]:hover {
 .notebook-theme .operation-editor .monaco-editor,
 .notebook-theme .operation-editor .monaco-editor-background,
 .notebook-theme .operation-editor .monaco-editor .overflow-guard {
-  background-color: var(--notebook-node-bg) !important;
+  background-color: #111827 !important;
 }
 
 /* Fix notebook editor line numbers margin to use node background */
@@ -294,14 +293,12 @@ button[aria-selected="true"]:hover {
 }
 
 .notebook-theme::-webkit-scrollbar-track {
-  background: var(--notebook-node-bg);
+  background: #111827;
 }
 
 .notebook-theme::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  border: 2px solid var(--notebook-node-bg);
-  transition: background-color 0.2s;
+  border: 2px solid #111827;
 }
 
 .notebook-theme::-webkit-scrollbar-thumb:hover {
@@ -315,14 +312,12 @@ button[aria-selected="true"]:hover {
 }
 
 .notebook-theme *::-webkit-scrollbar-track {
-  background: var(--notebook-node-bg);
+  background: #111827;
 }
 
 .notebook-theme *::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  border: 2px solid var(--notebook-node-bg);
-  transition: background-color 0.2s;
+  border: 2px solid #111827;
 }
 
 .notebook-theme *::-webkit-scrollbar-thumb:hover {
@@ -468,6 +463,76 @@ button[aria-selected="true"]:hover {
   width: 100% !important;
   min-height: 100px !important;
   display: block !important;
+}
+
+/* VSCode-like dark gray theme for file tree and left bar */
+.dark .bg-background {
+  background-color: #0d0d0d !important;
+}
+
+.dark .border-r {
+  border-color: #141414 !important;
+}
+
+.dark .bg-accent {
+  background-color: #101010 !important;
+}
+
+.dark .hover\:bg-accent:hover {
+  background-color: #101010 !important;
+}
+
+.dark .text-accent-foreground {
+  color: #a0a0a0 !important;
+}
+
+.dark .text-muted-foreground {
+  color: #4a4a4a !important;
+}
+
+.dark .bg-blue-600 {
+  background-color: #141414 !important;
+}
+
+.dark .hover\:bg-blue-600:hover {
+  background-color: #141414 !important;
+}
+
+/* Fix file tree alignment and text color */
+.dark .file-tree-button {
+  padding-left: 0 !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  font-size: 0.95rem !important;
+}
+
+.dark .file-tree-button i {
+  margin-right: 0.5rem !important;
+  width: 1rem !important;
+  text-align: center !important;
+}
+
+.dark .file-tree-button span {
+  color: #d4d4d4 !important;
+}
+
+/* Update hover and selected states */
+.dark .file-tree-button:hover,
+.dark .file-tree-button[aria-selected="true"] {
+  background-color: #1a1a1a !important;
+}
+
+.dark .file-tree-button:hover span,
+.dark .file-tree-button[aria-selected="true"] span {
+  color: #ffffff !important;
+}
+
+/* Ensure notebook styles are not affected by dark theme */
+.dark .notebook-container,
+.dark .notebook-theme,
+.dark .notebook-theme * {
+  background-color: #111827 !important;
+  color: #ffffff !important;
 }
 
 
