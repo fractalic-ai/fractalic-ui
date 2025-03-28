@@ -513,13 +513,13 @@ button[aria-selected="true"]:hover {
 }
 
 .dark .file-tree-button span {
-  color: #d4d4d4 !important;
+  color: #c0c0c0 !important;
 }
 
 /* Update hover and selected states */
 .dark .file-tree-button:hover,
 .dark .file-tree-button[aria-selected="true"] {
-  background-color: #1a1a1a !important;
+  background-color: #202020 !important;
 }
 
 .dark .file-tree-button:hover span,
