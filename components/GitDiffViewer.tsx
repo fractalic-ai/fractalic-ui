@@ -447,7 +447,7 @@ export default function GitDiffViewer() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0f0f0f] text-foreground">
       <Header
         theme={theme}
         setTheme={setTheme}
@@ -474,7 +474,7 @@ export default function GitDiffViewer() {
                   <ResizablePanelGroup direction="vertical" className="h-full">
                     <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
                       <ScrollArea className="h-full">
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-4 bg-[#141414]">
                           <CommitTree
                             selectedFolder={selectedFolder}
                             branchesData={branchesData}
@@ -490,7 +490,7 @@ export default function GitDiffViewer() {
                     <ResizableHandle />
                     <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
                       <ScrollArea className="h-full">
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-4 bg-[#141414]">
                           <FileTree
                             currentFiles={currentGitFiles.filter(
                               (file) => file.is_dir || file.name === '..' || file.is_git_repo
@@ -507,7 +507,7 @@ export default function GitDiffViewer() {
                   </ResizablePanelGroup>
                 ) : (
                   <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4">
+                    <div className="p-4 space-y-4 bg-[#141414]">
                       <FileTree
                         currentFiles={currentEditFiles}
                         handleFolderSelect={handleFolderSelect}
@@ -527,7 +527,7 @@ export default function GitDiffViewer() {
           )}
           {/* Right Panel */}
           <ResizablePanel defaultSize={isPanelVisible ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible ? 2 : 1}>
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full bg-[#141414]">
               <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
                 <ResizablePanel
                   defaultSize={showConsole ? 70 : 100}
@@ -566,7 +566,7 @@ export default function GitDiffViewer() {
                   <>
                     <ResizableHandle />
                     <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
-                      <div className="h-full w-full overflow-hidden">
+                      <div className="h-full w-full overflow-hidden bg-[#141414]">
                         <DynamicConsole
                           setShowConsole={setShowConsole}
                           onResize={handlePanelResize}

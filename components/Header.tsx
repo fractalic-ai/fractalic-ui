@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export default function Header({ theme, setTheme, isSettingsOpen, setIsSettingsOpen }: HeaderProps) {
   return (
-    <div className="flex items-center justify-between p-2 border-b">
+    <div className="flex items-center justify-between p-2 border-b bg-[#141414]">
       <div className="flex items-center space-x-2">
         <Image 
           src="/static/F_icon_logo.png" 
