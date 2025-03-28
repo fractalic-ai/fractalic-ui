@@ -11,6 +11,7 @@ import {
 } from 'react-icons/si';
 import { HiFolder, HiDocument } from 'react-icons/hi2'; // Using Hi2 for potentially newer icons
 import { GoFileMedia } from 'react-icons/go'; // Generic media file
+import '@/public/assets/seti-icons/seti.css';
 
 interface FileTreeProps {
   currentFiles: any[]
@@ -22,49 +23,143 @@ interface FileTreeProps {
   selectedFolder: any | null
 }
 
-// Helper function to get the Icon Component and Color
-const getIconDetails = (fileName: string, isDir: boolean): { IconComponent: React.ElementType, color: string } => {
-  const defaultColor = '#C0C0C0'; // Gray for default/unknown
-  const defaultIcon = HiDocument;
-
+const getIconClass = (fileName: string, isDir: boolean): string => {
   if (isDir || fileName === '..') {
-    return { IconComponent: HiFolder, color: '#4E72A4' }; // Dark Blue for folders
+    return 'icon icon-folder';
   }
 
   const extension = fileName.split('.').pop()?.toLowerCase();
 
   switch (extension) {
+    // JavaScript and TypeScript
     case 'js':
     case 'jsx':
-      return { IconComponent: SiJavascript, color: '#F1E05A' }; // Yellow
+      return 'icon icon-javascript';
     case 'ts':
     case 'tsx':
-      return { IconComponent: SiTypescript, color: '#51B6C3' }; // Blue
-    case 'json':
-      return { IconComponent: SiJson, color: '#F1E05A' }; // Yellow
-    case 'md':
-      return { IconComponent: SiMarkdown, color: '#51B6C3' }; // Blue
-    case 'ctx':
-      return { IconComponent: SiMarkdown, color: '#4295A1' }; // Darker Blue
-    case 'py':
-      return { IconComponent: SiPython, color: '#3572A5' }; // Python Blue
+      return 'icon icon-typescript';
+    // Web Technologies
     case 'html':
     case 'htm':
-      return { IconComponent: SiHtml5, color: '#E34F26' }; // Orange
+      return 'icon icon-html';
     case 'css':
+      return 'icon icon-css';
     case 'scss':
-      return { IconComponent: SiCss3, color: '#1572B6' }; // CSS Blue
+    case 'sass':
+      return 'icon icon-sass';
+    case 'vue':
+      return 'icon icon-vue';
+    case 'jsx':
+    case 'tsx':
+      return 'icon icon-react';
+    // Data and Config
+    case 'json':
+      return 'icon icon-json';
+    case 'yml':
+    case 'yaml':
+      return 'icon icon-yml';
+    case 'xml':
+      return 'icon icon-xml';
+    case 'csv':
+      return 'icon icon-csv';
+    case 'md':
+    case 'markdown':
+      return 'icon icon-markdown';
+    // Programming Languages
+    case 'py':
+      return 'icon icon-python';
+    case 'rb':
+      return 'icon icon-ruby';
+    case 'java':
+      return 'icon icon-java';
+    case 'go':
+      return 'icon icon-go';
+    case 'rs':
+      return 'icon icon-rust';
+    case 'swift':
+      return 'icon icon-swift';
+    case 'kt':
+      return 'icon icon-kotlin';
+    case 'scala':
+      return 'icon icon-scala';
+    case 'elm':
+      return 'icon icon-elm';
+    case 'clj':
+    case 'cljs':
+      return 'icon icon-clojure';
+    case 'lua':
+      return 'icon icon-lua';
+    case 'jl':
+      return 'icon icon-julia';
+    // Shell and Config
     case 'sh':
-      return { IconComponent: SiGnubash, color: '#C0C0C0' }; // Gray
-    case 'webp':
-    case 'png':
+    case 'bash':
+    case 'zsh':
+      return 'icon icon-shell';
+    case 'ini':
+    case 'conf':
+    case 'config':
+      return 'icon icon-config';
+    case 'editorconfig':
+      return 'icon icon-editorconfig';
+    // Build and Package
+    case 'dockerfile':
+      return 'icon icon-docker';
+    case 'gradle':
+      return 'icon icon-gradle';
+    case 'pom.xml':
+      return 'icon icon-maven';
+    case 'package.json':
+      return 'icon icon-npm';
+    case 'yarn.lock':
+      return 'icon icon-yarn';
+    case 'webpack.config.js':
+      return 'icon icon-webpack';
+    case 'rollup.config.js':
+      return 'icon icon-rollup';
+    case 'babel.config.js':
+      return 'icon icon-babel';
+    case '.eslintrc':
+    case '.eslintrc.js':
+    case '.eslintrc.json':
+      return 'icon icon-eslint';
+    // Media
     case 'jpg':
     case 'jpeg':
+    case 'png':
     case 'gif':
     case 'svg':
-      return { IconComponent: GoFileMedia, color: '#A0A0A0' }; // Neutral Gray for images
+    case 'ico':
+      return 'icon icon-image';
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+      return 'icon icon-audio';
+    case 'mp4':
+    case 'avi':
+    case 'mov':
+      return 'icon icon-video';
+    // Documents
+    case 'pdf':
+      return 'icon icon-pdf';
+    // Archives
+    case 'zip':
+    case 'tar':
+    case 'gz':
+    case 'rar':
+    case '7z':
+      return 'icon icon-zip';
+    // Design
+    case 'psd':
+      return 'icon icon-photoshop';
+    case 'ai':
+      return 'icon icon-illustrator';
+    // Version Control
+    case 'gitignore':
+    case 'gitattributes':
+      return 'icon icon-git';
     default:
-      return { IconComponent: defaultIcon, color: defaultColor };
+      return 'icon icon-default';
   }
 };
 
@@ -105,19 +200,11 @@ export default function FileTree({
     setNewItemName('')
   }
 
-  // Get header folder details
-  const { IconComponent: HeaderFolderIcon, color: headerFolderColor } = getIconDetails('folder', true);
-
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
         <h3 className="font-semibold flex items-center">
-          {/* Render header folder icon using Component */}
-          <HeaderFolderIcon
-             className="mr-2 h-6 w-6 shrink-0" // Added shrink-0
-             style={{ color: headerFolderColor }}
-             aria-hidden="true" // Indicate decorative
-           />
+          <i className={getIconClass('folder', true)} />
           {mode === 'git' ? 'Folders' : 'Files'}
         </h3>
         {mode === 'edit' && (
@@ -134,37 +221,27 @@ export default function FileTree({
         )}
       </div>
       <ul className="space-y-1">
-        {currentFiles.map((file) => {
-          // Get the Icon Component and color for the current file/folder
-          const { IconComponent, color } = getIconDetails(file.name, file.is_dir);
-
-          return (
-            <li key={file.path} className="space-y-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-selected={selectedItem === file.path}
-                className={`w-full justify-start ${
-                  selectedItem === file.path
-                    ? 'bg-blue-600 text-white'
-                    : 'hover:bg-accent hover:text-accent-foreground'
-                }`}
-                onClick={() => {
-                  handleFolderSelect(file)
-                  console.log('Selected Item:', file.path)
-                }}
-              >
-                {/* Render the selected Icon Component */}
-                <IconComponent
-                   className="mr-2 h-6 w-6 shrink-0" // Size and prevent shrinking
-                   style={{ color: color }} // Apply color via style prop
-                   aria-hidden="true" // Indicate decorative
-                 />
-                {file.name}
-              </Button>
-            </li>
-          );
-        })}
+        {currentFiles.map((file) => (
+          <li key={file.path} className="space-y-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-selected={selectedItem === file.path}
+              className={`w-full justify-start ${
+                selectedItem === file.path
+                  ? 'bg-blue-600 text-white'
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              }`}
+              onClick={() => {
+                handleFolderSelect(file)
+                console.log('Selected Item:', file.path)
+              }}
+            >
+              <i className={getIconClass(file.name, file.is_dir)} />
+              {file.name}
+            </Button>
+          </li>
+        ))}
         {isEditing && (
           <li className="px-2 py-1">
             <Input

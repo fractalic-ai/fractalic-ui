@@ -1,0 +1,98 @@
+{
+  "folder": {
+    "extensions": [
+      "dir"
+    ],
+    "color": "#4E72A4",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "markdown": {
+    "extensions": [
+      "md",
+      "ctx"
+    ],
+    "color": "#51B6C3",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "javascript": {
+    "extensions": [
+      "js",
+      "jsx",
+      "mjs"
+    ],
+    "color": "#F1E05A",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "typescript": {
+    "extensions": [
+      "ts",
+      "tsx"
+    ],
+    "color": "#51B6C3",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "python": {
+    "extensions": [
+      "py",
+      "pyc",
+      "pyo",
+      "pyd"
+    ],
+    "color": "#3572A5",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "html": {
+    "extensions": [
+      "html",
+      "htm"
+    ],
+    "color": "#E34F26",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "css": {
+    "extensions": [
+      "css",
+      "scss",
+      "sass",
+      "less"
+    ],
+    "color": "#1572B6",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "json": {
+    "extensions": [
+      "json"
+    ],
+    "color": "#F1E05A",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "shell": {
+    "extensions": [
+      "sh",
+      "bash",
+      "zsh"
+    ],
+    "color": "#C0C0C0",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "image": {
+    "extensions": [
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "svg",
+      "ico"
+    ],
+    "color": "#A0A0A0",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  },
+  "default": {
+    "extensions": [
+      "*"
+    ],
+    "color": "#C0C0C0",
+    "filter": "brightness(0) saturate(100%) invert(31%) sepia(98%) saturate(1231%) hue-rotate(199deg) brightness(97%) contrast(101%)"
+  }
+}

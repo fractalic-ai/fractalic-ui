@@ -1,0 +1,252 @@
+/* SETI Icon Styles */
+.icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  background-size: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-right: 6px;
+}
+
+/* Base icons */
+.icon-folder {
+  background-image: url('./project.svg');
+  filter: brightness(0) saturate(100%) invert(83%) sepia(12%) saturate(317%) hue-rotate(176deg) brightness(87%) contrast(85%);
+}
+
+.icon-default {
+  background-image: url('./default.svg');
+  filter: brightness(0) saturate(100%) invert(73%) sepia(14%) saturate(206%) hue-rotate(179deg) brightness(93%) contrast(89%);
+}
+
+/* Programming Languages */
+.icon-javascript {
+  background-image: url('./javascript.svg');
+  filter: brightness(0) saturate(100%) invert(88%) sepia(61%) saturate(253%) hue-rotate(357deg) brightness(106%) contrast(95%);
+}
+
+.icon-typescript {
+  background-image: url('./typescript.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-python {
+  background-image: url('./python.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-java {
+  background-image: url('./java.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(57%) saturate(2878%) hue-rotate(1deg) brightness(105%) contrast(104%);
+}
+
+.icon-ruby {
+  background-image: url('./ruby.svg');
+  filter: brightness(0) saturate(100%) invert(36%) sepia(39%) saturate(2649%) hue-rotate(335deg) brightness(91%) contrast(92%);
+}
+
+.icon-go {
+  background-image: url('./go.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-rust {
+  background-image: url('./rust.svg');
+  filter: brightness(0) saturate(100%) invert(39%) sepia(19%) saturate(1301%) hue-rotate(140deg) brightness(93%) contrast(89%);
+}
+
+.icon-swift {
+  background-image: url('./swift.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(57%) saturate(2878%) hue-rotate(1deg) brightness(105%) contrast(104%);
+}
+
+.icon-kotlin {
+  background-image: url('./kotlin.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(57%) saturate(2878%) hue-rotate(1deg) brightness(105%) contrast(104%);
+}
+
+.icon-scala {
+  background-image: url('./scala.svg');
+  filter: brightness(0) saturate(100%) invert(36%) sepia(39%) saturate(2649%) hue-rotate(335deg) brightness(91%) contrast(92%);
+}
+
+.icon-elm {
+  background-image: url('./elm.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-clojure {
+  background-image: url('./clojure.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-lua {
+  background-image: url('./lua.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-julia {
+  background-image: url('./julia.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Web Technologies */
+.icon-html {
+  background-image: url('./html.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(57%) saturate(2878%) hue-rotate(1deg) brightness(105%) contrast(104%);
+}
+
+.icon-css {
+  background-image: url('./css.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-sass {
+  background-image: url('./sass.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-vue {
+  background-image: url('./vue.svg');
+  filter: brightness(0) saturate(100%) invert(70%) sepia(11%) saturate(2089%) hue-rotate(101deg) brightness(92%) contrast(83%);
+}
+
+.icon-react {
+  background-image: url('./react.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Data Formats */
+.icon-json {
+  background-image: url('./json.svg');
+  filter: brightness(0) saturate(100%) invert(88%) sepia(61%) saturate(253%) hue-rotate(357deg) brightness(106%) contrast(95%);
+}
+
+.icon-markdown {
+  background-image: url('./markdown.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-xml {
+  background-image: url('./xml.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-yml {
+  background-image: url('./yml.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-csv {
+  background-image: url('./csv.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Shell and Config */
+.icon-shell {
+  background-image: url('./shell.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-config {
+  background-image: url('./config.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-editorconfig {
+  background-image: url('./editorconfig.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Build Tools */
+.icon-docker {
+  background-image: url('./docker.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-gradle {
+  background-image: url('./gradle.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-maven {
+  background-image: url('./maven.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-npm {
+  background-image: url('./npm.svg');
+  filter: brightness(0) saturate(100%) invert(36%) sepia(39%) saturate(2649%) hue-rotate(335deg) brightness(91%) contrast(92%);
+}
+
+.icon-yarn {
+  background-image: url('./yarn.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-webpack {
+  background-image: url('./webpack.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-rollup {
+  background-image: url('./rollup.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-babel {
+  background-image: url('./babel.svg');
+  filter: brightness(0) saturate(100%) invert(88%) sepia(61%) saturate(253%) hue-rotate(357deg) brightness(106%) contrast(95%);
+}
+
+.icon-eslint {
+  background-image: url('./eslint.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Media */
+.icon-image {
+  background-image: url('./image.svg');
+  filter: brightness(0) saturate(100%) invert(70%) sepia(11%) saturate(2089%) hue-rotate(101deg) brightness(92%) contrast(83%);
+}
+
+.icon-audio {
+  background-image: url('./audio.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-video {
+  background-image: url('./video.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Documents */
+.icon-pdf {
+  background-image: url('./pdf.svg');
+  filter: brightness(0) saturate(100%) invert(36%) sepia(39%) saturate(2649%) hue-rotate(335deg) brightness(91%) contrast(92%);
+}
+
+/* Archives */
+.icon-zip {
+  background-image: url('./zip.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+/* Version Control */
+.icon-git {
+  background-image: url('./git.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(57%) saturate(2878%) hue-rotate(1deg) brightness(105%) contrast(104%);
+}
+
+/* Design */
+.icon-photoshop {
+  background-image: url('./photoshop.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+}
+
+.icon-illustrator {
+  background-image: url('./illustrator.svg');
+  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+} 
