@@ -61,6 +61,7 @@ export default function GitDiffViewer() {
     fileHash: string;
     filePath: string;
   } | null>(null);
+  const [isPanelVisible, setIsPanelVisible] = useState(true);
 
   useEffect(() => {
     console.log('GitDiffViewer mounted');
@@ -454,69 +455,78 @@ export default function GitDiffViewer() {
         setIsSettingsOpen={setIsSettingsOpen}
       />
       <div className="flex-grow flex overflow-hidden">
-        <Sidebar mode={mode} setMode={setMode} />
+        <Sidebar 
+          mode={mode} 
+          setMode={setMode} 
+          isPanelVisible={isPanelVisible}
+          togglePanel={() => setIsPanelVisible(!isPanelVisible)}
+        />
         <ResizablePanelGroup
           direction="horizontal"
           className="flex-grow overflow-hidden"
           onLayout={handlePanelResize}
         >
           {/* Left Panel */}
-          <ResizablePanel defaultSize={25} minSize={20} maxSize={40} id="left-panel" order={1}>
-            {mode === 'git' ? (
-              <ResizablePanelGroup direction="vertical" className="h-full">
-                <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
-                  <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4">
-                      <CommitTree
-                        selectedFolder={selectedFolder}
-                        branchesData={branchesData}
-                        setSelectedCommit={setSelectedCommit}
-                        setDiffContent={setDiffContent}
-                        repoPath={repoPath}
-                        handleCommitSelect={handleCommitSelect}
-                        selectedCommit={selectedCommit}
-                      />
-                    </div>
-                  </ScrollArea>
-                </ResizablePanel>
-                <ResizableHandle />
-                <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
+          {isPanelVisible && (
+            <>
+              <ResizablePanel defaultSize={25} minSize={20} maxSize={40} id="left-panel" order={1}>
+                {mode === 'git' ? (
+                  <ResizablePanelGroup direction="vertical" className="h-full">
+                    <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
+                      <ScrollArea className="h-full">
+                        <div className="p-4 space-y-4">
+                          <CommitTree
+                            selectedFolder={selectedFolder}
+                            branchesData={branchesData}
+                            setSelectedCommit={setSelectedCommit}
+                            setDiffContent={setDiffContent}
+                            repoPath={repoPath}
+                            handleCommitSelect={handleCommitSelect}
+                            selectedCommit={selectedCommit}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </ResizablePanel>
+                    <ResizableHandle />
+                    <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
+                      <ScrollArea className="h-full">
+                        <div className="p-4 space-y-4">
+                          <FileTree
+                            currentFiles={currentGitFiles.filter(
+                              (file) => file.is_dir || file.name === '..' || file.is_git_repo
+                            )}
+                            handleFolderSelect={handleFolderSelect}
+                            mode="git"
+                            selectedItem={selectedItem}
+                            selectedFolder={selectedFolder}
+                            currentPath={currentGitPath}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </ResizablePanel>
+                  </ResizablePanelGroup>
+                ) : (
                   <ScrollArea className="h-full">
                     <div className="p-4 space-y-4">
                       <FileTree
-                        currentFiles={currentGitFiles.filter(
-                          (file) => file.is_dir || file.name === '..' || file.is_git_repo
-                        )}
+                        currentFiles={currentEditFiles}
                         handleFolderSelect={handleFolderSelect}
-                        mode="git"
+                        handleNewFile={handleNewFile}
+                        handleNewFolder={handleNewFolder}
+                        mode={mode}
                         selectedItem={selectedItem}
                         selectedFolder={selectedFolder}
-                        currentPath={currentGitPath}
+                        currentPath={currentEditPath}
                       />
                     </div>
                   </ScrollArea>
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="p-4 space-y-4">
-                  <FileTree
-                    currentFiles={currentEditFiles}
-                    handleFolderSelect={handleFolderSelect}
-                    handleNewFile={handleNewFile}
-                    handleNewFolder={handleNewFolder}
-                    mode={mode}
-                    selectedItem={selectedItem}
-                    selectedFolder={selectedFolder}
-                    currentPath={currentEditPath}
-                  />
-                </div>
-              </ScrollArea>
-            )}
-          </ResizablePanel>
-          <ResizableHandle className="w-1 bg-border" />
+                )}
+              </ResizablePanel>
+              <ResizableHandle className="w-1 bg-border" />
+            </>
+          )}
           {/* Right Panel */}
-          <ResizablePanel id="right-panel" order={2}>
+          <ResizablePanel defaultSize={isPanelVisible ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible ? 2 : 1}>
             <div className="flex flex-col h-full">
               <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
                 <ResizablePanel
