@@ -104,37 +104,33 @@ export default function GitDiffViewer() {
   
   const handleFileSelect = useCallback(async (file: any) => {
     try {
-      console.log('Loading file:', file.path);
+      console.log('[GitDiffViewer] handleFileSelect triggered for:', file.path);
       const response = await fetch(
-        `/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
+        `/api/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
       );
       if (response.ok) {
         const data = await response.text();
+        console.log('[GitDiffViewer] Fetched content length:', data.length);
         setEditedContent(data);
+        console.log('[GitDiffViewer] setEditedContent called.');
         setSelectedFile(file);
         setCurrentFilePath(file.path);
         setSelectedItem(file.path);
         
-        // Update the current path to the directory containing the file
-        const fileDir = file.path.split('/').slice(0, -1).join('/');
+        const fileDir = file.path.split('/').slice(0, -1).join('/') || '/';
+        console.log(`[GitDiffViewer] Updating ${mode} path to:`, fileDir);
         if (mode === 'git') {
           setCurrentGitPath(fileDir);
         } else {
           setCurrentEditPath(fileDir);
         }
       } else {
-        console.error('Error fetching file content:', response.statusText);
+        console.error('[GitDiffViewer] Error fetching file content - Response status:', response.statusText);
       }
     } catch (error) {
-      console.error('Error fetching file content:', error);
+      console.error('[GitDiffViewer] Error in handleFileSelect catch block:', error);
     }
   }, [mode]);
-
-  useEffect(() => {
-    if (selectedItem && selectedItem.endsWith('.tsx')) { // Adjust the file extension as needed
-      handleFileSelect(selectedItem);
-    }
-  }, [selectedItem, handleFileSelect]);
 
   const handlePanelResize = useCallback(() => {
     // Handle any logic needed when the panel resizes
@@ -572,16 +568,13 @@ export default function GitDiffViewer() {
                     console.log(`Edit Restore: Selected file found: ${restoredSelectedItem}`);
                     // Fetch the file's PARENT directory
                     pathForDirFetch = restoredSelectedItem.split('/').slice(0, -1).join('/') || '/';
-                    // Prepare file details to load AFTER directory fetch completes (if needed, handled by handleFileSelect dependency)
+                    // Prepare file details to load AFTER directory fetch completes
                     fileToLoadLater = savedState.selectedFile || {
                         path: restoredSelectedItem,
                         name: restoredSelectedItem.split('/').pop(),
                         is_dir: false
                     };
-                    // Explicitly call handleFileSelect here to load content, but ensure it uses correct mode ('edit')
-                    console.log(`Edit Restore: Triggering handleFileSelect for: ${fileToLoadLater.path}`);
-                    // We call this now, state updates should be batched by React
-                    handleFileSelect(fileToLoadLater); 
+                    console.log(`Edit Restore: Prepared file to load later:`, fileToLoadLater);
                 }
             } else {
                  // No specific selection, use currentEditPath or root
@@ -594,7 +587,27 @@ export default function GitDiffViewer() {
         const finalPathForDirFetch = pathForDirFetch === '/' ? '.' : pathForDirFetch;
         if (finalPathForDirFetch) {
             console.log(`Performing initial directory fetch for: ${finalPathForDirFetch}, isGitMode: ${isGitFetch}`);
-            fetchDirectoryContents(finalPathForDirFetch, isGitFetch);
+            fetchDirectoryContents(finalPathForDirFetch, isGitFetch).then(() => {
+                // After directory contents are fetched, if we have a file to load, load it with a small delay
+                if (fileToLoadLater) {
+                    console.log(`Edit Restore: Loading file content for: ${fileToLoadLater.path}`);
+                    // Add a small delay to ensure state updates are processed
+                    setTimeout(() => {
+                        handleFileSelect(fileToLoadLater);
+                    }, 100);
+                } else if (restoredSelectedItem && !restoredSelectedItem.endsWith('/')) {
+                    // If we have a selected item that's a file but no fileToLoadLater was set
+                    console.log(`Edit Restore: Loading content for restored selected item: ${restoredSelectedItem}`);
+                    const fileToLoad = {
+                        path: restoredSelectedItem,
+                        name: restoredSelectedItem.split('/').pop(),
+                        is_dir: false
+                    };
+                    setTimeout(() => {
+                        handleFileSelect(fileToLoad);
+                    }, 100);
+                }
+            });
         } else {
              console.error("Restoration logic failed to determine a path for initial directory fetch.");
         }
@@ -872,6 +885,10 @@ export default function GitDiffViewer() {
                       onBranchHashClick={handleBranchHashClick}
                       branchNotification={branchNotification}
                       handleBranchSelect={handleBranchSelect}
+                      onSave={async () => {
+                        // The save functionality is now handled in the Editor component
+                        return Promise.resolve();
+                      }}
                     />
                   </div>
                 </ResizablePanel>

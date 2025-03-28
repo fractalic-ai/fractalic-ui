@@ -84,6 +84,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   // Add new state
   const [activeTab, setActiveTab] = useState<'providers' | 'environment'>('providers');
   const [envVars, setEnvVars] = useState<EnvVariable[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Clear form state when modal closes
   useEffect(() => {
@@ -93,47 +95,58 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   }, [isOpen]);
 
   useEffect(() => {
-    let mounted = true;
-    
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch('/api/load_settings/');
-        const data = await response.json();
-        
-        if (mounted && data.settings) {
+    if (isOpen) {
+      setIsLoading(true);
+      setError(null);
+      // Fetch settings when the modal opens
+      fetch('/api/load_settings')
+        .then(async (response) => {
+          if (!response.ok) {
+            // Try to get more specific error if possible
+            let errorBody = await response.text();
+             try { errorBody = JSON.parse(errorBody); } catch (e) {/* ignore if not json */}
+            console.error("Settings load response error:", response.status, response.statusText, errorBody);
+            throw new Error(`Failed to load settings: ${response.statusText}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log('Loaded settings:', data);
+          console.log('Raw data from backend:', JSON.stringify(data, null, 2));
+          // Access the nested 'settings' object here: data.settings.settings
+          const providerSettingsData = data.settings?.settings || {}; // Handle case where it might be missing
+          const environmentData = data.settings?.environment || []; // Extract environment data
+          const defaultProviderData = data.settings?.defaultProvider || providers[0].id; // Extract default provider
+
           const newSettings = providers.reduce((acc, provider) => ({
             ...acc,
             [provider.id]: {
-              apiKey: data.settings.settings[provider.id]?.apiKey || "",
-              base_url: data.settings.settings[provider.id]?.base_url || "", // Added field
-              model: data.settings.settings[provider.id]?.model || modelOptions[provider.id][0],
-              temperature: data.settings.settings[provider.id]?.temperature ?? 0.7,
-              topP: data.settings.settings[provider.id]?.topP ?? 1,
-              topK: data.settings.settings[provider.id]?.topK ?? 50,
-              contextSize: data.settings.settings[provider.id]?.contextSize ?? 4096,
+              // Use providerSettingsData instead of data.settings directly
+              apiKey: providerSettingsData[provider.id]?.apiKey || "",
+              base_url: providerSettingsData[provider.id]?.base_url || "",
+              model: providerSettingsData[provider.id]?.model || modelOptions[provider.id][0],
+              temperature: providerSettingsData[provider.id]?.temperature ?? 0.7,
+              topP: providerSettingsData[provider.id]?.topP ?? 1,
+              topK: providerSettingsData[provider.id]?.topK ?? 50,
+              contextSize: providerSettingsData[provider.id]?.contextSize ?? 4096,
             },
           }), {});
           
+          console.log('Processed newSettings object:', JSON.stringify(newSettings, null, 2));
+
           setSettings(newSettings);
-          setDefaultProvider(data.settings.defaultProvider || providers[0].id);
+          // Use the extracted defaultProviderData and environmentData
+          setDefaultProvider(defaultProviderData); 
+          setEnvVars(environmentData);
 
-          // Load environment variables
-          if (data.settings.environment) {
-            setEnvVars(data.settings.environment);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading settings:', error);
-      }
-    };
-
-    if (isOpen) {
-      fetchSettings();
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error('Error loading settings:', err);
+          setError(err.message || 'Failed to load settings.');
+          setIsLoading(false);
+        });
     }
-
-    return () => {
-      mounted = false;
-    };
   }, [isOpen]);
 
   // Prevent rendering form until settings are loaded
@@ -173,7 +186,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     e.preventDefault();
     console.log("Saving configuration:", { settings, defaultProvider });
     try {
-      const response = await fetch('/api/save_settings/', {
+      const response = await fetch('/api/save_settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

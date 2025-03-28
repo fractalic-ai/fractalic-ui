@@ -1,6 +1,7 @@
 // Editor.tsx
 
-import React, { useState, useCallback, RefObject, useEffect } from 'react';
+import React, { useState, useCallback, RefObject, useEffect, useRef } from 'react';
+import type { editor } from 'monaco-editor/esm/vs/editor/editor.api';
 import { importFromMarkdown, exportToMarkdown } from '@/utils/fileOperations';
 import { setupFractalicLanguage } from '@/utils/monaco';
 import './gitDiff.css';
@@ -42,6 +43,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import PromptEngineeringUI from './PromptEngineeringUI';
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface EditorProps {
   mode: "edit" | "git";
@@ -69,6 +73,7 @@ interface EditorProps {
     filePath: string;
   } | null;
   handleBranchSelect: () => void;
+  onSave: () => Promise<void>;
 }
 
 function debounce<Func extends (...args: any[]) => void>(func: Func, wait: number) {
@@ -102,6 +107,7 @@ function EditorComponent(props: EditorProps) {
     onBranchHashClick,
     branchNotification,
     handleBranchSelect,
+    onSave,
   } = props;
 
   const { toast } = useToast();
@@ -111,18 +117,15 @@ function EditorComponent(props: EditorProps) {
   const [wordWrap, setWordWrap] = useState(true);
   const [lineNumbers, setLineNumbers] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
-  const [currentFilePathState, setCurrentFilePathState] = useState(props.currentFilePath);
   const [isSaving, setIsSaving] = useState(false);
-  const editorRef = React.useRef<any>(null);
-  // Add isFullscreen state
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  // Add toggleFullscreen function
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // Add useEffect to save editor settings to localStorage
   useEffect(() => {
     const savedSettings = {
       wordWrap,
@@ -133,7 +136,6 @@ function EditorComponent(props: EditorProps) {
     localStorage.setItem('editorSettings', JSON.stringify(savedSettings));
   }, [wordWrap, lineNumbers, selectedView, editMode]);
 
-  // Add useEffect to restore editor settings from localStorage on mount
   useEffect(() => {
     const savedSettingsStr = localStorage.getItem('editorSettings');
     if (savedSettingsStr) {
@@ -147,9 +149,8 @@ function EditorComponent(props: EditorProps) {
         console.error('Error restoring editor settings:', error);
       }
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
-  // Define fetchFileContent
   const fetchFileContent = async (filePath: string): Promise<string> => {
     try {
       const response = await fetch(`/api/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
@@ -166,12 +167,14 @@ function EditorComponent(props: EditorProps) {
     }
   };
 
-  // Debounced version of handleContentChange
   const handleContentChangeWithDebounce = useCallback(
     debounce((value: string | undefined) => {
-      handleContentChange(value);
+      if (typeof value === 'string' && value !== props.editedContent) {
+        handleContentChange(value);
+        setIsDirty(true);
+      }
     }, 300),
-    [handleContentChange]
+    [handleContentChange, props.editedContent]
   );
 
   const handleBranchHashClick = useCallback(() => {
@@ -200,7 +203,6 @@ function EditorComponent(props: EditorProps) {
   };
 
   const handleFileSelect = async (file: any) => {
-    // Fetch file content
     const content = await fetchFileContent(file.path);
     handleContentChange(content);
   };
@@ -208,10 +210,8 @@ function EditorComponent(props: EditorProps) {
   const handleEditModeChange = (mode: "plainText" | "notebook") => {
     try {
       if (editMode === "notebook" && mode === "plainText") {
-        // Track the last notebook state
         const nodes = importFromMarkdown(editedContent);
         const markdownContent = exportToMarkdown(nodes);
-        // Force update the content to ensure latest changes are captured
         handleContentChange(markdownContent);
       }
       setEditMode(mode);
@@ -229,7 +229,7 @@ function EditorComponent(props: EditorProps) {
   };
 
   const handleSave = async () => {
-    if (!currentFilePathState) {
+    if (!currentFilePath) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -247,27 +247,28 @@ function EditorComponent(props: EditorProps) {
         contentToSave = exportToMarkdown(nodes);
       }
 
-      const response = await fetch('/api/save_file', {
+      const response = await fetch(`/api/save_file?path=${encodeURIComponent(currentFilePath)}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          path: currentFilePathState,
-          content: contentToSave
-        }),
+          path: currentFilePath,
+          content: contentToSave,
+          mode: editMode
+        })
       });
 
-      if (response.ok) {
-        setIsDirty(false);
-        toast({
-          title: "Success",
-          description: "File saved successfully"
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(`Server error: ${response.status} - ${JSON.stringify(errorData)}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to save file: ${errorText}`);
       }
+
+      setIsDirty(false);
+      toast({
+        title: "Success",
+        description: "File saved successfully"
+      });
     } catch (error) {
       console.error('Error saving file:', error);
       toast({
@@ -281,80 +282,94 @@ function EditorComponent(props: EditorProps) {
   };
 
   useEffect(() => {
-    setCurrentFilePathState(props.currentFilePath);
-  }, [props.currentFilePath]);
+    console.log('[EditorComponent] Props received:', {
+      editedContentLength: editedContent?.length,
+      currentFilePath,
+      mode,
+      editMode,
+      selectedView,
+      diffContentOriginalLength: diffContent?.original?.length,
+      diffContentModifiedLength: diffContent?.modified?.length
+    });
+  }, [editedContent, currentFilePath, mode, editMode, selectedView, diffContent]);
 
   useEffect(() => {
     return () => {
       if (editorRef.current) {
         editorRef.current.dispose();
+        editorRef.current = null;
       }
     };
   }, []);
 
   const renderEditorSettings = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <div className="flex items-center space-x-4 p-2 border-b border-border bg-card text-card-foreground">
+      <div className="flex items-center space-x-2">
         <Button
-          variant="ghost"
-          size="sm" 
-          className="hover:bg-accent hover:text-accent-foreground"
+          variant={editMode === 'plainText' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleEditModeChange('plainText')}
+          className="text-xs px-2 py-1 h-auto"
         >
-          <Sliders className="mr-2 h-4 w-4" />
-          Editor Settings
+          Plain Text
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>
-          {/* Font Size Selector */}
-          <div className="flex flex-col space-y-1 py-2 px-3">
-            <label htmlFor="fontSize" className="text-sm text-foreground">
-              Font Size
-            </label>
-            <select
-              id="fontSize"
-              value={fontSize}
-              onChange={(e) => setFontSize(parseInt(e.target.value))}
-              className="border rounded px-2 py-1 bg-black text-white"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {[12,14,16,18,20].map(size => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuLabel>
-          {/* Word Wrap Toggle */}
-          <div className="flex items-center space-x-2 py-2 px-3">
-            <Switch
-              id="wordWrap"
-              checked={wordWrap}
-              onCheckedChange={handleWordWrapChange}
-              className="bg-black"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <label htmlFor="wordWrap" className="text-sm text-foreground">
-              Word Wrap
-            </label>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuLabel>
-          {/* Line Numbers Switch */}
-          <div className="flex items-center space-x-2 py-2 px-3">
-            <Switch
-              id="lineNumbers"
-              checked={lineNumbers}
-              onCheckedChange={handleLineNumbersChange}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <label htmlFor="lineNumbers" className="text-sm text-foreground">
-              Line Numbers
-            </label>
-          </div>
-        </DropdownMenuLabel>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <Button
+          variant={editMode === 'notebook' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => handleEditModeChange('notebook')}
+          className="text-xs px-2 py-1 h-auto"
+        >
+          Notebook
+        </Button>
+      </div>
+
+      <Separator orientation="vertical" className="h-6" />
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="word-wrap-switch"
+          checked={wordWrap}
+          onCheckedChange={handleWordWrapChange}
+          className="data-[state=checked]:bg-primary"
+        />
+        <Label htmlFor="word-wrap-switch" className="text-xs">Word Wrap</Label>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="line-numbers-switch"
+          checked={lineNumbers}
+          onCheckedChange={handleLineNumbersChange}
+          className="data-[state=checked]:bg-primary"
+        />
+        <Label htmlFor="line-numbers-switch" className="text-xs">Line Numbers</Label>
+      </div>
+
+      <Separator orientation="vertical" className="h-6" />
+
+      <div className="flex items-center space-x-2">
+        <Label htmlFor="font-size-input" className="text-xs">Font Size:</Label>
+        <Input
+          id="font-size-input"
+          type="number"
+          value={fontSize}
+          onChange={(e) => setFontSize(Math.max(8, parseInt(e.target.value) || 14))}
+          className="w-16 h-7 text-xs px-2"
+          min="8"
+          max="32"
+        />
+      </div>
+
+      <Button
+        onClick={handleSave}
+        size="sm"
+        disabled={!isDirty || isSaving}
+        className="ml-auto text-xs px-2 py-1 h-auto"
+      >
+        {isSaving ? 'Saving...' : 'Save'}
+        {isDirty && !isSaving && <span className="ml-1 text-yellow-500">*</span>}
+      </Button>
+    </div>
   );
 
   const renderEditor = () => {
@@ -377,7 +392,6 @@ function EditorComponent(props: EditorProps) {
           <div className="h-full w-full overflow-hidden">
             <TraceView 
               repoPath={repoPath}
-              // Pass ONLY the first element in the array (the root node)
               callTree={selectedCommit.length > 0 ? [selectedCommit[0]] : undefined}
               className={styles.markdownContent}
             />
@@ -410,12 +424,6 @@ function EditorComponent(props: EditorProps) {
       if (editMode === "notebook") {
         return (
           <div className="flex flex-col h-full">
-            {/* Control buttons */} 
-            <div className="flex-shrink-0">
-              {/* Existing buttons */}
-            </div>
-
-            {/* Notebook container */}
             <div className="flex-grow overflow-auto notebook-theme h-[calc(100%-theme(space.16))]">
               <PromptEngineeringUI
                 value={editedContent}
@@ -536,7 +544,6 @@ function EditorComponent(props: EditorProps) {
                 <GitCommit className="mr-2 h-4 w-4" />
                 Trace
               </Button>
-              {renderEditorSettings()} {/* Add settings button */}
             </>
           ) : (
             <>
@@ -566,9 +573,51 @@ function EditorComponent(props: EditorProps) {
                 <Book className="mr-2 h-4 w-4" />
                 Notebook
               </Button>
-              {renderEditorSettings()} {/* Add settings button */}
             </>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                <Sliders className="mr-2 h-4 w-4" />
+                Editor Settings
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
+              <div className="p-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="word-wrap-switch" className="text-xs">Word Wrap</Label>
+                  <Switch
+                    id="word-wrap-switch"
+                    checked={wordWrap}
+                    onCheckedChange={handleWordWrapChange}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="line-numbers-switch" className="text-xs">Line Numbers</Label>
+                  <Switch
+                    id="line-numbers-switch"
+                    checked={lineNumbers}
+                    onCheckedChange={handleLineNumbersChange}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="font-size-input" className="text-xs">Font Size</Label>
+                  <Input
+                    id="font-size-input"
+                    type="number"
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Math.max(8, parseInt(e.target.value) || 14))}
+                    className="w-16 h-7 text-xs px-2"
+                    min="8"
+                    max="32"
+                  />
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex items-center space-x-2">
           {branchNotification && (
@@ -590,7 +639,7 @@ function EditorComponent(props: EditorProps) {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
-              disabled={!isDirty || isSaving || !currentFilePathState}
+              disabled={!isDirty || isSaving || !currentFilePath}
               variant="outline" 
               size="sm"
               className={cn("relative")}
@@ -621,23 +670,6 @@ function EditorComponent(props: EditorProps) {
           </div>
         </div>
       </div>
-      {mode === "git" && selectedCommit && selectedCommit.length > 0 && (
-        <div className="flex items-center text-sm bg-gray-900 p-2 rounded-md text-white">
-          {selectedCommit.map((node: any, index: number) => (
-            <span key={index} className="flex items-center">
-              {index > 0 && (
-                <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
-              )}
-              <button
-                className="text-white hover:underline"
-                onClick={() => handleBreadcrumbClick(node)}
-              >
-                {node.text}
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
       <div className={`${mode === 'git' ? 'git-diff-editor' : ''} relative h-full`}>
         {renderEditor()}
       </div>

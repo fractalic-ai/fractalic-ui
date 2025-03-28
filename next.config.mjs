@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true, // Enable React strict mode for development
   async rewrites() {
     return [
       {
@@ -29,7 +30,11 @@ const nextConfig = {
       {
         source: '/save_file',
         destination: 'http://127.0.0.1:8000/save_file',
-      }
+      },
+      {
+        source: '/api/:path*',
+        destination: 'http://127.0.0.1:8000/:path*',
+      },
     ];
   },
 };
