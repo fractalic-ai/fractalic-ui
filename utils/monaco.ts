@@ -658,51 +658,13 @@ export function registerFractalicCompletionProvider(monaco: any) {
           };
           suggestions = [
             // Add back all operations
-            { label: "@llm", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Send prompts...", insertText: "@llm ", range: operationRange },
-            { label: "@shell", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute commands...", insertText: "@shell ", range: operationRange },
-            { label: "@import", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Import content...", insertText: "@import ", range: operationRange },
-            { label: "@run", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute workflow...", insertText: "@run ", range: operationRange },
-            { label: "@return", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Produce output...", insertText: "@return ", range: operationRange },
-            { label: "@goto", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Navigate sections...", insertText: "@goto ", range: operationRange } // Add space
+            { label: "@llm", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Send prompts...", insertText: "@llm", range: operationRange },
+            { label: "@shell", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute commands...", insertText: "@shell", range: operationRange },
+            { label: "@import", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Import content...", insertText: "@import", range: operationRange },
+            { label: "@run", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Execute workflow...", insertText: "@run", range: operationRange },
+            { label: "@return", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Produce output...", insertText: "@return", range: operationRange },
+            { label: "@goto", kind: monaco.languages.CompletionItemKind.Keyword, documentation: "Navigate sections...", insertText: "@goto", range: operationRange } // Add space
           ];
-        }
-
-        // --- Header Suggestions ---
-        // Trigger if:
-        // 1. No other suggestions were added.
-        // 2. The current line starts with # (or is empty/whitespace).
-        // 3. It's the first line OR the previous line is empty.
-        else if (suggestions.length === 0 &&
-                 textUntilPosition.match(/^#*\s*$/) &&
-                 (currentLineNumber === 1 || previousLineContent.trim() === ''))
-        {
-           // Define range for header snippet insertion/replacement
-           const headerRange = {
-             startLineNumber: currentLineNumber,
-             endLineNumber: currentLineNumber,
-             startColumn: 1, // Start from the beginning of the line
-             endColumn: position.column // End at the current cursor position
-           };
-          suggestions.push(
-            // Existing suggestion with ID
-            {
-            label: "header-with-id",
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            documentation: "Markdown header with custom ID",
-            insertText: "# ${1:Heading Title} {id=${2:custom-id}}",
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range: headerRange
-            },
-            // New suggestion without ID
-            {
-              label: "header-simple",
-              kind: monaco.languages.CompletionItemKind.Snippet,
-              documentation: "Simple Markdown header",
-              insertText: "# ${1:Heading Title}",
-              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-              range: headerRange
-            }
-          );
         }
 
         // Return the generated suggestions (or an empty list)
