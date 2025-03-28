@@ -491,6 +491,7 @@ export default function GitDiffViewer() {
                         mode="git"
                         selectedItem={selectedItem}
                         selectedFolder={selectedFolder}
+                        currentPath={currentGitPath}
                       />
                     </div>
                   </ScrollArea>
@@ -507,6 +508,7 @@ export default function GitDiffViewer() {
                     mode={mode}
                     selectedItem={selectedItem}
                     selectedFolder={selectedFolder}
+                    currentPath={currentEditPath}
                   />
                 </div>
               </ScrollArea>

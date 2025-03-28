@@ -21,6 +21,7 @@ interface FileTreeProps {
   mode?: 'edit' | 'git'
   selectedItem: string | null
   selectedFolder: any | null
+  currentPath: string
 }
 
 const getIconClass = (fileName: string, isDir: boolean): string => {
@@ -172,7 +173,8 @@ export default function FileTree({
   handleNewFolder,
   mode,
   selectedItem,
-  selectedFolder
+  selectedFolder,
+  currentPath
 }: FileTreeProps) {
   const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null)
   const [newItemName, setNewItemName] = useState('')
@@ -205,9 +207,11 @@ export default function FileTree({
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
-        <h3 className="font-semibold flex items-center">
+        <h3 className="font-semibold flex items-center group relative">
           <i className={getIconClass('folder', true)} />
-          {mode === 'git' ? 'Folders' : 'Files'}
+          <span className="cursor-default" title={currentPath}>
+            {currentPath === '/' ? '/' : currentPath.split('/').pop() || '/'}
+          </span>
         </h3>
         {mode === 'edit' && (
           <div className="space-x-2">
