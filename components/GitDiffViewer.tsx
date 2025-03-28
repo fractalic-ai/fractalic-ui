@@ -13,6 +13,8 @@ import '@xterm/xterm/css/xterm.css';
 import path from 'path';
 import { DiffEditor } from "@monaco-editor/react";
 import MarkdownViewer from './MarkdownViewer';
+import { TraceView } from "./TraceView";
+import styles from './MarkdownViewer.module.css';
 
 interface ConsoleProps {
   // We keep the same props as before but no longer need "ref".
@@ -28,7 +30,7 @@ const DynamicConsole = dynamic<ConsoleProps>(() => import('./Console'), { ssr: f
 
 export default function GitDiffViewer() {
   // State variables
-  const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report'>('sideBySide');
+  const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report' | 'trace'>('sideBySide');
   const [currentGitPath, setCurrentGitPath] = useState<string>('');
   const [currentEditPath, setCurrentEditPath] = useState<string>('');
   const [currentGitFiles, setCurrentGitFiles] = useState<any[]>([]);
