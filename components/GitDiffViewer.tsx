@@ -62,6 +62,7 @@ export default function GitDiffViewer() {
     filePath: string;
   } | null>(null);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
+  const [previousPanelSize, setPreviousPanelSize] = useState(25);
 
   useEffect(() => {
     console.log('GitDiffViewer mounted');
@@ -397,6 +398,18 @@ export default function GitDiffViewer() {
     [branchesData, setSelectedCommit, fetchDiffContent, repoPath]
   );
 
+  const handlePanelToggle = () => {
+    if (isPanelVisible) {
+      // Store current size before hiding
+      const leftPanel = document.getElementById('left-panel');
+      if (leftPanel) {
+        const size = parseFloat(getComputedStyle(leftPanel).width) / window.innerWidth * 100;
+        setPreviousPanelSize(size);
+      }
+    }
+    setIsPanelVisible(!isPanelVisible);
+  };
+
   const renderEditor = () => {
     if (selectedView === 'trace' && selectedCommit.length > 0) {
       console.log("Rendering TraceView with selectedCommit:", selectedCommit);
@@ -447,7 +460,7 @@ export default function GitDiffViewer() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#0f0f0f] text-foreground">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
         theme={theme}
         setTheme={setTheme}
@@ -459,7 +472,7 @@ export default function GitDiffViewer() {
           mode={mode} 
           setMode={setMode} 
           isPanelVisible={isPanelVisible}
-          togglePanel={() => setIsPanelVisible(!isPanelVisible)}
+          togglePanel={handlePanelToggle}
         />
         <ResizablePanelGroup
           direction="horizontal"
@@ -469,7 +482,13 @@ export default function GitDiffViewer() {
           {/* Left Panel */}
           {isPanelVisible && (
             <>
-              <ResizablePanel defaultSize={25} minSize={20} maxSize={40} id="left-panel" order={1}>
+              <ResizablePanel 
+                defaultSize={previousPanelSize} 
+                minSize={20} 
+                maxSize={40} 
+                id="left-panel" 
+                order={1}
+              >
                 {mode === 'git' ? (
                   <ResizablePanelGroup direction="vertical" className="h-full">
                     <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>

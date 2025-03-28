@@ -461,11 +461,11 @@ function EditorComponent(props: EditorProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedView("inline")}
-                className={
+                className={`${
                   selectedView === "inline"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <AlignJustify className="mr-2 h-4 w-4" />
                 Inline
@@ -474,11 +474,11 @@ function EditorComponent(props: EditorProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedView("sideBySide")}
-                className={
+                className={`${
                   selectedView === "sideBySide"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <Columns className="mr-2 h-4 w-4" />
                 Side by Side
@@ -487,11 +487,11 @@ function EditorComponent(props: EditorProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedView("report")}
-                className={
+                className={`${
                   selectedView === "report"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Report
@@ -500,11 +500,11 @@ function EditorComponent(props: EditorProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedView("trace")}
-                className={
+                className={`${
                   selectedView === "trace"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <GitCommit className="mr-2 h-4 w-4" />
                 Trace
@@ -516,12 +516,12 @@ function EditorComponent(props: EditorProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleEditModeChange("plainText")} // Changed from setEditMode
-                className={
+                onClick={() => handleEditModeChange("plainText")}
+                className={`${
                   editMode === "plainText"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <Type className="mr-2 h-4 w-4" />
                 Plain text
@@ -529,12 +529,12 @@ function EditorComponent(props: EditorProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleEditModeChange("notebook")} // Changed from setEditMode
-                className={
+                onClick={() => handleEditModeChange("notebook")}
+                className={`${
                   editMode === "notebook"
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
                 <Book className="mr-2 h-4 w-4" />
                 Notebook

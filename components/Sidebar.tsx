@@ -23,7 +23,7 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel }: 
         variant="ghost"
         size="icon"
         onClick={() => handleModeClick('edit')}
-        className={`w-12 h-12 ${mode === 'edit' ? 'bg-accent text-accent-foreground' : ''}`}
+        className={`w-12 h-12 ${mode === 'edit' ? 'text-white' : 'text-gray-400'}`}
       >
         <PenSquare className="h-6 w-6" />
         <span className="sr-only">Edit mode</span>
@@ -32,7 +32,7 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel }: 
         variant="ghost"
         size="icon"
         onClick={() => handleModeClick('git')}
-        className={`w-12 h-12 ${mode === 'git' ? 'bg-accent text-accent-foreground' : ''}`}
+        className={`w-12 h-12 ${mode === 'git' ? 'text-white' : 'text-gray-400'}`}
       >
         <GitBranch className="h-6 w-6" />
         <span className="sr-only">Git mode</span>
