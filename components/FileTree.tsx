@@ -227,27 +227,29 @@ export default function FileTree({
         )}
       </div>
       <ul className="space-y-1">
-        {currentFiles.map((file) => (
-          <li key={file.path} className="space-y-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-selected={selectedItem === file.path}
-              className={`w-full justify-start file-tree-button ${
-                selectedItem === file.path
-                  ? 'bg-blue-600 text-white'
-                  : 'hover:bg-accent hover:text-accent-foreground'
-              }`}
-              onClick={() => {
-                handleFolderSelect(file)
-                console.log('Selected Item:', file.path)
-              }}
-            >
-              <i className={getIconClass(file.name, file.is_dir)} />
-              <span>{file.name}</span>
-            </Button>
-          </li>
-        ))}
+        {currentFiles
+          .filter(file => mode === 'git' ? (file.is_dir || file.is_git_repo) : true)
+          .map((file) => (
+            <li key={file.path} className="space-y-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-selected={selectedItem === file.path}
+                className={`w-full justify-start file-tree-button ${
+                  selectedItem === file.path
+                    ? 'bg-blue-600 text-white'
+                    : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
+                onClick={() => {
+                  handleFolderSelect(file)
+                  console.log('Selected Item:', file.path)
+                }}
+              >
+                <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
+                <span>{file.name}</span>
+              </Button>
+            </li>
+          ))}
         {isEditing && (
           <li className="px-2 py-1">
             <Input

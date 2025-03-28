@@ -97,7 +97,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     
     const fetchSettings = async () => {
       try {
-        const response = await fetch('http://localhost:8000/load_settings/');
+        const response = await fetch('/api/load_settings/');
         const data = await response.json();
         
         if (mounted && data.settings) {
@@ -173,7 +173,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     e.preventDefault();
     console.log("Saving configuration:", { settings, defaultProvider });
     try {
-      const response = await fetch('http://localhost:8000/save_settings/', {
+      const response = await fetch('/api/save_settings/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

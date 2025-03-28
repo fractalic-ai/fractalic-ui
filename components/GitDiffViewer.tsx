@@ -31,8 +31,8 @@ const DynamicConsole = dynamic<ConsoleProps>(() => import('./Console'), { ssr: f
 export default function GitDiffViewer() {
   // State variables
   const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report' | 'trace'>('sideBySide');
-  const [currentGitPath, setCurrentGitPath] = useState<string>('');
-  const [currentEditPath, setCurrentEditPath] = useState<string>('');
+  const [currentGitPath, setCurrentGitPath] = useState('/');
+  const [currentEditPath, setCurrentEditPath] = useState('/');
   const [currentGitFiles, setCurrentGitFiles] = useState<any[]>([]);
   const [currentEditFiles, setCurrentEditFiles] = useState<any[]>([]);
   const [selectedCommit, setSelectedCommit] = useState<any[]>([]);
@@ -66,6 +66,8 @@ export default function GitDiffViewer() {
 
   useEffect(() => {
     console.log('GitDiffViewer mounted');
+    // Load initial directory contents
+    fetchDirectoryContents('.', false);
     return () => console.log('GitDiffViewer unmounted');
   }, []);
 
@@ -75,9 +77,18 @@ export default function GitDiffViewer() {
 
   useEffect(() => {
     if (mode === 'git') {
-      fetchDirectoryContents(currentGitPath, true);
+      console.log('Git mode active, currentGitPath:', currentGitPath);
+      if (currentGitPath && currentGitPath !== '/') {
+        console.log('Fetching directory contents for git path:', currentGitPath);
+        fetchDirectoryContents(currentGitPath, true);
+      } else {
+        console.log('Fetching root directory in git mode');
+        fetchDirectoryContents('.', true);
+      }
     } else if (mode === 'edit') {
-      fetchDirectoryContents(currentEditPath, false);
+      if (currentEditPath && currentEditPath !== '/') {
+        fetchDirectoryContents(currentEditPath, false);
+      }
     }
   }, [currentGitPath, currentEditPath, mode]);
 
@@ -89,21 +100,31 @@ export default function GitDiffViewer() {
   
   const handleFileSelect = useCallback(async (file: any) => {
     try {
+      console.log('Loading file:', file.path);
       const response = await fetch(
-        `http://localhost:8000/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
+        `/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
       );
       if (response.ok) {
         const data = await response.text();
         setEditedContent(data);
         setSelectedFile(file);
         setCurrentFilePath(file.path);
+        setSelectedItem(file.path);
+        
+        // Update the current path to the directory containing the file
+        const fileDir = file.path.split('/').slice(0, -1).join('/');
+        if (mode === 'git') {
+          setCurrentGitPath(fileDir);
+        } else {
+          setCurrentEditPath(fileDir);
+        }
       } else {
         console.error('Error fetching file content:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching file content:', error);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (selectedItem && selectedItem.endsWith('.tsx')) { // Adjust the file extension as needed
@@ -117,10 +138,13 @@ export default function GitDiffViewer() {
 
   const fetchDirectoryContents = async (pathStr: string, isGitMode: boolean) => {
     try {
-      const response = await fetch(`http://localhost:8000/list_directory/?path=${encodeURIComponent(pathStr)}`);
+      console.log('Fetching directory contents for path:', pathStr, 'isGitMode:', isGitMode);
+      const response = await fetch(`/list_directory/?path=${encodeURIComponent(pathStr)}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('Received directory contents:', data);
         if (isGitMode) {
+          console.log('Setting git files:', data);
           setCurrentGitFiles(data);
         } else {
           setCurrentEditFiles(data);
@@ -136,7 +160,7 @@ export default function GitDiffViewer() {
   const fetchBranchesAndCommits = useCallback(async (pathStr: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/branches_and_commits/?repo_path=${encodeURIComponent(pathStr)}`
+        `/branches_and_commits/?repo_path=${encodeURIComponent(pathStr)}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -152,8 +176,6 @@ export default function GitDiffViewer() {
     }
   }, []);
 
-
-
   const handleFolderSelect = useCallback(
     (folder: any) => {
       console.log('Folder selected:', folder);
@@ -162,6 +184,7 @@ export default function GitDiffViewer() {
         setSelectedFolder(folder);
         setCurrentGitPath(folder.path);
         setSelectedItem(folder.path);
+        fetchDirectoryContents(folder.path, true);
       } else if (folder.is_dir || folder.name === '..') {
         const newPath = folder.path;
         if (mode === 'git') {
@@ -170,10 +193,10 @@ export default function GitDiffViewer() {
           setCurrentEditPath(newPath);
         }
         setSelectedItem(newPath);
+        fetchDirectoryContents(newPath, mode === 'git');
       } else {
         if (mode === 'edit') {
           handleFileSelect(folder);
-          { setSelectedItem(folder.path) }
         }
       }
     },
@@ -187,7 +210,7 @@ export default function GitDiffViewer() {
   const handleNewFile = (fileName: string) => {
     if (fileName) {
       fetch(
-        `http://localhost:8000/create_file/?path=${encodeURIComponent(currentEditPath)}&name=${encodeURIComponent(
+        `/create_file/?path=${encodeURIComponent(currentEditPath)}&name=${encodeURIComponent(
           fileName
         )}`,
         {
@@ -219,7 +242,7 @@ export default function GitDiffViewer() {
   const handleNewFolder = (folderName: string) => {
     if (folderName) {
       fetch(
-        `http://localhost:8000/create_folder/?path=${encodeURIComponent(
+        `/create_folder/?path=${encodeURIComponent(
           currentEditPath
         )}&name=${encodeURIComponent(folderName)}`,
         {
@@ -243,7 +266,7 @@ export default function GitDiffViewer() {
     async (repoPathParam: string, filePath: string, commitHash: string) => {
       try {
         const response = await fetch(
-          `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+          `/get_file_content/?repo_path=${encodeURIComponent(
             repoPathParam
           )}&file_path=${encodeURIComponent(filePath)}&commit_hash=${commitHash}`
         );
@@ -459,6 +482,78 @@ export default function GitDiffViewer() {
     );
   };
 
+  // Add useEffect to restore state from localStorage on mount
+  useEffect(() => {
+    const savedStateStr = localStorage.getItem('fileTreeState');
+    if (savedStateStr) {
+      try {
+        const savedState = JSON.parse(savedStateStr);
+        console.log('Restoring saved state:', savedState);
+        
+        // Set paths first
+        setCurrentGitPath(savedState.currentGitPath || '/');
+        setCurrentEditPath(savedState.currentEditPath || '/');
+        setMode(savedState.mode || 'edit');
+        setSelectedFolder(savedState.selectedFolder);
+        
+        // If we have a selected item, handle it after a short delay to ensure paths are set
+        if (savedState.selectedItem) {
+          setTimeout(() => {
+            if (savedState.selectedItem.endsWith('/')) {
+              // If it's a directory, fetch its contents
+              fetchDirectoryContents(savedState.selectedItem, savedState.mode === 'git');
+            } else {
+              // If it's a file, load its contents
+              handleFileSelect({
+                path: savedState.selectedItem,
+                name: savedState.selectedItem.split('/').pop(),
+                is_dir: false
+              });
+            }
+            setSelectedItem(savedState.selectedItem);
+          }, 100);
+        } else {
+          // If no selected item, fetch the current directory contents
+          const currentPath = savedState.mode === 'git' ? savedState.currentGitPath : savedState.currentEditPath;
+          if (currentPath && currentPath !== '/') {
+            fetchDirectoryContents(currentPath, savedState.mode === 'git');
+          } else {
+            // If no path is set, fetch the root directory
+            fetchDirectoryContents('.', savedState.mode === 'git');
+          }
+        }
+
+        // If in git mode and we have a repo path, fetch branches and commits
+        if (savedState.mode === 'git' && savedState.selectedFolder?.is_git_repo) {
+          setRepoPath(savedState.selectedFolder.path);
+          fetchBranchesAndCommits(savedState.selectedFolder.path);
+        }
+      } catch (error) {
+        console.error('Error restoring file tree state:', error);
+        // If there's an error, fetch the root directory
+        fetchDirectoryContents('.', false);
+      }
+    } else {
+      // If no saved state, fetch the current directory
+      fetchDirectoryContents('.', false);
+    }
+  }, []);
+
+  // Update localStorage whenever relevant state changes
+  useEffect(() => {
+    const stateToSave = {
+      currentGitPath,
+      currentEditPath,
+      selectedItem,
+      mode,
+      selectedFolder: selectedFolder ? {
+        path: selectedFolder.path,
+        is_git_repo: selectedFolder.is_git_repo
+      } : null
+    };
+    localStorage.setItem('fileTreeState', JSON.stringify(stateToSave));
+  }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
@@ -511,9 +606,7 @@ export default function GitDiffViewer() {
                       <ScrollArea className="h-full">
                         <div className="p-4 space-y-4 bg-[#141414]">
                           <FileTree
-                            currentFiles={currentGitFiles.filter(
-                              (file) => file.is_dir || file.name === '..' || file.is_git_repo
-                            )}
+                            currentFiles={currentGitFiles}
                             handleFolderSelect={handleFolderSelect}
                             mode="git"
                             selectedItem={selectedItem}

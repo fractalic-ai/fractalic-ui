@@ -108,7 +108,7 @@ function EditorComponent(props: EditorProps) {
   const [isVisited, setIsVisited] = useState(false);
   const [isButtonClicked, setIsButtonClicked] = useState(false);
   const [fontSize, setFontSize] = useState(14);
-  const [wordWrap, setWordWrap] = useState(false);
+  const [wordWrap, setWordWrap] = useState(true);
   const [lineNumbers, setLineNumbers] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [currentFilePathState, setCurrentFilePathState] = useState(props.currentFilePath);
@@ -122,10 +122,37 @@ function EditorComponent(props: EditorProps) {
     setIsFullscreen(!isFullscreen);
   };
 
+  // Add useEffect to save editor settings to localStorage
+  useEffect(() => {
+    const savedSettings = {
+      wordWrap,
+      lineNumbers,
+      selectedView,
+      editMode
+    };
+    localStorage.setItem('editorSettings', JSON.stringify(savedSettings));
+  }, [wordWrap, lineNumbers, selectedView, editMode]);
+
+  // Add useEffect to restore editor settings from localStorage on mount
+  useEffect(() => {
+    const savedSettingsStr = localStorage.getItem('editorSettings');
+    if (savedSettingsStr) {
+      try {
+        const savedSettings = JSON.parse(savedSettingsStr);
+        setWordWrap(savedSettings.wordWrap ?? true);
+        setLineNumbers(savedSettings.lineNumbers ?? true);
+        setSelectedView(savedSettings.selectedView || 'sideBySide');
+        setEditMode(savedSettings.editMode || 'plainText');
+      } catch (error) {
+        console.error('Error restoring editor settings:', error);
+      }
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
   // Define fetchFileContent
   const fetchFileContent = async (filePath: string): Promise<string> => {
     try {
-      const response = await fetch(`http://localhost:8000/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
+      const response = await fetch(`/api/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
       if (response.ok) {
         const data = await response.text();
         return data;
@@ -220,7 +247,7 @@ function EditorComponent(props: EditorProps) {
         contentToSave = exportToMarkdown(nodes);
       }
 
-      const response = await fetch('http://localhost:8000/save_file', {
+      const response = await fetch('/api/save_file', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
