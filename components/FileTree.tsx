@@ -65,6 +65,8 @@ const getIconClass = (fileName: string, isDir: boolean): string => {
     case 'md':
     case 'markdown':
       return 'icon icon-markdown';
+    case 'ctx':
+      return 'icon icon-markdown ctx-file';
     // Programming Languages
     case 'py':
       return 'icon icon-python';

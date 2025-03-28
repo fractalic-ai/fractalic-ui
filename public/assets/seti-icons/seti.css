@@ -1,10 +1,10 @@
 /* SETI Icon Styles */
 .icon {
-  width: 16px;
-  height: 16px;
+  width: 24px; /* Base size for all icons (intended for files) */
+  height: 24px;
   display: inline-block;
   vertical-align: middle;
-  background-size: 16px;
+  background-size: 24px; /* Ensure background image scales */
   background-repeat: no-repeat;
   background-position: center;
   margin-right: 6px;
@@ -12,8 +12,11 @@
 
 /* Base icons */
 .icon-folder {
-  background-image: url('./project.svg');
-  filter: brightness(0) saturate(100%) invert(83%) sepia(12%) saturate(317%) hue-rotate(176deg) brightness(87%) contrast(85%);
+  width: 16px; /* Specific smaller size for folders */
+  height: 16px;
+  background-size: 16px; /* Match background size */
+  background-image: url('./folder.svg');
+  filter: brightness(0) saturate(100%) invert(50%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(75%) contrast(85%);
 }
 
 .icon-default {
@@ -126,7 +129,11 @@
 
 .icon-markdown {
   background-image: url('./markdown.svg');
-  filter: brightness(0) saturate(100%) invert(67%) sepia(14%) saturate(2217%) hue-rotate(173deg) brightness(88%) contrast(84%);
+  filter: brightness(0) saturate(100%) invert(70%) sepia(11%) saturate(2089%) hue-rotate(101deg) brightness(92%) contrast(83%);
+}
+
+.icon-markdown.ctx-file {
+  filter: brightness(0) saturate(100%) invert(25%) sepia(57%) saturate(3500%) hue-rotate(180deg) brightness(70%) contrast(90%);
 }
 
 .icon-xml {
