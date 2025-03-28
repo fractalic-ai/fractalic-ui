@@ -106,7 +106,7 @@ export default function GitDiffViewer() {
     try {
       console.log('[GitDiffViewer] handleFileSelect triggered for:', file.path);
       const response = await fetch(
-        `/api/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
+        `/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
       );
       if (response.ok) {
         const data = await response.text();
@@ -500,132 +500,124 @@ export default function GitDiffViewer() {
 
   // Add useEffect to restore state from localStorage on mount
   useEffect(() => {
-    const savedStateStr = localStorage.getItem('fileTreeState');
-    if (savedStateStr) {
-      try {
-        const savedState = JSON.parse(savedStateStr);
-        console.log('--- State Restoration START ---');
-        console.log('Restoring saved state:', savedState);
+    const restoreState = async () => {
+      const savedStateStr = localStorage.getItem('fileTreeState');
+      if (savedStateStr) {
+        try {
+          const savedState = JSON.parse(savedStateStr);
+          console.log('--- State Restoration START ---');
+          console.log('Restoring saved state:', savedState);
 
-        // Restore core state variables directly
-        const restoredMode = savedState.mode || 'edit';
-        const restoredGitPath = savedState.currentGitPath || '/';
-        const restoredEditPath = savedState.currentEditPath || '/';
-        const restoredSelectedItem = savedState.selectedItem;
-        const restoredSelectedFolder = savedState.selectedFolder;
-        const restoredRepoPath = savedState.repoPath;
-        const savedCommitHashes = savedState.selectedCommitHashes;
+          // Restore core state variables directly
+          const restoredMode = savedState.mode || 'edit';
+          const restoredGitPath = savedState.currentGitPath || '/';
+          const restoredEditPath = savedState.currentEditPath || '/';
+          const restoredSelectedItem = savedState.selectedItem;
+          const restoredSelectedFolder = savedState.selectedFolder;
+          const restoredRepoPath = savedState.repoPath;
+          const savedCommitHashes = savedState.selectedCommitHashes;
 
-        // --- Apply restored state ---
-        setMode(restoredMode);
-        setCurrentGitPath(restoredGitPath);
-        setCurrentEditPath(restoredEditPath);
-        setSelectedFolder(restoredSelectedFolder);
-        setSelectedItem(restoredSelectedItem);
-        setRepoPath(restoredRepoPath || '');
-        if (savedCommitHashes && savedCommitHashes.length > 0) {
-          setRestoredCommitHashes(savedCommitHashes);
+          // --- Apply restored state ---
+          setMode(restoredMode);
+          setCurrentGitPath(restoredGitPath);
+          setCurrentEditPath(restoredEditPath);
+          setSelectedFolder(restoredSelectedFolder);
+          setSelectedItem(restoredSelectedItem);
+          setRepoPath(restoredRepoPath || '');
+          if (savedCommitHashes && savedCommitHashes.length > 0) {
+            setRestoredCommitHashes(savedCommitHashes);
+          }
+          console.log('Applied base restored state:', { mode: restoredMode, currentGitPath: restoredGitPath, currentEditPath: restoredEditPath, selectedItem: restoredSelectedItem, repoPath: restoredRepoPath });
+
+          // --- Determine Initial Action based on restored state ---
+          let pathForDirFetch: string | null = null;
+          let isGitFetch = restoredMode === 'git';
+          let fileToLoadLater: any | null = null;
+
+          if (restoredMode === 'git') {
+              if (restoredSelectedFolder?.is_git_repo) {
+                  pathForDirFetch = restoredSelectedFolder.path;
+                  console.log(`Git Restore: Selected repo found. Setting dir fetch path to: ${pathForDirFetch}`);
+                  if (pathForDirFetch) {
+                      console.log(`Git Restore: Triggering fetchBranchesAndCommits for: ${pathForDirFetch}`);
+                      fetchBranchesAndCommits(pathForDirFetch);
+                  } else {
+                      console.error("Git Restore: Selected repo folder path is invalid.");
+                      pathForDirFetch = '.';
+                  }
+              } else if (restoredSelectedItem && restoredSelectedItem.endsWith('/')) {
+                  pathForDirFetch = restoredSelectedItem;
+                  console.log(`Git Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
+              } else {
+                  pathForDirFetch = restoredGitPath !== '/' ? restoredGitPath : '.';
+                  console.log(`Git Restore: No specific selection/repo. Using path: ${pathForDirFetch}`);
+              }
+          } else {
+              if (restoredSelectedItem) {
+                  if (restoredSelectedItem.endsWith('/') || restoredSelectedItem === restoredSelectedFolder?.path) {
+                      pathForDirFetch = restoredSelectedItem;
+                      console.log(`Edit Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
+                  } else {
+                      console.log(`Edit Restore: Selected file found: ${restoredSelectedItem}`);
+                      pathForDirFetch = restoredSelectedItem.split('/').slice(0, -1).join('/') || '/';
+                      fileToLoadLater = savedState.selectedFile || {
+                          path: restoredSelectedItem,
+                          name: restoredSelectedItem.split('/').pop(),
+                          is_dir: false
+                      };
+                      console.log(`Edit Restore: Prepared file to load later:`, fileToLoadLater);
+                  }
+              } else {
+                  pathForDirFetch = restoredEditPath !== '/' ? restoredEditPath : '.';
+                  console.log(`Edit Restore: No specific selection. Using path: ${pathForDirFetch}`);
+              }
+          }
+
+          // --- Perform Initial Directory Fetch ---
+          const finalPathForDirFetch = pathForDirFetch === '/' ? '.' : pathForDirFetch;
+          if (finalPathForDirFetch) {
+              console.log(`Performing initial directory fetch for: ${finalPathForDirFetch}, isGitMode: ${isGitFetch}`);
+              await fetchDirectoryContents(finalPathForDirFetch, isGitFetch);
+              
+              // Only attempt to load file content if we're in edit mode and have a file to load
+              if (restoredMode === 'edit') {
+                  if (fileToLoadLater) {
+                      console.log(`Edit Restore: Loading file content for: ${fileToLoadLater.path}`);
+                      // Add a small delay to ensure state updates are processed
+                      setTimeout(() => {
+                          handleFileSelect(fileToLoadLater);
+                      }, 100);
+                  } else if (restoredSelectedItem && !restoredSelectedItem.endsWith('/')) {
+                      console.log(`Edit Restore: Loading content for restored selected item: ${restoredSelectedItem}`);
+                      const fileToLoad = {
+                          path: restoredSelectedItem,
+                          name: restoredSelectedItem.split('/').pop(),
+                          is_dir: false
+                      };
+                      // Add a small delay to ensure state updates are processed
+                      setTimeout(() => {
+                          handleFileSelect(fileToLoad);
+                      }, 100);
+                  }
+              }
+          } else {
+              console.error("Restoration logic failed to determine a path for initial directory fetch.");
+          }
+
+          console.log('--- State Restoration END (Sync part) ---');
+
+        } catch (error) {
+          console.error('Error restoring file tree state:', error);
+          fetchDirectoryContents('.', false);
         }
-        console.log('Applied base restored state:', { mode: restoredMode, currentGitPath: restoredGitPath, currentEditPath: restoredEditPath, selectedItem: restoredSelectedItem, repoPath: restoredRepoPath });
-
-        // --- Determine Initial Action based on restored state ---
-        let pathForDirFetch: string | null = null;
-        let isGitFetch = restoredMode === 'git';
-        let fileToLoadLater: any | null = null;
-
-        if (restoredMode === 'git') {
-            // Git Mode Restoration
-            if (restoredSelectedFolder?.is_git_repo) {
-                // A git repo was selected
-                pathForDirFetch = restoredSelectedFolder.path;
-                console.log(`Git Restore: Selected repo found. Setting dir fetch path to: ${pathForDirFetch}`);
-                // Trigger branches fetch immediately if path is valid
-                if (pathForDirFetch) {
-                    console.log(`Git Restore: Triggering fetchBranchesAndCommits for: ${pathForDirFetch}`);
-                    fetchBranchesAndCommits(pathForDirFetch);
-                } else {
-                     console.error("Git Restore: Selected repo folder path is invalid.");
-                     pathForDirFetch = '.'; // Fallback fetch
-                }
-            } else if (restoredSelectedItem && restoredSelectedItem.endsWith('/')) {
-                 // A non-repo directory was selected in git mode
-                 pathForDirFetch = restoredSelectedItem;
-                 console.log(`Git Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
-            } else {
-                // No specific selection, or invalid state, use currentGitPath or root
-                pathForDirFetch = restoredGitPath !== '/' ? restoredGitPath : '.';
-                console.log(`Git Restore: No specific selection/repo. Using path: ${pathForDirFetch}`);
-            }
-        } else {
-            // Edit Mode Restoration
-            if (restoredSelectedItem) {
-                if (restoredSelectedItem.endsWith('/') || restoredSelectedItem === restoredSelectedFolder?.path) {
-                    // Selected item is a directory
-                    pathForDirFetch = restoredSelectedItem;
-                    console.log(`Edit Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
-                } else {
-                    // Selected item is likely a file
-                    console.log(`Edit Restore: Selected file found: ${restoredSelectedItem}`);
-                    // Fetch the file's PARENT directory
-                    pathForDirFetch = restoredSelectedItem.split('/').slice(0, -1).join('/') || '/';
-                    // Prepare file details to load AFTER directory fetch completes
-                    fileToLoadLater = savedState.selectedFile || {
-                        path: restoredSelectedItem,
-                        name: restoredSelectedItem.split('/').pop(),
-                        is_dir: false
-                    };
-                    console.log(`Edit Restore: Prepared file to load later:`, fileToLoadLater);
-                }
-            } else {
-                 // No specific selection, use currentEditPath or root
-                 pathForDirFetch = restoredEditPath !== '/' ? restoredEditPath : '.';
-                 console.log(`Edit Restore: No specific selection. Using path: ${pathForDirFetch}`);
-            }
-        }
-
-        // --- Perform Initial Directory Fetch ---
-        const finalPathForDirFetch = pathForDirFetch === '/' ? '.' : pathForDirFetch;
-        if (finalPathForDirFetch) {
-            console.log(`Performing initial directory fetch for: ${finalPathForDirFetch}, isGitMode: ${isGitFetch}`);
-            fetchDirectoryContents(finalPathForDirFetch, isGitFetch).then(() => {
-                // After directory contents are fetched, if we have a file to load, load it with a small delay
-                if (fileToLoadLater) {
-                    console.log(`Edit Restore: Loading file content for: ${fileToLoadLater.path}`);
-                    // Add a small delay to ensure state updates are processed
-                    setTimeout(() => {
-                        handleFileSelect(fileToLoadLater);
-                    }, 100);
-                } else if (restoredSelectedItem && !restoredSelectedItem.endsWith('/')) {
-                    // If we have a selected item that's a file but no fileToLoadLater was set
-                    console.log(`Edit Restore: Loading content for restored selected item: ${restoredSelectedItem}`);
-                    const fileToLoad = {
-                        path: restoredSelectedItem,
-                        name: restoredSelectedItem.split('/').pop(),
-                        is_dir: false
-                    };
-                    setTimeout(() => {
-                        handleFileSelect(fileToLoad);
-                    }, 100);
-                }
-            });
-        } else {
-             console.error("Restoration logic failed to determine a path for initial directory fetch.");
-        }
-
-        console.log('--- State Restoration END (Sync part) ---');
-
-      } catch (error) {
-        console.error('Error restoring file tree state:', error);
-        // Fallback: Fetch root directory in edit mode
+      } else {
+        console.log('No saved state found, fetching root directory.');
         fetchDirectoryContents('.', false);
       }
-    } else {
-      // No saved state: Fetch root directory in edit mode
-      console.log('No saved state found, fetching root directory.');
-      fetchDirectoryContents('.', false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // IMPORTANT: Empty dependency array ensures this runs only once on mount
+    };
+
+    restoreState();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // New useEffect to handle restoring commit selection after branchesData is loaded
   useEffect(() => {
