@@ -63,6 +63,10 @@ export default function GitDiffViewer() {
   } | null>(null);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [previousPanelSize, setPreviousPanelSize] = useState(25);
+  const [restoredCommitHashes, setRestoredCommitHashes] = useState<string[] | null>(null);
+
+  // Ref to track initial mount completion
+  const isMountedRef = useRef(false);
 
   useEffect(() => {
     console.log('GitDiffViewer mounted');
@@ -158,23 +162,39 @@ export default function GitDiffViewer() {
   };
 
   const fetchBranchesAndCommits = useCallback(async (pathStr: string) => {
+    // Log entry into this function
+    console.log(`fetchBranchesAndCommits: Attempting to fetch for repo_path: ${pathStr}`);
+    if (!pathStr) {
+      console.error("fetchBranchesAndCommits: Called with empty pathStr. Aborting.");
+      setBranchesData([]); // Clear data if path is invalid
+      return [];
+    }
     try {
       const response = await fetch(
         `/branches_and_commits/?repo_path=${encodeURIComponent(pathStr)}`
       );
+      // Log the response status
+      console.log(`fetchBranchesAndCommits: Response status for ${pathStr}: ${response.status} ${response.statusText}`);
+
       if (response.ok) {
         const data = await response.json();
+        // Log the received data structure (summary)
+        console.log(`fetchBranchesAndCommits: Received data for ${pathStr} (summary):`, JSON.stringify(data.map((b: any) => ({id: b.id, text: b.text, hash: b.ctx_commit_hash, children_count: b.children?.length || 0}))));
+        // Set the state
         setBranchesData(data);
         return data;
       } else {
-        console.error('Error fetching branches and commits:', response.statusText);
+        console.error(`fetchBranchesAndCommits: Error fetching branches and commits for ${pathStr}: ${response.statusText}`);
+        setBranchesData([]); // Clear data on error
         return [];
       }
     } catch (error) {
-      console.error('Error fetching branches and commits:', error);
+      console.error(`fetchBranchesAndCommits: Network or JSON parsing error for ${pathStr}:`, error);
+      setBranchesData([]); // Clear data on error
       return [];
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Keep dependencies minimal if setBranchesData is stable
 
   const handleFolderSelect = useCallback(
     (folder: any) => {
@@ -488,59 +508,231 @@ export default function GitDiffViewer() {
     if (savedStateStr) {
       try {
         const savedState = JSON.parse(savedStateStr);
+        console.log('--- State Restoration START ---');
         console.log('Restoring saved state:', savedState);
-        
-        // Set paths first
-        setCurrentGitPath(savedState.currentGitPath || '/');
-        setCurrentEditPath(savedState.currentEditPath || '/');
-        setMode(savedState.mode || 'edit');
-        setSelectedFolder(savedState.selectedFolder);
-        
-        // If we have a selected item, handle it after a short delay to ensure paths are set
-        if (savedState.selectedItem) {
-          setTimeout(() => {
-            if (savedState.selectedItem.endsWith('/')) {
-              // If it's a directory, fetch its contents
-              fetchDirectoryContents(savedState.selectedItem, savedState.mode === 'git');
+
+        // Restore core state variables directly
+        const restoredMode = savedState.mode || 'edit';
+        const restoredGitPath = savedState.currentGitPath || '/';
+        const restoredEditPath = savedState.currentEditPath || '/';
+        const restoredSelectedItem = savedState.selectedItem;
+        const restoredSelectedFolder = savedState.selectedFolder;
+        const restoredRepoPath = savedState.repoPath;
+        const savedCommitHashes = savedState.selectedCommitHashes;
+
+        // --- Apply restored state ---
+        setMode(restoredMode);
+        setCurrentGitPath(restoredGitPath);
+        setCurrentEditPath(restoredEditPath);
+        setSelectedFolder(restoredSelectedFolder);
+        setSelectedItem(restoredSelectedItem);
+        setRepoPath(restoredRepoPath || '');
+        if (savedCommitHashes && savedCommitHashes.length > 0) {
+          setRestoredCommitHashes(savedCommitHashes);
+        }
+        console.log('Applied base restored state:', { mode: restoredMode, currentGitPath: restoredGitPath, currentEditPath: restoredEditPath, selectedItem: restoredSelectedItem, repoPath: restoredRepoPath });
+
+        // --- Determine Initial Action based on restored state ---
+        let pathForDirFetch: string | null = null;
+        let isGitFetch = restoredMode === 'git';
+        let fileToLoadLater: any | null = null;
+
+        if (restoredMode === 'git') {
+            // Git Mode Restoration
+            if (restoredSelectedFolder?.is_git_repo) {
+                // A git repo was selected
+                pathForDirFetch = restoredSelectedFolder.path;
+                console.log(`Git Restore: Selected repo found. Setting dir fetch path to: ${pathForDirFetch}`);
+                // Trigger branches fetch immediately if path is valid
+                if (pathForDirFetch) {
+                    console.log(`Git Restore: Triggering fetchBranchesAndCommits for: ${pathForDirFetch}`);
+                    fetchBranchesAndCommits(pathForDirFetch);
+                } else {
+                     console.error("Git Restore: Selected repo folder path is invalid.");
+                     pathForDirFetch = '.'; // Fallback fetch
+                }
+            } else if (restoredSelectedItem && restoredSelectedItem.endsWith('/')) {
+                 // A non-repo directory was selected in git mode
+                 pathForDirFetch = restoredSelectedItem;
+                 console.log(`Git Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
             } else {
-              // If it's a file, load its contents
-              handleFileSelect({
-                path: savedState.selectedItem,
-                name: savedState.selectedItem.split('/').pop(),
-                is_dir: false
-              });
+                // No specific selection, or invalid state, use currentGitPath or root
+                pathForDirFetch = restoredGitPath !== '/' ? restoredGitPath : '.';
+                console.log(`Git Restore: No specific selection/repo. Using path: ${pathForDirFetch}`);
             }
-            setSelectedItem(savedState.selectedItem);
-          }, 100);
         } else {
-          // If no selected item, fetch the current directory contents
-          const currentPath = savedState.mode === 'git' ? savedState.currentGitPath : savedState.currentEditPath;
-          if (currentPath && currentPath !== '/') {
-            fetchDirectoryContents(currentPath, savedState.mode === 'git');
-          } else {
-            // If no path is set, fetch the root directory
-            fetchDirectoryContents('.', savedState.mode === 'git');
-          }
+            // Edit Mode Restoration
+            if (restoredSelectedItem) {
+                if (restoredSelectedItem.endsWith('/') || restoredSelectedItem === restoredSelectedFolder?.path) {
+                    // Selected item is a directory
+                    pathForDirFetch = restoredSelectedItem;
+                    console.log(`Edit Restore: Selected directory found. Setting dir fetch path to: ${pathForDirFetch}`);
+                } else {
+                    // Selected item is likely a file
+                    console.log(`Edit Restore: Selected file found: ${restoredSelectedItem}`);
+                    // Fetch the file's PARENT directory
+                    pathForDirFetch = restoredSelectedItem.split('/').slice(0, -1).join('/') || '/';
+                    // Prepare file details to load AFTER directory fetch completes (if needed, handled by handleFileSelect dependency)
+                    fileToLoadLater = savedState.selectedFile || {
+                        path: restoredSelectedItem,
+                        name: restoredSelectedItem.split('/').pop(),
+                        is_dir: false
+                    };
+                    // Explicitly call handleFileSelect here to load content, but ensure it uses correct mode ('edit')
+                    console.log(`Edit Restore: Triggering handleFileSelect for: ${fileToLoadLater.path}`);
+                    // We call this now, state updates should be batched by React
+                    handleFileSelect(fileToLoadLater); 
+                }
+            } else {
+                 // No specific selection, use currentEditPath or root
+                 pathForDirFetch = restoredEditPath !== '/' ? restoredEditPath : '.';
+                 console.log(`Edit Restore: No specific selection. Using path: ${pathForDirFetch}`);
+            }
         }
 
-        // If in git mode and we have a repo path, fetch branches and commits
-        if (savedState.mode === 'git' && savedState.selectedFolder?.is_git_repo) {
-          setRepoPath(savedState.selectedFolder.path);
-          fetchBranchesAndCommits(savedState.selectedFolder.path);
+        // --- Perform Initial Directory Fetch ---
+        const finalPathForDirFetch = pathForDirFetch === '/' ? '.' : pathForDirFetch;
+        if (finalPathForDirFetch) {
+            console.log(`Performing initial directory fetch for: ${finalPathForDirFetch}, isGitMode: ${isGitFetch}`);
+            fetchDirectoryContents(finalPathForDirFetch, isGitFetch);
+        } else {
+             console.error("Restoration logic failed to determine a path for initial directory fetch.");
         }
+
+        console.log('--- State Restoration END (Sync part) ---');
+
       } catch (error) {
         console.error('Error restoring file tree state:', error);
-        // If there's an error, fetch the root directory
+        // Fallback: Fetch root directory in edit mode
         fetchDirectoryContents('.', false);
       }
     } else {
-      // If no saved state, fetch the current directory
+      // No saved state: Fetch root directory in edit mode
+      console.log('No saved state found, fetching root directory.');
       fetchDirectoryContents('.', false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // IMPORTANT: Empty dependency array ensures this runs only once on mount
 
-  // Update localStorage whenever relevant state changes
+  // New useEffect to handle restoring commit selection after branchesData is loaded
   useEffect(() => {
+    // Add check for branchesData being non-empty array
+    if (mode === 'git' && restoredCommitHashes && restoredCommitHashes.length > 0 && Array.isArray(branchesData) && branchesData.length > 0) {
+      console.log('--- Commit Restoration Effect Triggered ---');
+      console.log('Restoring Hashes:', restoredCommitHashes);
+      // Log summary of branch data structure for context
+      console.log('Branches Data Available (Summary):', JSON.stringify(branchesData.map(b => ({id: b.id, text: b.text, hash: b.ctx_commit_hash, children_count: b.children?.length || 0}))));
+
+      // Updated findCommitPath with more logging
+      const findCommitPath = (nodes: any[], hashes: string[], currentPath: any[] = []): any[] | null => {
+        // Log entry into the function for this level
+        console.log(`findCommitPath: Searching nodes (level ${currentPath.length}) for hash: ${hashes[0]}. Current path hashes: [${currentPath.map(n=>n.ctx_commit_hash).join(', ')}]`);
+
+        if (hashes.length === 0) {
+           // This case might be hit if logic calls it with empty hashes, return current path.
+           console.log("findCommitPath: Called with empty hashes. Returning current path.");
+           return currentPath;
+        }
+
+        const targetHash = hashes[0];
+        for (const node of nodes) {
+          // Log node being checked
+          console.log(`  Checking node: "${node.text}" (Hash: ${node.ctx_commit_hash || 'N/A'}) against target: ${targetHash}`);
+
+          // Check if the current node matches the target hash for this level
+          if (node.ctx_commit_hash === targetHash) {
+            console.log(`    ✅ Match found for hash: ${targetHash} at node "${node.text}"`);
+            const newPath = [...currentPath, node]; // Add the matched node to the path
+            const remainingHashes = hashes.slice(1); // Get the hashes for the next levels
+
+            if (remainingHashes.length === 0) {
+              // This was the last hash in the list, we found the complete path
+              console.log("    🏁 Last hash matched. Returning full reconstructed path:", newPath.map(n=>`"${n.text}"`).join(' -> '));
+              return newPath;
+            } else if (node.children && node.children.length > 0) {
+              // Match found, but more hashes remain. Continue searching in this node's children
+              console.log(`     Mapped "${node.text}". Continuing search in ${node.children.length} children for next hash: ${remainingHashes[0]}`);
+              const result = findCommitPath(node.children, remainingHashes, newPath); // Recursive call
+              if (result) return result; // Found the full path down this branch
+              console.log(`    Search in children of "${node.text}" did not yield full path for remaining hashes.`);
+            } else {
+               // Matched the hash, but there are remaining hashes and no children to search
+               console.log(`    ⚠️ Matched hash "${targetHash}" at "${node.text}", but no children found to search for remaining hashes: [${remainingHashes.join(', ')}]`);
+               // Return null as we cannot complete the path
+               return null;
+            }
+          }
+          // If the current node *doesn't* match the target hash,
+          // but it's a potential parent node (e.g., a branch root without a hash itself, or just iterating through siblings)
+          // check if it has children and recursively search them using the *same* target hash for this level.
+          else if (node.children && node.children.length > 0) {
+              console.log(`    Node "${node.text}" didn't match target ${targetHash}. Checking its ${node.children.length} children.`);
+              // Pass the original `hashes` and `currentPath` - we haven't matched this level yet.
+              const resultInChildren = findCommitPath(node.children, hashes, currentPath);
+              if (resultInChildren) return resultInChildren; // Path found deeper
+          }
+        }
+        // Target hash not found among these nodes or their children
+        console.log(`  ❌ Hash ${targetHash} not found in this set of nodes (level ${currentPath.length}).`);
+        return null;
+      };
+
+
+      let reconstructedBreadcrumb: any[] | null = null;
+      console.log("Starting commit path search in root branchesData...");
+      // Start search from the top level of branchesData, looking for the first hash
+      reconstructedBreadcrumb = findCommitPath(branchesData, restoredCommitHashes, []);
+
+      if (reconstructedBreadcrumb) {
+        console.log('--- Commit Restoration SUCCESS ---');
+        // Log the structure of the found breadcrumb for verification
+        console.log('Reconstructed commit breadcrumb:', reconstructedBreadcrumb.map(c => ({text: c.text, hash: c.ctx_commit_hash})));
+        setSelectedCommit(reconstructedBreadcrumb); // Update the state
+
+        const leafCommit = reconstructedBreadcrumb[reconstructedBreadcrumb.length - 1];
+        // Ensure leafCommit and repoPath exist before fetching diff
+        if (leafCommit && leafCommit.ctx_file && leafCommit.md_file && repoPath) {
+           console.log('Fetching diff for restored leaf commit:', leafCommit.text);
+           fetchDiffContent(repoPath, leafCommit.md_file, leafCommit.ctx_file, leafCommit.md_commit_hash, leafCommit.ctx_commit_hash);
+        } else {
+            // Log details if diff fetch cannot proceed
+            console.log("Leaf commit data insufficient or repoPath missing for diff fetching.", {leafCommitExists: !!leafCommit, hasCtxFile: !!leafCommit?.ctx_file, hasMdFile: !!leafCommit?.md_file, repoPathExists: !!repoPath});
+        }
+      } else {
+        console.warn('--- Commit Restoration FAILED ---');
+        console.warn('Could not reconstruct commit path for hashes:', restoredCommitHashes);
+        // Consider clearing the commit selection if restoration fails to avoid inconsistent state
+        // setSelectedCommit([]);
+      }
+
+      // Clear the restored hashes flag regardless of success/failure
+      console.log('Clearing restoredCommitHashes flag.');
+      setRestoredCommitHashes(null);
+      console.log('--- Commit Restoration Effect Finished ---');
+    } else {
+       // Log why the effect didn't run (useful for debugging race conditions or missing data)
+       if (mode === 'git' && restoredCommitHashes && restoredCommitHashes.length > 0) {
+         if (!Array.isArray(branchesData)) console.log("Commit restore skipped: branchesData is not an array yet.", branchesData);
+         else if (branchesData.length === 0) console.log("Commit restore skipped: branchesData is empty.");
+       } else if (mode !== 'git') {
+           // console.log("Commit restore skipped: Not in git mode."); // Less verbose logging
+       } else if (!restoredCommitHashes || restoredCommitHashes.length === 0) {
+           // console.log("Commit restore skipped: No restored commit hashes."); // Less verbose logging
+       }
+    }
+  // Dependencies: run when branchesData is loaded, or when restored hashes are set, or if mode/repo changes while hashes are pending.
+  }, [branchesData, restoredCommitHashes, mode, repoPath, fetchDiffContent]);
+
+  // Update localStorage whenever relevant state changes, BUT skip the very first run after mount
+  useEffect(() => {
+    // Prevent saving state during the very first render cycle after mount
+    if (!isMountedRef.current) {
+      console.log("State saving skipped on initial mount.");
+      isMountedRef.current = true; // Mark initial mount as complete
+      return; // Don't save yet
+    }
+
+    // Proceed with saving state on subsequent updates
     const stateToSave = {
       currentGitPath,
       currentEditPath,
@@ -549,10 +741,20 @@ export default function GitDiffViewer() {
       selectedFolder: selectedFolder ? {
         path: selectedFolder.path,
         is_git_repo: selectedFolder.is_git_repo
-      } : null
+      } : null,
+      repoPath,
+      selectedFile: selectedFile ? {
+        path: selectedFile.path,
+        name: selectedFile.name,
+        is_dir: selectedFile.is_dir
+      } : null,
+      // Save commit breadcrumb hashes (if any)
+      selectedCommitHashes: selectedCommit ? selectedCommit.map(c => c.ctx_commit_hash).filter(Boolean) : [],
     };
+    console.log('Saving state:', stateToSave);
     localStorage.setItem('fileTreeState', JSON.stringify(stateToSave));
-  }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder]);
+  // Dependencies: Ensure all relevant state pieces are included
+  }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder, repoPath, selectedFile, selectedCommit]); // Dependencies remain the same
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
