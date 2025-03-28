@@ -47,8 +47,8 @@ export function registerFractalicLanguage(monaco: any) {
         // REVISED: Markdown link syntax - Capture brackets/parens
         [/(\[)([^\]]+)(\]\()([^)]+)(\))/, ["punctuation.bracket", "link", "punctuation.link", "url", "punctuation.bracket"]],
 
-        // Simple literal values (numbers, true/false) after a colon
-        [/(:\s+)(\d+(\.\d+)?|true|false)\b/, ["punctuation.colon", "literal-value"]],
+        // REVISED: Simple literal values (numbers, true/false) after a colon - Make inner group non-capturing
+        [/(:\s+)(\d+(?:\.\d+)?|true|false)\b/, ["punctuation.colon", "literal-value"]],
 
         // Default text (catch-all)
         [/[a-zA-Z_]\w*/, "identifier"],
