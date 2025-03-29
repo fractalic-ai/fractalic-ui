@@ -761,6 +761,14 @@ export default function GitDiffViewer() {
   // Dependencies: Ensure all relevant state pieces are included
   }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder, repoPath, selectedFile, selectedCommit]); // Dependencies remain the same
 
+  // Add an effect to trigger file load when switching to edit mode if a file is already selected
+  useEffect(() => {
+    if (mode === 'edit' && selectedItem && selectedFile && !editedContent) {
+      console.log('Switching to edit mode: triggering file load for', selectedFile.path);
+      handleFileSelect(selectedFile);
+    }
+  }, [mode, selectedItem, selectedFile, editedContent, handleFileSelect]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
