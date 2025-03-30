@@ -184,21 +184,50 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   // Update save handler
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Saving configuration:", { settings, defaultProvider });
+    
+    const updatedSettings = {...settings};
+
+    // Ensure all numeric settings are correctly formatted as numbers before saving
+    Object.keys(updatedSettings).forEach(provider => {
+      updatedSettings[provider].temperature = Number(updatedSettings[provider].temperature ?? 0);
+      updatedSettings[provider].topP = Number(updatedSettings[provider].topP ?? 1);
+      updatedSettings[provider].topK = Number(updatedSettings[provider].topK ?? 50);
+      updatedSettings[provider].contextSize = Number(updatedSettings[provider].contextSize ?? 4096);
+
+      // Add a check for NaN just in case, though previous steps should prevent it
+      if (isNaN(updatedSettings[provider].temperature)) updatedSettings[provider].temperature = 0.7; // Or a safe default
+      if (isNaN(updatedSettings[provider].topP)) updatedSettings[provider].topP = 1;
+      if (isNaN(updatedSettings[provider].topK)) updatedSettings[provider].topK = 50;
+      if (isNaN(updatedSettings[provider].contextSize)) updatedSettings[provider].contextSize = 4096;
+
+      console.log(`Final ${provider} temperature before save:`, updatedSettings[provider].temperature);
+    });
+    
+    // Create the payload for saving
+    const configToSave = {
+      settings: updatedSettings,
+      defaultProvider: defaultProvider,
+      environment: envVars
+    };
+    
+    console.log("Saving configuration:", JSON.stringify(configToSave, null, 2));
+    
     try {
       const response = await fetch('/save_settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(configToSave),
       });
+      
       if (response.ok) {
         console.log('Settings saved successfully');
-        // Optionally update global settings
-        setGlobalSettings({ settings, defaultProvider, environment: envVars });
+        // Now we use the same structure for global settings
+        setGlobalSettings(configToSave);
       } else {
-        console.error('Error saving settings');
+        const errorData = await response.text();
+        console.error('Error saving settings:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -336,43 +365,93 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
-                        value={settings[activeProvider]?.temperature.toString() || '0.7'}
-                        onChange={(e) => handleSettingChange(activeProvider, "temperature", parseFloat(e.target.value))}
+                        value={String(settings[activeProvider]?.temperature ?? 0)}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          let numValue: number;
+
+                          if (inputValue === '' || inputValue === '-') {
+                             numValue = 0;
+                          } else {
+                            numValue = parseFloat(inputValue);
+                            if (!isNaN(numValue)) {
+                              numValue = Math.max(0, Math.min(1, numValue));
+                              // Explicitly round input value to nearest 0.1 step
+                              numValue = Math.round(numValue * 10) / 10;
+                            } else {
+                              numValue = 0;
+                            }
+                          }
+                          console.log(`Input changed temperature to: ${numValue}`);
+                          handleSettingChange(activeProvider, "temperature", numValue);
+                        }}
                         className="w-20 bg-gray-900 text-white border-gray-800"
                         min={0}
                         max={1}
-                        step={0.01}
+                        step={0.1}
                       />
                       <Slider
                         id={`${uniqueId}-settings-modal-${activeProvider}-temperature-slider`}
-                        value={[settings[activeProvider]?.temperature || 0.7]}
-                        onValueChange={([value]) => handleSettingChange(activeProvider, "temperature", value)}
+                        value={[Number(settings[activeProvider]?.temperature ?? 0)]}
+                        onValueChange={([value]) => {
+                           // 1. Round the incoming value from the slider to the nearest 0.1
+                           const roundedValue = Math.round(value * 10) / 10;
+
+                           // 2. Only update state if the rounded value is different
+                           //    from the current state to prevent potential feedback loops
+                           if (roundedValue !== Number(settings[activeProvider]?.temperature ?? 0)) {
+                             console.log(`Slider raw value: ${value}, Rounded & Setting: ${roundedValue}`);
+                             handleSettingChange(activeProvider, "temperature", roundedValue);
+                           } else {
+                             // Optional: Log when no change is needed
+                             // console.log(`Slider value ${value} rounded to ${roundedValue}, matches current state. No update.`);
+                           }
+                        }}
                         max={1}
-                        step={0.01}
+                        min={0}
+                        step={0.1}
                         className="flex-grow"
                       />
                     </div>
                     {/* Top P */}
                     <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-white">Top P</Label>
-                      <Input
-                        type="number"
-                        id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
-                        value={settings[activeProvider]?.topP.toString() || '1'}
-                        onChange={(e) => handleSettingChange(activeProvider, "topP", parseFloat(e.target.value))}
-                        className="w-20 bg-gray-900 text-white border-gray-800"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                      />
-                      <Slider
-                        id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
-                        value={[settings[activeProvider]?.topP || 1]}
-                        onValueChange={([value]) => handleSettingChange(activeProvider, "topP", value)}
-                        max={1}
-                        step={0.01}
-                        className="flex-grow"
-                      />
+                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-white">Top P</Label>
+                       <Input
+                         type="number"
+                         id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
+                         value={String(settings[activeProvider]?.topP ?? 1)}
+                         onChange={(e) => {
+                           const inputValue = e.target.value;
+                           let numValue = parseFloat(inputValue);
+                           if (!isNaN(numValue)) {
+                             numValue = Math.max(0, Math.min(1, numValue));
+                             // Round Top P input value
+                             numValue = Math.round(numValue * 10) / 10;
+                           } else {
+                             numValue = 1;
+                           }
+                           handleSettingChange(activeProvider, "topP", numValue);
+                         }}
+                         className="w-20 bg-gray-900 text-white border-gray-800"
+                         min={0}
+                         max={1}
+                         step={0.1}
+                       />
+                       <Slider
+                         id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
+                         value={[Number(settings[activeProvider]?.topP ?? 1)]}
+                         onValueChange={([value]) => {
+                           // Round Top P slider value
+                           const roundedValue = Math.round(value * 10) / 10;
+                           if (roundedValue !== Number(settings[activeProvider]?.topP ?? 1)) {
+                             handleSettingChange(activeProvider, "topP", roundedValue);
+                           }
+                         }}
+                         max={1}
+                         min={0}
+                         step={0.1}
+                         className="flex-grow"
+                       />
                     </div>
                     {/* Top K */}
                     <div className="flex items-center space-x-4">
@@ -380,8 +459,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
-                        value={settings[activeProvider]?.topK.toString() || '50'}
-                        onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value))}
+                        value={settings[activeProvider]?.topK.toString()}
+                        onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
                         className="w-20 bg-gray-900 text-white border-gray-800"
                         min={0}
                         max={100}
@@ -402,11 +481,10 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
-                        value={settings[activeProvider]?.contextSize.toString() || '4096'}
-                        onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value))}
+                        value={settings[activeProvider]?.contextSize.toString()}
+                        onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
                         className="w-20 bg-gray-900 text-white border-gray-800"
                         min={1024}
-                        max={32768}
                         step={1024}
                       />
                       <Slider
