@@ -36,8 +36,8 @@ export default function CommitTree({
                 size="sm"
                 className={`w-full justify-start ${
                   isSelected
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-[#202020] text-white hover:bg-[#202020]'
+                    : 'text-gray-400 hover:bg-[#202020] hover:text-white'
                 }`}
                 onClick={() => handleCommitSelect(nodeWithParent)}
               >
