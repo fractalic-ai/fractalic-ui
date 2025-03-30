@@ -252,29 +252,34 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-
-
-      <DialogContent className="sm:max-w-[900px] bg-black text-white rounded-lg shadow-lg z-50">
+      <DialogContent className="sm:max-w-[900px] bg-background text-foreground rounded-lg shadow-lg z-50 border border-border">
         <DialogHeader>
-          <DialogTitle className="text-white">Settings</DialogTitle>
+          <DialogTitle className="text-foreground text-3xl font-bold">Settings</DialogTitle>
           <DialogDescription className="text-gray-400">
             Configure your LLM provider settings here. Be sure to keep API keys secret and never share them.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Tab buttons */}
         <div className="flex space-x-4 mb-4">
           <Button
-            variant={activeTab === 'providers' ? 'default' : 'outline'}
             onClick={() => setActiveTab('providers')}
-            className={activeTab === 'providers' ? 'bg-accent text-accent-foreground' : ''}
+            className={cn(
+              "h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-base font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+              activeTab === 'providers'
+                ? 'bg-muted text-foreground shadow'
+                : 'bg-transparent text-gray-400 border border-border hover:bg-muted/50 hover:text-foreground'
+            )}
           >
             LLM Providers
           </Button>
           <Button
-            variant={activeTab === 'environment' ? 'default' : 'outline'} 
             onClick={() => setActiveTab('environment')}
-            className={activeTab === 'environment' ? 'bg-accent text-accent-foreground' : ''}
+            className={cn(
+              "h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-base font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+              activeTab === 'environment'
+                ? 'bg-muted text-foreground shadow'
+                : 'bg-transparent text-gray-400 border border-border hover:bg-muted/50 hover:text-foreground'
+            )}
           >
             Environment Variables
           </Button>
@@ -287,21 +292,23 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           autoComplete="off"
           className="space-y-4"
         >
-          {/* Tab content */}
-          <div className="h-[500px] overflow-y-auto">
+          <div className="h-[500px] overflow-y-auto pr-2">
             {activeTab === 'providers' ? (
               <div className="flex">
-                {/* Providers content */}
-                <div className="w-1/4 border-r border-gray-800 pr-4">
+                <div className="w-1/4 border-r border-border pr-4">
                   {providers.map((provider) => (
                     <div
                       key={provider.id}
-                      className={`flex items-center justify-between p-2 cursor-pointer ${
-                        activeProvider === provider.id ? "bg-gray-900" : ""
-                      }`}
+                      className={cn(
+                        "flex items-center justify-between p-2 cursor-pointer rounded-md hover:bg-muted",
+                        activeProvider === provider.id ? "bg-muted" : ""
+                      )}
                       onClick={() => setActiveProvider(provider.id)}
                     >
-                      <span>{provider.name}</span>
+                      <span className={cn(
+                        activeProvider === provider.id ? "font-semibold text-foreground" : "",
+                        defaultProvider !== provider.id ? "text-gray-400" : "text-foreground"
+                      )}>{provider.name}</span>
                       {defaultProvider === provider.id && (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
                       )}
@@ -311,7 +318,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                 <div className="w-3/4 pl-4 overflow-y-auto">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-default`} className="text-white">Set as Default</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-default`} className="text-gray-300">Set as Default</Label>
                       <Switch
                         id={`${uniqueId}-settings-modal-${activeProvider}-default`}
                         checked={defaultProvider === activeProvider}
@@ -319,16 +326,16 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-api-key`} className="text-white">API Key</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-api-key`} className="text-gray-300">API Key</Label>
                       <Input
                         id={`${uniqueId}-${sessionId}-${activeProvider}-api-key`}
                         name={`${sessionId}-api-key`}
                         value={settings[activeProvider]?.apiKey || ''}
                         onChange={(e) => handleApiKeyChange(activeProvider, e.target.value)}
-                        type="text" // Use text instead of password
+                        type="text"
                         className={cn(
-                          "bg-gray-900 text-white border-gray-800",
-                          maskedInputs[activeProvider] && "font-mono [text-security: disc]" // CSS masking
+                          "bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                          maskedInputs[activeProvider] && "font-mono [text-security: disc]"
                         )}
                         autoComplete="off"
                         autoCorrect="off"
@@ -339,29 +346,28 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                     </div>
                     {activeProvider === "openai" && (
                       <div className="space-y-2">
-                        <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-white">Base URL</Label>
+                        <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-gray-300">Base URL</Label>
                         <Input
                           id={`${uniqueId}-${sessionId}-${activeProvider}-base-url`}
                           value={settings[activeProvider]?.base_url || ''}
                           onChange={(e) => handleSettingChange(activeProvider, "base_url", e.target.value)}
                           type="text"
-                          className="bg-gray-900 text-white border-gray-800"
+                          className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         />
                       </div>
                     )}
                     <div className="space-y-2">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-white">Model</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300">Model</Label>
                       <Input
                         type="text"
                         id={`${uniqueId}-settings-modal-${activeProvider}-model`}
                         value={settings[activeProvider]?.model || ''}
                         onChange={(e) => handleSettingChange(activeProvider, "model", e.target.value)}
-                        className="bg-gray-900 text-white border-gray-800"
+                        className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       />
                     </div>
-                    {/* Temperature */}
                     <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-white">Temperature</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
@@ -385,7 +391,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                           console.log(`Input changed temperature to: ${numValue}`);
                           handleSettingChange(activeProvider, "temperature", numValue);
                         }}
-                        className="w-20 bg-gray-900 text-white border-gray-800"
+                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         min={0}
                         max={1}
                         step={0.1}
@@ -413,9 +419,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                         className="flex-grow"
                       />
                     </div>
-                    {/* Top P */}
                     <div className="flex items-center space-x-4">
-                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-white">Top P</Label>
+                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-gray-300">Top P</Label>
                        <Input
                          type="number"
                          id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
@@ -432,7 +437,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                            }
                            handleSettingChange(activeProvider, "topP", numValue);
                          }}
-                         className="w-20 bg-gray-900 text-white border-gray-800"
+                         className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                          min={0}
                          max={1}
                          step={0.1}
@@ -453,15 +458,14 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                          className="flex-grow"
                        />
                     </div>
-                    {/* Top K */}
                     <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-white">Top K</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-gray-300">Top K</Label>
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
                         value={settings[activeProvider]?.topK.toString()}
                         onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
-                        className="w-20 bg-gray-900 text-white border-gray-800"
+                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         min={0}
                         max={100}
                         step={1}
@@ -475,15 +479,14 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                         className="flex-grow"
                       />
                     </div>
-                    {/* Context Size */}
                     <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-white">Context Size</Label>
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-gray-300">Context Size</Label>
                       <Input
                         type="number"
                         id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
                         value={settings[activeProvider]?.contextSize.toString()}
                         onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
-                        className="w-20 bg-gray-900 text-white border-gray-800"
+                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         min={1024}
                         step={1024}
                       />
@@ -518,20 +521,20 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       placeholder="Variable name"
                       value={envVar.key}
                       onChange={(e) => updateEnvVar(index, 'key', e.target.value)}
-                      className="bg-gray-900 text-white border-gray-800"
+                      className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                     <Input
                       placeholder="Value" 
                       value={envVar.value}
                       onChange={(e) => updateEnvVar(index, 'value', e.target.value)}
-                      className="bg-gray-900 text-white border-gray-800"
+                      className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                     <Button 
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => removeEnvVar(index)}
-                      className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      className="h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground text-muted-foreground hover:text-destructive-foreground"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -541,8 +544,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             )}
           </div>
 
-          {/* Form footer */}
-          <div className="flex justify-between items-center pt-4 border-t border-gray-800">
+          <div className="flex justify-between items-center pt-4 border-t border-border">
             <Button
               type="button"
               variant="link"
@@ -551,7 +553,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             >
               Open settings file
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button type="submit" className="bg-gray-700 hover:bg-primary text-white hover:text-white">
               Save Changes
             </Button>
           </div>
