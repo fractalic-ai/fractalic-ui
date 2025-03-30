@@ -471,7 +471,7 @@ button[aria-selected="true"]:hover {
 }
 
 .dark .border-r {
-  border-color: #141414 !important;
+  border-color: hsl(var(--border)) !important;
 }
 
 .dark .bg-accent {
