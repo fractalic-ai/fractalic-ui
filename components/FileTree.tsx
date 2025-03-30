@@ -13,6 +13,12 @@ import { HiFolder, HiDocument } from 'react-icons/hi2'; // Using Hi2 for potenti
 import { GoFileMedia } from 'react-icons/go'; // Generic media file
 import '@/public/assets/seti-icons/seti.css';
 import ContextMenu from './ContextMenu';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 interface FileTreeProps {
   currentFiles: any[]
@@ -187,6 +193,8 @@ export default function FileTree({
     file: any;
   } | null>(null)
   const [editingItem, setEditingItem] = useState<any | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [fileToDelete, setFileToDelete] = useState<any | null>(null)
 
   const handleKeyPress = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -261,10 +269,16 @@ export default function FileTree({
 
   const handleDelete = async () => {
     if (!contextMenu) return;
-    const file = contextMenu.file;
+    setFileToDelete(contextMenu.file);
+    setDeleteDialogOpen(true);
+    setContextMenu(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!fileToDelete) return;
     try {
       const response = await fetch(
-        `/delete_item/?path=${encodeURIComponent(file.path)}`,
+        `/delete_item/?path=${encodeURIComponent(fileToDelete.path)}`,
         {
           method: 'DELETE',
         }
@@ -278,7 +292,8 @@ export default function FileTree({
     } catch (error) {
       console.error('Error deleting item:', error);
     }
-    setContextMenu(null);
+    setDeleteDialogOpen(false);
+    setFileToDelete(null);
   };
 
   return (
@@ -364,6 +379,37 @@ export default function FileTree({
           onClose={() => setContextMenu(null)}
         />
       )}
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setFileToDelete(null);
+        }
+        setDeleteDialogOpen(open);
+      }}>
+        <DialogContent className="bg-[#1e1e1e] border-[#3d3d3d]">
+          <DialogTitle className="text-3xl font-bold text-white">Delete File</DialogTitle>
+          <DialogDescription className="text-base text-gray-200">
+            This will permanently delete <span className="text-blue-400 font-semibold">{fileToDelete?.name}</span>. This action cannot be undone.
+          </DialogDescription>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setFileToDelete(null);
+              }}
+              className="text-gray-200 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
