@@ -31,6 +31,8 @@ import {
   Minimize,
   Columns,
   ArrowLeft,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
 import {
@@ -582,11 +584,11 @@ function EditorComponent(props: EditorProps) {
                 Editor Settings
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
-              <div className="p-2 space-y-2">
+            <DropdownMenuContent align="end" className="w-64 bg-[#1a1a1a] border border-gray-800">
+              <DropdownMenuLabel className="text-white font-medium">Editor Settings</DropdownMenuLabel>
+              <div className="p-3 space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="word-wrap-switch" className="text-xs">Word Wrap</Label>
+                  <Label htmlFor="word-wrap-switch" className="text-sm text-gray-300">Word Wrap</Label>
                   <Switch
                     id="word-wrap-switch"
                     checked={wordWrap}
@@ -595,7 +597,7 @@ function EditorComponent(props: EditorProps) {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="line-numbers-switch" className="text-xs">Line Numbers</Label>
+                  <Label htmlFor="line-numbers-switch" className="text-sm text-gray-300">Line Numbers</Label>
                   <Switch
                     id="line-numbers-switch"
                     checked={lineNumbers}
@@ -603,17 +605,36 @@ function EditorComponent(props: EditorProps) {
                     className="data-[state=checked]:bg-primary"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="font-size-input" className="text-xs">Font Size</Label>
-                  <Input
-                    id="font-size-input"
-                    type="number"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(Math.max(8, parseInt(e.target.value) || 14))}
-                    className="w-16 h-7 text-xs px-2"
-                    min="8"
-                    max="32"
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="font-size-input" className="text-sm text-gray-300">Font Size</Label>
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="font-size-input"
+                        type="number"
+                        value={fontSize}
+                        onChange={(e) => setFontSize(Math.max(8, parseInt(e.target.value) || 14))}
+                        className="w-full h-8 text-sm bg-[#2a2a2a] border-gray-700 text-white focus:border-primary focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        min="8"
+                        max="32"
+                        step="2"
+                      />
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col space-y-0.5 pointer-events-none">
+                        <button
+                          onClick={() => setFontSize(prev => Math.min(32, prev + 2))}
+                          className="w-3 h-3 flex items-center justify-center text-gray-400 hover:text-white pointer-events-auto"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => setFontSize(prev => Math.max(8, prev - 2))}
+                          className="w-3 h-3 flex items-center justify-center text-gray-400 hover:text-white pointer-events-auto"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </DropdownMenuContent>
