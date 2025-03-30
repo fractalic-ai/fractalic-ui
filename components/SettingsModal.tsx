@@ -99,7 +99,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       setIsLoading(true);
       setError(null);
       // Fetch settings when the modal opens
-      fetch('/api/load_settings')
+      fetch('/load_settings')
         .then(async (response) => {
           if (!response.ok) {
             // Try to get more specific error if possible
@@ -186,16 +186,12 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     e.preventDefault();
     console.log("Saving configuration:", { settings, defaultProvider });
     try {
-      const response = await fetch('/api/save_settings', {
+      const response = await fetch('/save_settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          settings, 
-          defaultProvider,
-          environment: envVars 
-        }),
+        body: JSON.stringify(settings),
       });
       if (response.ok) {
         console.log('Settings saved successfully');

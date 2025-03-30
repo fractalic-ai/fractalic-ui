@@ -32,8 +32,20 @@ const nextConfig = {
         destination: 'http://127.0.0.1:8000/save_file',
       },
       {
-        source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/:path*',
+        source: '/delete_item',
+        destination: 'http://127.0.0.1:8000/delete_item',
+      },
+      {
+        source: '/rename_item',
+        destination: 'http://127.0.0.1:8000/rename_item',
+      },
+      {
+        source: '/load_settings',
+        destination: 'http://127.0.0.1:8000/load_settings',
+      },
+      {
+        source: '/save_settings',
+        destination: 'http://127.0.0.1:8000/save_settings',
       },
     ];
   },

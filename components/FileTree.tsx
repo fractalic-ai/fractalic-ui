@@ -12,6 +12,7 @@ import {
 import { HiFolder, HiDocument } from 'react-icons/hi2'; // Using Hi2 for potentially newer icons
 import { GoFileMedia } from 'react-icons/go'; // Generic media file
 import '@/public/assets/seti-icons/seti.css';
+import ContextMenu from './ContextMenu';
 
 interface FileTreeProps {
   currentFiles: any[]
@@ -22,6 +23,7 @@ interface FileTreeProps {
   selectedItem: string | null
   selectedFolder: any | null
   currentPath: string
+  onFileUpdate?: (newName?: string) => void  // Update to accept newName parameter
 }
 
 const getIconClass = (fileName: string, isDir: boolean): string => {
@@ -174,23 +176,58 @@ export default function FileTree({
   mode,
   selectedItem,
   selectedFolder,
-  currentPath
+  currentPath,
+  onFileUpdate
 }: FileTreeProps) {
   const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null)
   const [newItemName, setNewItemName] = useState('')
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    file: any;
+  } | null>(null)
+  const [editingItem, setEditingItem] = useState<any | null>(null)
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      if (isEditing === 'file' && handleNewFile) {
+      if (editingItem) {
+        // Skip rename if the new name is the same as the old name
+        if (newItemName === editingItem.name) {
+          setIsEditing(null)
+          setNewItemName('')
+          setEditingItem(null)
+          return;
+        }
+
+        // Handle rename
+        try {
+          const response = await fetch(
+            `/rename_item/?old_path=${encodeURIComponent(editingItem.path)}&new_name=${encodeURIComponent(newItemName)}`,
+            {
+              method: 'POST',
+            }
+          );
+          if (response.ok) {
+            // Pass the new name to the update handler
+            onFileUpdate?.(newItemName);
+          } else {
+            console.error('Error renaming item:', response.statusText);
+          }
+        } catch (error) {
+          console.error('Error renaming item:', error);
+        }
+      } else if (isEditing === 'file' && handleNewFile) {
         handleNewFile(newItemName)
       } else if (isEditing === 'folder' && handleNewFolder) {
         handleNewFolder(newItemName)
       }
       setIsEditing(null)
       setNewItemName('')
+      setEditingItem(null)
     } else if (e.key === 'Escape') {
       setIsEditing(null)
       setNewItemName('')
+      setEditingItem(null)
     }
   }
 
@@ -203,6 +240,46 @@ export default function FileTree({
     setIsEditing('folder')
     setNewItemName('')
   }
+
+  const handleContextMenu = (e: React.MouseEvent, file: any) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      file
+    });
+  };
+
+  const handleRename = async () => {
+    if (!contextMenu) return;
+    const file = contextMenu.file;
+    setIsEditing(file.is_dir ? 'folder' : 'file');
+    setNewItemName(file.name);
+    setEditingItem(file);
+    setContextMenu(null);
+  };
+
+  const handleDelete = async () => {
+    if (!contextMenu) return;
+    const file = contextMenu.file;
+    try {
+      const response = await fetch(
+        `/delete_item/?path=${encodeURIComponent(file.path)}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      if (response.ok) {
+        // Call the update handler instead of reloading
+        onFileUpdate?.();
+      } else {
+        console.error('Error deleting item:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
+    setContextMenu(null);
+  };
 
   return (
     <div>
@@ -231,26 +308,41 @@ export default function FileTree({
           .filter(file => mode === 'git' ? (file.is_dir || file.is_git_repo) : true)
           .map((file) => (
             <li key={file.path} className="space-y-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-selected={selectedItem === file.path}
-                className={`w-full justify-start file-tree-button ${
-                  selectedItem === file.path
-                    ? 'bg-blue-600 text-white'
-                    : 'hover:bg-accent hover:text-accent-foreground'
-                }`}
-                onClick={() => {
-                  handleFolderSelect(file)
-                  console.log('Selected Item:', file.path)
-                }}
-              >
-                <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
-                <span>{file.name}</span>
-              </Button>
+              {editingItem?.path === file.path ? (
+                <div className="flex items-center gap-2 px-2">
+                  <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
+                  <Input
+                    type="text"
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    autoFocus
+                    className="h-8 flex-1"
+                  />
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-selected={selectedItem === file.path}
+                  className={`w-full justify-start file-tree-button ${
+                    selectedItem === file.path
+                      ? 'bg-blue-600 text-white'
+                      : 'hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  onClick={() => {
+                    handleFolderSelect(file)
+                    console.log('Selected Item:', file.path)
+                  }}
+                  onContextMenu={(e) => handleContextMenu(e, file)}
+                >
+                  <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
+                  <span>{file.name}</span>
+                </Button>
+              )}
             </li>
           ))}
-        {isEditing && (
+        {isEditing && !editingItem && (
           <li className="px-2 py-1">
             <Input
               type="text"
@@ -263,6 +355,15 @@ export default function FileTree({
           </li>
         )}
       </ul>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onRename={handleRename}
+          onDelete={handleDelete}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }

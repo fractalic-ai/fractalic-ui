@@ -153,7 +153,7 @@ function EditorComponent(props: EditorProps) {
 
   const fetchFileContent = async (filePath: string): Promise<string> => {
     try {
-      const response = await fetch(`/api/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
+      const response = await fetch(`/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
       if (response.ok) {
         const data = await response.text();
         return data;
@@ -247,7 +247,7 @@ function EditorComponent(props: EditorProps) {
         contentToSave = exportToMarkdown(nodes);
       }
 
-      const response = await fetch(`/api/save_file?path=${encodeURIComponent(currentFilePath)}`, {
+      const response = await fetch(`/save_file?path=${encodeURIComponent(currentFilePath)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

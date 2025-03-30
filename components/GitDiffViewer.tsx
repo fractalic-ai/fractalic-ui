@@ -769,6 +769,19 @@ export default function GitDiffViewer() {
     }
   }, [mode, selectedItem, selectedFile, editedContent, handleFileSelect]);
 
+  const handleFileUpdate = useCallback((newName?: string) => {
+    // Refresh the current directory contents
+    fetchDirectoryContents(currentEditPath, false).then(() => {
+      // If we have a selected file and a new name, update its path to match the new name
+      if (selectedFile && newName) {
+        const newFilePath = `${currentEditPath}/${newName}`;
+        setCurrentFilePath(newFilePath);
+        setSelectedFile({ ...selectedFile, path: newFilePath, name: newName });
+        setSelectedItem(newFilePath);
+      }
+    });
+  }, [currentEditPath, selectedFile, fetchDirectoryContents]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
@@ -844,6 +857,7 @@ export default function GitDiffViewer() {
                         selectedItem={selectedItem}
                         selectedFolder={selectedFolder}
                         currentPath={currentEditPath}
+                        onFileUpdate={handleFileUpdate}
                       />
                     </div>
                   </ScrollArea>
