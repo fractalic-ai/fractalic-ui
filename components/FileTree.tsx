@@ -334,7 +334,7 @@ export default function FileTree({
           </span>
         </h3>
         {mode === 'edit' && (
-          <div className="space-x-2 flex items-center">
+          <div className="space-x-1 flex items-center">
             <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
               <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
                 <Filter className={cn(
