@@ -199,6 +199,8 @@ export default function GitDiffViewer() {
   const [previousPanelSize, setPreviousPanelSize] = useState(25);
   const [restoredCommitHashes, setRestoredCommitHashes] = useState<string[] | null>(null);
   const [filterOption, setFilterOption] = useState<FilterOption>('all');
+  const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null);
+  const [newItemName, setNewItemName] = useState('');
 
   // Ref to track initial mount completion
   const isMountedRef = useRef(false);
@@ -918,13 +920,19 @@ export default function GitDiffViewer() {
   }, [currentEditPath, selectedFile, fetchDirectoryContents]);
 
   const startNewFile = () => {
-    // Implement new file creation logic
-    console.log('New file creation requested');
+    // Trigger the edit box for a new file in the FileTree
+    if (mode === 'edit') {
+      setIsEditing('file');
+      setNewItemName('');
+    }
   };
 
   const startNewFolder = () => {
-    // Implement new folder creation logic
-    console.log('New folder creation requested');
+    // Trigger the edit box for a new folder in the FileTree
+    if (mode === 'edit') {
+      setIsEditing('folder');
+      setNewItemName('');
+    }
   };
 
   return (
@@ -941,6 +949,7 @@ export default function GitDiffViewer() {
           setMode={setMode} 
           isPanelVisible={isPanelVisible}
           togglePanel={handlePanelToggle}
+          className="py-2"
         />
         <ResizablePanelGroup
           direction="horizontal"
@@ -1039,6 +1048,12 @@ export default function GitDiffViewer() {
                             selectedFolder={selectedFolder}
                             currentPath={currentEditPath}
                             onFileUpdate={handleFileUpdate}
+                            isEditing={isEditing}
+                            setIsEditing={setIsEditing}
+                            newItemName={newItemName}
+                            setNewItemName={setNewItemName}
+                            filterOption={filterOption}
+                            setFilterOption={setFilterOption}
                           />
                         </div>
                       </ScrollArea>

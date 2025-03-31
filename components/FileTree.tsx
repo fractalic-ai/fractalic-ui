@@ -37,7 +37,13 @@ interface FileTreeProps {
   selectedItem: string | null
   selectedFolder: any | null
   currentPath: string
-  onFileUpdate?: (newName?: string) => void  // Update to accept newName parameter
+  onFileUpdate?: (newName?: string) => void
+  isEditing?: 'file' | 'folder' | null
+  setIsEditing?: (value: 'file' | 'folder' | null) => void
+  newItemName?: string
+  setNewItemName?: (value: string) => void
+  filterOption?: FilterOption
+  setFilterOption?: (value: FilterOption) => void
 }
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
@@ -193,10 +199,26 @@ export default function FileTree({
   selectedItem,
   selectedFolder,
   currentPath,
-  onFileUpdate
+  onFileUpdate,
+  isEditing: externalIsEditing,
+  setIsEditing: externalSetIsEditing,
+  newItemName: externalNewItemName,
+  setNewItemName: externalSetNewItemName,
+  filterOption: externalFilterOption,
+  setFilterOption: externalSetFilterOption
 }: FileTreeProps) {
-  const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null)
-  const [newItemName, setNewItemName] = useState('')
+  // Use local state if external state is not provided
+  const [localIsEditing, localSetIsEditing] = useState<'file' | 'folder' | null>(null);
+  const [localNewItemName, localSetNewItemName] = useState('');
+  
+  // Use either external state or local state
+  const isEditing = externalIsEditing !== undefined ? externalIsEditing : localIsEditing;
+  const setIsEditing = externalSetIsEditing || localSetIsEditing;
+  const newItemName = externalNewItemName !== undefined ? externalNewItemName : localNewItemName;
+  const setNewItemName = externalSetNewItemName || localSetNewItemName;
+  const filterOption = externalFilterOption !== undefined ? externalFilterOption : 'all';
+  const setFilterOption = externalSetFilterOption || ((value: FilterOption) => {});
+
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -205,7 +227,6 @@ export default function FileTree({
   const [editingItem, setEditingItem] = useState<any | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fileToDelete, setFileToDelete] = useState<any | null>(null)
-  const [filterOption, setFilterOption] = useState<FilterOption>('all')
 
   const handleKeyPress = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {

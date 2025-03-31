@@ -6,9 +6,10 @@ interface SidebarProps {
   setMode: (mode: 'edit' | 'git') => void
   isPanelVisible: boolean
   togglePanel: () => void
+  className?: string
 }
 
-export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel }: SidebarProps) {
+export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, className }: SidebarProps) {
   const handleModeClick = (newMode: 'edit' | 'git') => {
     if (mode === newMode) {
       togglePanel();
@@ -18,7 +19,7 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel }: 
   };
 
   return (
-    <div className="w-16 border-r flex flex-col items-center py-4 space-y-4">
+    <div className={`w-16 border-r flex flex-col items-center space-y-4 ${className || ''}`}>
       <Button
         variant="ghost"
         size="icon"
