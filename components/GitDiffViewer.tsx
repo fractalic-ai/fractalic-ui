@@ -15,6 +15,140 @@ import { DiffEditor } from "@monaco-editor/react";
 import MarkdownViewer from './MarkdownViewer';
 import { TraceView } from "./TraceView";
 import styles from './MarkdownViewer.module.css';
+import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Filter, Plus, FolderPlus } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type FilterOption = 'all' | 'md' | 'md-ctx';
+
+const getIconClass = (fileName: string, isDir: boolean): string => {
+  if (isDir || fileName === '..') {
+    return 'icon icon-folder';
+  }
+
+  const extension = fileName.split('.').pop()?.toLowerCase();
+
+  switch (extension) {
+    case 'js':
+    case 'jsx':
+      return 'icon icon-javascript';
+    case 'ts':
+    case 'tsx':
+      return 'icon icon-typescript';
+    case 'html':
+    case 'htm':
+      return 'icon icon-html';
+    case 'css':
+      return 'icon icon-css';
+    case 'scss':
+    case 'sass':
+      return 'icon icon-sass';
+    case 'vue':
+      return 'icon icon-vue';
+    case 'json':
+      return 'icon icon-json';
+    case 'yml':
+    case 'yaml':
+      return 'icon icon-yml';
+    case 'xml':
+      return 'icon icon-xml';
+    case 'csv':
+      return 'icon icon-csv';
+    case 'md':
+    case 'markdown':
+      return 'icon icon-markdown';
+    case 'ctx':
+      return 'icon icon-markdown ctx-file';
+    case 'py':
+      return 'icon icon-python';
+    case 'rb':
+      return 'icon icon-ruby';
+    case 'java':
+      return 'icon icon-java';
+    case 'go':
+      return 'icon icon-go';
+    case 'rs':
+      return 'icon icon-rust';
+    case 'swift':
+      return 'icon icon-swift';
+    case 'kt':
+      return 'icon icon-kotlin';
+    case 'scala':
+      return 'icon icon-scala';
+    case 'elm':
+      return 'icon icon-elm';
+    case 'clj':
+    case 'cljs':
+      return 'icon icon-clojure';
+    case 'lua':
+      return 'icon icon-lua';
+    case 'jl':
+      return 'icon icon-julia';
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+      return 'icon icon-shell';
+    case 'ini':
+    case 'conf':
+    case 'config':
+      return 'icon icon-config';
+    case 'editorconfig':
+      return 'icon icon-editorconfig';
+    case 'dockerfile':
+      return 'icon icon-docker';
+    case 'gradle':
+      return 'icon icon-gradle';
+    case 'pom.xml':
+      return 'icon icon-maven';
+    case 'package.json':
+      return 'icon icon-npm';
+    case 'yarn.lock':
+      return 'icon icon-yarn';
+    case 'webpack.config.js':
+      return 'icon icon-webpack';
+    case 'rollup.config.js':
+      return 'icon icon-rollup';
+    case 'babel.config.js':
+      return 'icon icon-babel';
+    case '.eslintrc':
+    case '.eslintrc.js':
+    case '.eslintrc.json':
+      return 'icon icon-eslint';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'svg':
+    case 'ico':
+      return 'icon icon-image';
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+      return 'icon icon-audio';
+    case 'mp4':
+    case 'avi':
+    case 'mov':
+      return 'icon icon-video';
+    case 'pdf':
+      return 'icon icon-pdf';
+    case 'zip':
+    case 'tar':
+    case 'gz':
+    case 'rar':
+    case '7z':
+      return 'icon icon-zip';
+    case 'psd':
+      return 'icon icon-photoshop';
+    case 'ai':
+      return 'icon icon-illustrator';
+    case 'gitignore':
+    case 'gitattributes':
+      return 'icon icon-git';
+    default:
+      return 'icon icon-default';
+  }
+};
 
 interface ConsoleProps {
   // We keep the same props as before but no longer need "ref".
@@ -64,6 +198,7 @@ export default function GitDiffViewer() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [previousPanelSize, setPreviousPanelSize] = useState(25);
   const [restoredCommitHashes, setRestoredCommitHashes] = useState<string[] | null>(null);
+  const [filterOption, setFilterOption] = useState<FilterOption>('all');
 
   // Ref to track initial mount completion
   const isMountedRef = useRef(false);
@@ -782,6 +917,16 @@ export default function GitDiffViewer() {
     });
   }, [currentEditPath, selectedFile, fetchDirectoryContents]);
 
+  const startNewFile = () => {
+    // Implement new file creation logic
+    console.log('New file creation requested');
+  };
+
+  const startNewFolder = () => {
+    // Implement new folder creation logic
+    console.log('New folder creation requested');
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
@@ -812,56 +957,94 @@ export default function GitDiffViewer() {
                 id="left-panel" 
                 order={1}
               >
-                {mode === 'git' ? (
-                  <ResizablePanelGroup direction="vertical" className="h-full">
-                    <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
+                <div className="flex flex-col h-full">
+                  <div className="flex justify-between items-center bg-[#141414] px-8 py-2">
+                    <h3 className="font-semibold flex items-center group relative">
+                      <i className={getIconClass('folder', true)} />
+                      <span className="cursor-default" title={mode === 'git' ? currentGitPath : currentEditPath}>
+                        {(mode === 'git' ? currentGitPath : currentEditPath) === '/' ? '/' : (mode === 'git' ? currentGitPath : currentEditPath).split('/').pop() || '/'}
+                      </span>
+                    </h3>
+                    {mode === 'edit' && (
+                      <div className="space-x-1 flex items-center">
+                        <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
+                          <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
+                            <Filter className={cn(
+                              "h-4 w-4",
+                              filterOption !== 'all' && "fill-current"
+                            )} />
+                            <span className="sr-only">Filter files</span>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Show all</SelectItem>
+                            <SelectItem value="md">Show .md</SelectItem>
+                            <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" onClick={startNewFile}>
+                          <Plus className="h-4 w-4" />
+                          <span className="sr-only">New File</span>
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={startNewFolder}>
+                          <FolderPlus className="h-4 w-4" />
+                          <span className="sr-only">New Folder</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    {mode === 'git' ? (
+                      <ResizablePanelGroup direction="vertical" className="h-full">
+                        <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
+                          <ScrollArea className="h-full">
+                            <div className="p-4 space-y-4 bg-[#141414]">
+                              <CommitTree
+                                selectedFolder={selectedFolder}
+                                branchesData={branchesData}
+                                setSelectedCommit={setSelectedCommit}
+                                setDiffContent={setDiffContent}
+                                repoPath={repoPath}
+                                handleCommitSelect={handleCommitSelect}
+                                selectedCommit={selectedCommit}
+                              />
+                            </div>
+                          </ScrollArea>
+                        </ResizablePanel>
+                        <ResizableHandle />
+                        <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
+                          <ScrollArea className="h-full">
+                            <div className="p-4 space-y-4 bg-[#141414]">
+                              <FileTree
+                                currentFiles={currentGitFiles}
+                                handleFolderSelect={handleFolderSelect}
+                                mode="git"
+                                selectedItem={selectedItem}
+                                selectedFolder={selectedFolder}
+                                currentPath={currentGitPath}
+                              />
+                            </div>
+                          </ScrollArea>
+                        </ResizablePanel>
+                      </ResizablePanelGroup>
+                    ) : (
                       <ScrollArea className="h-full">
-                        <div className="p-4 space-y-4 bg-[#141414]">
-                          <CommitTree
-                            selectedFolder={selectedFolder}
-                            branchesData={branchesData}
-                            setSelectedCommit={setSelectedCommit}
-                            setDiffContent={setDiffContent}
-                            repoPath={repoPath}
-                            handleCommitSelect={handleCommitSelect}
-                            selectedCommit={selectedCommit}
-                          />
-                        </div>
-                      </ScrollArea>
-                    </ResizablePanel>
-                    <ResizableHandle />
-                    <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
-                      <ScrollArea className="h-full">
-                        <div className="p-4 space-y-4 bg-[#141414]">
+                        <div className="px-4 pb-4 space-y-4 bg-[#141414]">
                           <FileTree
-                            currentFiles={currentGitFiles}
+                            currentFiles={currentEditFiles}
                             handleFolderSelect={handleFolderSelect}
-                            mode="git"
+                            handleNewFile={handleNewFile}
+                            handleNewFolder={handleNewFolder}
+                            mode={mode}
                             selectedItem={selectedItem}
                             selectedFolder={selectedFolder}
-                            currentPath={currentGitPath}
+                            currentPath={currentEditPath}
+                            onFileUpdate={handleFileUpdate}
                           />
                         </div>
                       </ScrollArea>
-                    </ResizablePanel>
-                  </ResizablePanelGroup>
-                ) : (
-                  <ScrollArea className="h-full">
-                    <div className="p-4 space-y-4 bg-[#141414]">
-                      <FileTree
-                        currentFiles={currentEditFiles}
-                        handleFolderSelect={handleFolderSelect}
-                        handleNewFile={handleNewFile}
-                        handleNewFolder={handleNewFolder}
-                        mode={mode}
-                        selectedItem={selectedItem}
-                        selectedFolder={selectedFolder}
-                        currentPath={currentEditPath}
-                        onFileUpdate={handleFileUpdate}
-                      />
-                    </div>
-                  </ScrollArea>
-                )}
+                    )}
+                  </div>
+                </div>
               </ResizablePanel>
               <ResizableHandle className="w-1 bg-border" />
             </>

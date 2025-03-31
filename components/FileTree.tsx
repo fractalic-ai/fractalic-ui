@@ -325,93 +325,69 @@ export default function FileTree({
   });
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="font-semibold flex items-center group relative">
-          <i className={getIconClass('folder', true)} />
-          <span className="cursor-default" title={currentPath}>
-            {currentPath === '/' ? '/' : currentPath.split('/').pop() || '/'}
-          </span>
-        </h3>
-        {mode === 'edit' && (
-          <div className="space-x-1 flex items-center">
-            <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
-              <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
-                <Filter className={cn(
-                  "h-4 w-4",
-                  filterOption !== 'all' && "fill-current"
-                )} />
-                <span className="sr-only">Filter files</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Show all</SelectItem>
-                <SelectItem value="md">Show .md</SelectItem>
-                <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="icon" onClick={startNewFile}>
-              <Plus className="h-4 w-4" />
-              <span className="sr-only">New File</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={startNewFolder}>
-              <FolderPlus className="h-4 w-4" />
-              <span className="sr-only">New Folder</span>
-            </Button>
+    <div className="flex flex-col h-full">
+      <div data-radix-scroll-area-viewport="" className="h-full w-full rounded-[inherit] overflow-hidden">
+        <div style={{ minWidth: '100%', display: 'table' }}>
+          <div className="p-4 space-y-4 bg-[#141414]">
+            <div className="flex flex-col h-full">
+              <div className="flex-grow overflow-y-auto">
+                <ul className="space-y-1">
+                  {filteredFiles
+                    .filter(file => mode === 'git' ? (file.is_dir || file.is_git_repo) : true)
+                    .map((file) => (
+                      <li key={file.path} className="space-y-1">
+                        {editingItem?.path === file.path ? (
+                          <div className="flex items-center gap-2 px-2">
+                            <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
+                            <Input
+                              type="text"
+                              value={newItemName}
+                              onChange={(e) => setNewItemName(e.target.value)}
+                              onKeyDown={handleKeyPress}
+                              autoFocus
+                              className="h-8 flex-1"
+                            />
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-selected={selectedItem === file.path}
+                            className={`w-full justify-start file-tree-button ${
+                              selectedItem === file.path
+                                ? 'bg-blue-600 text-white'
+                                : 'hover:bg-accent hover:text-accent-foreground'
+                            }`}
+                            onClick={() => {
+                              handleFolderSelect(file)
+                              console.log('Selected Item:', file.path)
+                            }}
+                            onContextMenu={(e) => handleContextMenu(e, file)}
+                          >
+                            <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
+                            <span>{file.name}</span>
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  {isEditing && !editingItem && (
+                    <li className="px-2 py-1">
+                      <Input
+                        type="text"
+                        placeholder={`New ${isEditing}...`}
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        autoFocus
+                      />
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
-      <ul className="space-y-1">
-        {filteredFiles
-          .filter(file => mode === 'git' ? (file.is_dir || file.is_git_repo) : true)
-          .map((file) => (
-            <li key={file.path} className="space-y-1">
-              {editingItem?.path === file.path ? (
-                <div className="flex items-center gap-2 px-2">
-                  <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
-                  <Input
-                    type="text"
-                    value={newItemName}
-                    onChange={(e) => setNewItemName(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    autoFocus
-                    className="h-8 flex-1"
-                  />
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-selected={selectedItem === file.path}
-                  className={`w-full justify-start file-tree-button ${
-                    selectedItem === file.path
-                      ? 'bg-blue-600 text-white'
-                      : 'hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                  onClick={() => {
-                    handleFolderSelect(file)
-                    console.log('Selected Item:', file.path)
-                  }}
-                  onContextMenu={(e) => handleContextMenu(e, file)}
-                >
-                  <i className={file.is_git_repo ? 'icon icon-git' : getIconClass(file.name, file.is_dir)} />
-                  <span>{file.name}</span>
-                </Button>
-              )}
-            </li>
-          ))}
-        {isEditing && !editingItem && (
-          <li className="px-2 py-1">
-            <Input
-              type="text"
-              placeholder={`New ${isEditing}...`}
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              onKeyDown={handleKeyPress}
-              autoFocus
-            />
-          </li>
-        )}
-      </ul>
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
