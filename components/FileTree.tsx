@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Plus, FolderPlus } from 'lucide-react'
+import { Plus, FolderPlus, Filter } from 'lucide-react'
 import { useState, KeyboardEvent } from 'react'
 import { Input } from "@/components/ui/input"
 // Remove vscode-icons-js import
@@ -19,6 +19,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
 interface FileTreeProps {
   currentFiles: any[]
@@ -31,6 +39,8 @@ interface FileTreeProps {
   currentPath: string
   onFileUpdate?: (newName?: string) => void  // Update to accept newName parameter
 }
+
+type FilterOption = 'all' | 'md' | 'md-ctx';
 
 const getIconClass = (fileName: string, isDir: boolean): string => {
   if (isDir || fileName === '..') {
@@ -195,6 +205,7 @@ export default function FileTree({
   const [editingItem, setEditingItem] = useState<any | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fileToDelete, setFileToDelete] = useState<any | null>(null)
+  const [filterOption, setFilterOption] = useState<FilterOption>('all')
 
   const handleKeyPress = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -296,6 +307,23 @@ export default function FileTree({
     setFileToDelete(null);
   };
 
+  const filteredFiles = currentFiles.filter(file => {
+    // Always show folders
+    if (file.is_dir) return true;
+    
+    // Apply filter based on selected option
+    switch (filterOption) {
+      case 'all':
+        return true;
+      case 'md':
+        return file.name.endsWith('.md');
+      case 'md-ctx':
+        return file.name.endsWith('.md') || file.name.endsWith('.ctx');
+      default:
+        return true;
+    }
+  });
+
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
@@ -306,7 +334,21 @@ export default function FileTree({
           </span>
         </h3>
         {mode === 'edit' && (
-          <div className="space-x-2">
+          <div className="space-x-2 flex items-center">
+            <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
+              <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
+                <Filter className={cn(
+                  "h-4 w-4",
+                  filterOption !== 'all' && "fill-current"
+                )} />
+                <span className="sr-only">Filter files</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Show all</SelectItem>
+                <SelectItem value="md">Show .md</SelectItem>
+                <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="ghost" size="icon" onClick={startNewFile}>
               <Plus className="h-4 w-4" />
               <span className="sr-only">New File</span>
@@ -319,7 +361,7 @@ export default function FileTree({
         )}
       </div>
       <ul className="space-y-1">
-        {currentFiles
+        {filteredFiles
           .filter(file => mode === 'git' ? (file.is_dir || file.is_git_repo) : true)
           .map((file) => (
             <li key={file.path} className="space-y-1">
