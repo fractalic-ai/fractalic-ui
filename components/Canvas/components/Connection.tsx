@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './Connection.module.css';
+import styles from '../styles/Connection.module.css';
 
 interface ConnectionProps {
   path: string;

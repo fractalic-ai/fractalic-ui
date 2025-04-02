@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './CollapsibleContent.module.css';
+import styles from '../styles/CollapsibleContent.module.css';
 
 interface CollapsibleContentProps {
   isCollapsed: boolean;

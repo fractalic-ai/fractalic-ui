@@ -2,12 +2,11 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Filter, ChevronUp, ChevronDown } from 'lucide-react';
 import { Canvas } from './components/Canvas';
 import { TraceNode } from './components/TraceNode';
-import { TextField } from './components/TextField';
 import { DebugPanel } from './components/DebugPanel';
-import { TraceNodeData, TraceTreeNode, ProcessedTraceGroup, TraceGroup, PositionedNode, NodePosition } from './types';
+import { TraceNodeData, TraceTreeNode, ProcessedTraceGroup, TraceGroup, NodePosition } from './types';
 import { TreeLayout } from './components/TreeLayout';
-import { connectionManager, Connection, ConnectionType } from './utils/ConnectionManager';
-import styles from './CanvasDisplay.module.css';
+import { connectionManager, Connection } from './utils/ConnectionManager';
+import styles from './styles/CanvasDisplay.module.css';
 
 // Recursively render groups using hierarchical structure and layout positions.
 const RenderGroupsTree: React.FC<{
@@ -60,7 +59,9 @@ const RenderGroupsTree: React.FC<{
                 return (
                   <div
                     key={nodeKey}
-                    ref={el => (nodeRefs.current[nodeKey] = el)}
+                    ref={el => {
+                      nodeRefs.current[nodeKey] = el;
+                    }}
                     style={{
                       marginLeft: indentLevel > 0 ? `${indentLevel * 54}px` : undefined
                     }}
@@ -119,13 +120,12 @@ const CanvasDisplay: React.FC = () => {
   );
   const [connections, setConnections] = useState<Connection[]>([]);
   const [nodePositions, setNodePositions] = useState<Map<string, NodePosition[]>>(new Map());
-  const [connectionSegments, setConnectionSegments] = useState<any[]>([]);
+  const [connectionSegments, setConnectionSegments] = useState<Array<{ path: string; type: string }>>([]);
   const [layoutUpdateCounter, setLayoutUpdateCounter] = useState(0);
   const [areAllNodesCollapsed, setAreAllNodesCollapsed] = useState(false);
 
   // Refs
   const nodeRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const groupCounter = useRef(1);
   const zoomToFitRef = useRef<(element: HTMLElement) => void>();
 
   // Callbacks
@@ -183,7 +183,7 @@ const CanvasDisplay: React.FC = () => {
           }));
           hasContent = true;
         }
-      } catch (err) {
+      } catch {
         console.error("Failed to parse trace content for node:", traceTree.id);
       }
     }
@@ -229,7 +229,7 @@ const convertToFlatGroups = (processedGroup: ProcessedTraceGroup, parentId?: str
   }
   
   // Add child groups
-  let lastParentId = processedGroup.hasContent ? processedGroup.id : parentId;
+  const lastParentId = processedGroup.hasContent ? processedGroup.id : parentId;
   
   processedGroup.children.forEach(child => {
     flatGroups.push(...convertToFlatGroups(child, lastParentId));
@@ -402,7 +402,7 @@ const handleLoadTrace = () => {
     
     // Trigger continuous connection updates during animation
     const duration = 350; // Match CSS transition duration
-    let startTime = performance.now();
+    const startTime = performance.now();
     
     const animateConnections = () => {
       collectNodePositions();
@@ -445,7 +445,7 @@ const handleLoadTrace = () => {
     
     // Trigger continuous connection updates during animation
     const duration = 350; // Match CSS transition duration
-    let startTime = performance.now();
+    const startTime = performance.now();
     
     const animateConnections = () => {
       collectNodePositions();
@@ -506,7 +506,7 @@ const handleLoadTrace = () => {
     };
   }, [traceGroups, collectNodePositions]);
 
-  const handleConnectionSegmentsUpdate = useCallback((segments: any[]) => {
+  const handleConnectionSegmentsUpdate = useCallback((segments: Array<{ path: string; type: string }>) => {
     setConnectionSegments(segments);
   }, []);
 
@@ -660,7 +660,9 @@ const handleLoadTrace = () => {
                             return (
                               <div
                                 key={nodeKey}
-                                ref={el => nodeRefs.current[nodeKey] = el}
+                                ref={el => {
+                                  nodeRefs.current[nodeKey] = el;
+                                }}
                                 style={{
                                   marginLeft: indentLevel > 0 ? `${indentLevel * 54}px` : undefined,
                                   width: `${baseWidth - 48}px` // Adjust width to account for padding
@@ -702,7 +704,7 @@ const handleLoadTrace = () => {
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-center text-gray-400">
-            No trace data loaded. Paste your trace data above and click "Load Trace Data" to begin.
+            <p>No trace data loaded. Paste your trace data above and click &quot;Load Trace Data&quot; to begin.</p>
           </div>
         )}
       </div>

@@ -165,7 +165,7 @@ const DynamicConsole = dynamic<ConsoleProps>(() => import('./Console'), { ssr: f
 
 export default function GitDiffViewer() {
   // State variables
-  const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report' | 'trace'>('sideBySide');
+  const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report' | 'trace' | 'inspector'>('sideBySide');
   const [currentGitPath, setCurrentGitPath] = useState('/');
   const [currentEditPath, setCurrentEditPath] = useState('/');
   const [currentGitFiles, setCurrentGitFiles] = useState<any[]>([]);

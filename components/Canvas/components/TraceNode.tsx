@@ -3,7 +3,7 @@ import { ChevronRight, ChevronDown, X, Filter } from 'lucide-react';
 import { getNodeIcon } from '../utils/icons';
 import { TextField } from './TextField';
 import { TraceNodeData } from '../types';
-import styles from './TraceNode.module.css';
+import styles from '../styles/TraceNode.module.css';
 
 interface TraceNodeProps {
   node: TraceNodeData;

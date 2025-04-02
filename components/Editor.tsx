@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import MarkdownViewer from './MarkdownViewer';
 import styles from '@/components/MarkdownViewer.module.css';
 import { TraceView } from "./TraceView";
+import CanvasDisplay from "./Canvas/CanvasDisplay";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -51,8 +52,8 @@ import { Input } from "@/components/ui/input";
 
 interface EditorProps {
   mode: "edit" | "git";
-  selectedView: "sideBySide" | "inline" | "report" | "trace";
-  setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace") => void;
+  selectedView: "sideBySide" | "inline" | "report" | "trace" | "inspector";
+  setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace" | "inspector") => void;
   selectedCommit: any[];
   editMode: "plainText" | "notebook";
   setEditMode: (mode: "plainText" | "notebook") => void;
@@ -401,6 +402,14 @@ function EditorComponent(props: EditorProps) {
         );
       }
   
+      if (selectedView === 'inspector' && selectedCommit.length > 0) {
+        return (
+          <div className="h-full w-full overflow-hidden">
+            <CanvasDisplay />
+          </div>
+        );
+      }
+  
       return (
         <div className="h-full">
           <DiffEditor
@@ -545,6 +554,19 @@ function EditorComponent(props: EditorProps) {
               >
                 <GitCommit className="mr-2 h-4 w-4" />
                 Trace
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedView("inspector")}
+                className={`${
+                  selectedView === "inspector"
+                    ? "text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Inspector
               </Button>
             </>
           ) : (
