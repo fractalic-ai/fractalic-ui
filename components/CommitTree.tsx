@@ -22,14 +22,14 @@ export default function CommitTree({
 }: CommitTreeProps) {
   const renderCommitTree = (nodes: any[], level = 0, parentNode: any = null) => (
     <ul className={`space-y-1 ${level > 0 ? 'ml-4' : ''}`}>
-      {nodes.map((node: any) => {
+      {nodes.map((node: any, index: number) => {
         const nodeWithParent = { ...node, parent: parentNode }
         const isSelected = selectedCommit && selectedCommit.some(commit => commit.id === node.id)
         const isRootCommit = level === 0
         //console.log(`Node: ${node.text}, Level: ${level}, isRootCommit: ${isRootCommit}`)
 
         return (
-          <li key={node.id}>
+          <li key={`${node.id}-${index}`}>
             <div className="flex items-center">
               <Button
                 variant="ghost"
