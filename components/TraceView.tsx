@@ -1,7 +1,10 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2 } from 'lucide-react';
 import path from 'path';
+import { useTrace } from '@/contexts/TraceContext';
 
 interface TraceViewProps {
   repoPath: string;
@@ -23,6 +26,7 @@ export const TraceView: React.FC<TraceViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [traceContentTree, setTraceContentTree] = useState<any | null>(null);
   const [singleTraceContent, setSingleTraceContent] = useState<string | null>(null);
+  const { traceData } = useTrace();
 
   useEffect(() => {
     // If direct content is provided, use it
@@ -45,17 +49,22 @@ export const TraceView: React.FC<TraceViewProps> = ({
         } 
         // Legacy single trace file mode
         else if (traceFile && traceCommitHash) {
-          const response = await fetch(
-            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
-              repoPath
-            )}&file_path=${encodeURIComponent(traceFile)}&commit_hash=${traceCommitHash}`
-          );
-          
-          if (response.ok) {
-            const content = await response.text();
-            setSingleTraceContent(content);
+          // Check if trace data exists in context
+          if (traceData[traceCommitHash]) {
+            setSingleTraceContent(traceData[traceCommitHash].content);
           } else {
-            throw new Error(`Failed to fetch trace file: ${response.statusText}`);
+            const response = await fetch(
+              `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+                repoPath
+              )}&file_path=${encodeURIComponent(traceFile)}&commit_hash=${traceCommitHash}`
+            );
+            
+            if (response.ok) {
+              const content = await response.text();
+              setSingleTraceContent(content);
+            } else {
+              throw new Error(`Failed to fetch trace file: ${response.statusText}`);
+            }
           }
         }
       } catch (err) {
@@ -68,7 +77,7 @@ export const TraceView: React.FC<TraceViewProps> = ({
     };
 
     fetchTraceContents();
-  }, [repoPath, callTree, traceFile, traceCommitHash, content]);
+  }, [repoPath, callTree, traceFile, traceCommitHash, content, traceData]);
 
   // Function to recursively extract trace file contents from the call tree
   const extractTraceContents = async (node: any): Promise<any> => {
@@ -80,20 +89,25 @@ export const TraceView: React.FC<TraceViewProps> = ({
     
     // If this node has a trace file, fetch it
     if (node.trc_file && node.trc_commit_hash) {
-      try {
-        const response = await fetch(
-          `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
-            repoPath
-          )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${node.trc_commit_hash}`
-        );
-        
-        if (response.ok) {
-          cleanNode.trace_content = await response.text();
-        } else {
-          cleanNode.trace_error = `Failed to fetch trace file: ${response.status} ${response.statusText}`;
+      // Check if trace data exists in context
+      if (traceData[node.trc_commit_hash]) {
+        cleanNode.trace_content = traceData[node.trc_commit_hash].content;
+      } else {
+        try {
+          const response = await fetch(
+            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+              repoPath
+            )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${node.trc_commit_hash}`
+          );
+          
+          if (response.ok) {
+            cleanNode.trace_content = await response.text();
+          } else {
+            cleanNode.trace_error = `Failed to fetch trace file: ${response.status} ${response.statusText}`;
+          }
+        } catch (error) {
+          cleanNode.trace_error = `Error: ${error instanceof Error ? error.message : String(error)}`;
         }
-      } catch (error) {
-        cleanNode.trace_error = `Error: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
     

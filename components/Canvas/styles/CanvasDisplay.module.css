@@ -1,0 +1,33 @@
+/* Global styles for the Canvas Display component */
+
+/* Custom Scrollbar Styles */
+.customScrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4A5568 #1A202C;
+}
+
+.customScrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.customScrollbar::-webkit-scrollbar-track {
+  background: #1A202C;
+  border-radius: 4px;
+}
+
+.customScrollbar::-webkit-scrollbar-thumb {
+  background: #4A5568;
+  border-radius: 4px;
+}
+
+.customScrollbar::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Additional global styles for the canvas display container */
+.canvasContainer {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+} 

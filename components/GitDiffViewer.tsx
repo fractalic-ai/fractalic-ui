@@ -19,6 +19,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Filter, Plus, FolderPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTrace } from '@/contexts/TraceContext';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
 
@@ -201,6 +202,7 @@ export default function GitDiffViewer() {
   const [filterOption, setFilterOption] = useState<FilterOption>('all');
   const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null);
   const [newItemName, setNewItemName] = useState('');
+  const { setTraceData } = useTrace();
 
   // Ref to track initial mount completion
   const isMountedRef = useRef(false);
@@ -531,6 +533,30 @@ export default function GitDiffViewer() {
 
       if (node.ctx_file && node.md_file) {
         await fetchDiffContent(repoPath, node.md_file, node.ctx_file, node.md_commit_hash, node.ctx_commit_hash);
+        
+        // Store trace data in context if available
+        if (node.trc_file && node.trc_commit_hash) {
+          try {
+            const response = await fetch(
+              `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+                repoPath
+              )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${node.trc_commit_hash}`
+            );
+            
+            if (response.ok) {
+              const content = await response.text();
+              setTraceData({
+                [node.trc_commit_hash]: {
+                  content,
+                  commitHash: node.trc_commit_hash,
+                  filePath: node.trc_file
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching trace file:', error);
+          }
+        }
       } else {
         setDiffContent({
           original: '',
@@ -538,7 +564,7 @@ export default function GitDiffViewer() {
         });
       }
     },
-    [fetchDiffContent, repoPath]
+    [fetchDiffContent, repoPath, setTraceData]
   );
 
   const handleBreadcrumbClick = useCallback(

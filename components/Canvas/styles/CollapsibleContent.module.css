@@ -1,0 +1,18 @@
+/* Styles for the CollapsibleContent component */
+
+.traceNode {
+  transition: height 200ms ease-in-out, top 200ms ease-in-out;
+}
+
+.collapsibleContent {
+  max-height: 2000px; /* Large enough value to allow expansion */
+  opacity: 1;
+  transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out;
+}
+
+.collapsibleContentCollapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out;
+} 

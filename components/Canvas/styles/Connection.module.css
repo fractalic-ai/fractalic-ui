@@ -1,0 +1,31 @@
+/* Styles for the Connection component */
+
+.connectionPath {
+  transition: d 250ms ease-out, stroke-width 250ms ease-out, stroke 250ms ease-out, filter 250ms ease-out, 
+              stroke-dasharray 250ms ease-out, stroke-dashoffset 250ms ease-out;
+  stroke-dashoffset: 0;
+}
+
+.connectionEndpoint {
+  transition: cx 250ms ease-out, cy 250ms ease-out, r 250ms ease-out, fill 250ms ease-out;
+}
+
+/* Hover animation for connection paths */
+@keyframes dashOffset {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 24;
+  }
+}
+
+.connectionPathHover {
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4));
+  animation: dashOffset 1.5s linear infinite;
+}
+
+/* Remove all pattern animations to eliminate flicker */
+.connectionPattern, .connectionPatternHover, .animatedPattern, .animatedPatternHover {
+  animation: none;
+} 

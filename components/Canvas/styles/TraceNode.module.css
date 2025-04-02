@@ -1,0 +1,14 @@
+/* Styles for the TraceNode component */
+
+.traceNodeContainer {
+  transition: height 200ms ease-in-out, max-height 200ms ease-in-out;
+}
+
+.traceNode {
+  transition: all 200ms ease-in-out;
+}
+
+.traceNodeContent {
+  transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out;
+  overflow: hidden;
+} 
