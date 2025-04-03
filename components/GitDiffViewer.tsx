@@ -334,12 +334,19 @@ export default function GitDiffViewer() {
   const handleFolderSelect = useCallback(
     (folder: any) => {
       console.log('Folder selected:', folder);
-      if (folder.is_git_repo && mode === 'git') {
+      if (folder.is_git_repo) {
+        // Handle git repo regardless of mode
         setRepoPath(folder.path);
         setSelectedFolder(folder);
-        setCurrentGitPath(folder.path);
+        if (mode === 'git') {
+          setCurrentGitPath(folder.path);
+        } else {
+          setCurrentEditPath(folder.path);
+        }
         setSelectedItem(folder.path);
-        fetchDirectoryContents(folder.path, true);
+        // Clear selectedFile when selecting a folder
+        setSelectedFile(null);
+        fetchDirectoryContents(folder.path, mode === 'git');
       } else if (folder.is_dir || folder.name === '..') {
         const newPath = folder.path;
         if (mode === 'git') {
@@ -348,6 +355,8 @@ export default function GitDiffViewer() {
           setCurrentEditPath(newPath);
         }
         setSelectedItem(newPath);
+        // Clear selectedFile when selecting a folder
+        setSelectedFile(null);
         fetchDirectoryContents(newPath, mode === 'git');
       } else {
         if (mode === 'edit') {
@@ -926,7 +935,7 @@ export default function GitDiffViewer() {
 
   // Add an effect to trigger file load when switching to edit mode if a file is already selected
   useEffect(() => {
-    if (mode === 'edit' && selectedItem && selectedFile && !editedContent) {
+    if (mode === 'edit' && selectedItem && selectedFile && !editedContent && !selectedFile.is_dir && !selectedItem.endsWith('/')) {
       console.log('Switching to edit mode: triggering file load for', selectedFile.path);
       handleFileSelect(selectedFile);
     }
