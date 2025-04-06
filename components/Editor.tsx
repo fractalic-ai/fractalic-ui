@@ -328,42 +328,19 @@ function EditorComponent(props: EditorProps) {
         
         console.log("[Inspector] Processing trace data for", selectedNode.trc_file);
         
-        // Fetch the trace content if not already in context
-        let traceContent;
-        if (traceData[selectedNode.trc_commit_hash]) {
-          console.log("[Inspector] Using cached trace content from context");
-          traceContent = traceData[selectedNode.trc_commit_hash].content;
-        } else {
-          console.log("[Inspector] Fetching trace content from API");
-          const response = await fetch(
-            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
-              props.repoPath
-            )}&file_path=${encodeURIComponent(selectedNode.trc_file)}&commit_hash=${encodeURIComponent(selectedNode.trc_commit_hash)}`
-          );
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch trace: ${response.status} ${response.statusText}`);
-          }
-          
-          traceContent = await response.text();
-        }
+        // Leverage the same processTraceData function that TraceView uses
+        const processedTrace = await processTraceData({
+          repoPath: props.repoPath,
+          callTree: props.selectedCommit,
+          traceData
+        });
         
-        // Process the trace data - create a proper TraceTreeNode structure
-        try {
-          const parsedContent = JSON.parse(traceContent);
-          console.log("[Inspector] Parsed trace content:", parsedContent);
-          
-          // Create a virtual root node containing the trace data
-          const traceTreeNode = {
-            id: 'trace-root',
-            text: 'Trace Root',
-            trace_content: traceContent, // This is important - CanvasDisplay expects the original JSON in trace_content
-            children: []
-          };
-          
-          setInspectorTraceData(traceTreeNode);
-        } catch (parseError) {
-          console.error("[Inspector] Error parsing trace content:", parseError);
+        console.log("[Inspector] Processed trace data:", processedTrace);
+        
+        if (processedTrace) {
+          setInspectorTraceData(processedTrace);
+        } else {
+          console.error("[Inspector] Failed to process trace data");
           setInspectorTraceData(null);
         }
       } catch (error) {

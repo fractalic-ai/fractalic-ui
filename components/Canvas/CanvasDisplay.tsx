@@ -112,7 +112,7 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   const [hierarchicalGroups, setHierarchicalGroups] = useState<ProcessedTraceGroup | null>(null);
   const [traceGroups, setTraceGroups] = useState<TraceGroup[]>([]);
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [filterByCreator, setFilterByCreator] = useState<string | null>(null);
   const [isPanelExpanded, setIsPanelExpanded] = useState(true);
@@ -520,22 +520,28 @@ const handleLoadTrace = () => {
       try {
         console.log("[CanvasDisplay] Processing initialTraceData:", initialTraceData);
         
-        if (!initialTraceData.trace_content) {
-          console.error("[CanvasDisplay] No trace_content found in initialTraceData");
-          setError('No valid trace content found in initialTraceData');
-          return;
-        }
+        // Process the trace tree data differently based on type to support both formats
+        // The initialTraceData could be either a string (JSON content) or an object (processed tree)
+        let processedRoot;
         
-        // Process the trace tree into a nested structure of groups
-        const processedRoot = processTraceTreeToGroups(initialTraceData);
+        if (typeof initialTraceData === 'string') {
+          // If it's a string, parse it as JSON
+          const parsedData = JSON.parse(initialTraceData) as TraceTreeNode;
+          processedRoot = processTraceTreeToGroups(parsedData);
+        } else if (typeof initialTraceData === 'object') {
+          // If it's already an object, process it directly
+          // This could be either a TraceNode object from processTraceData
+          // or a fully formed TraceTreeNode
+          processedRoot = processTraceTreeToGroups(initialTraceData);
+        } else {
+          throw new Error("Invalid trace data format");
+        }
         
         if (!processedRoot) {
-          console.error("[CanvasDisplay] Failed to process initialTraceData into groups");
-          setError('Failed to process trace data into visual groups');
-          return;
+          throw new Error("No valid trace content found in the data");
         }
         
-        console.log("[CanvasDisplay] Successfully processed initialTraceData:", processedRoot);
+        console.log("[CanvasDisplay] Successfully processed tree to groups:", processedRoot);
         
         // Set the hierarchical structure for TreeLayout
         setHierarchicalGroups(processedRoot);
@@ -544,9 +550,7 @@ const handleLoadTrace = () => {
         const flatGroups = convertToFlatGroups(processedRoot);
         
         if (flatGroups.length === 0) {
-          console.error("[CanvasDisplay] No trace groups generated from initialTraceData");
-          setError('No valid trace groups found in the data');
-          return;
+          throw new Error("No valid trace groups found in the data");
         }
         
         setTraceGroups(flatGroups);
@@ -554,14 +558,18 @@ const handleLoadTrace = () => {
         setFilterByCreator(null);
         setError(null);
         
-        // Ensure connections are properly drawn
+        // Better approach to ensure connections are properly drawn
         setTimeout(() => {
           const forceUpdate = () => {
+            // First force a position update
             collectNodePositions();
+            
+            // Then make sure connections are recalculated
             const renderEvent = new CustomEvent('force-connections-update');
             window.dispatchEvent(renderEvent);
           };
           
+          // Try multiple times with increasing delays to ensure it's properly done
           forceUpdate();
           setTimeout(forceUpdate, 100);
           setTimeout(forceUpdate, 300);

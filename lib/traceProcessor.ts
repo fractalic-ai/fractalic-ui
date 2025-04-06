@@ -98,21 +98,17 @@ export const processTraceData = async ({
   content,
   traceData
 }: ProcessTraceDataOptions): Promise<TraceNode | string | null> => {
-  // <<< ДОБАВЛЕН ЛОГ ВХОДЯЩИХ ДАННЫХ >>>
   console.log('--- Executing processTraceData ---');
   console.log(' Options.repoPath:', repoPath);
-  // Осторожно с логированием всего callTree, если он может быть очень большим
-  console.log(' Options.hasCallTree:', !!callTree /*, JSON.stringify(callTree, null, 2) */ );
+  console.log(' Options.hasCallTree:', !!callTree);
   console.log(' Options.hasContent:', !!content);
-  // Выводим структуру traceData, полученную функцией
   console.log(' Options.traceData received:', JSON.stringify(traceData, null, 2));
   console.log('---------------------------------');
-  // <<< КОНЕЦ ЛОГА >>>
 
   // 1. Handle direct content
   if (content) {
     console.log('processTraceData: Handling direct content.');
-    return content; // Return the direct content string
+    return content;
   }
 
   // 2. Handle call tree processing
@@ -123,26 +119,47 @@ export const processTraceData = async ({
       if (callTree.length === 1) {
         const rootNode = callTree[0];
         console.log(`processTraceData: Processing single root node: ${rootNode.id}`);
-        const treeWithContent = await processNode(rootNode, repoPath, traceData);
-        return treeWithContent; // Return the processed TraceNode tree
+        
+        // Create a wrapper to maintain consistency with trace structure
+        const wrapper = {
+          id: `wrapper-${rootNode.id}-${Date.now()}`,
+          text: `Trace: ${rootNode.text}`,
+          children: [rootNode]
+        };
+        
+        // Process the tree recursively to fetch content
+        const treeWithContentForWrapper = await Promise.all(
+          wrapper.children.map(child => processNode(child, repoPath, traceData))
+        );
+        
+        return {
+          ...wrapper,
+          children: treeWithContentForWrapper
+        };
       } else {
         console.log(`processTraceData: Processing ${callTree.length} root nodes (creating virtual wrapper).`);
         // Handle multiple roots by creating a virtual root
-        const wrapperRoot: TraceNode = { id: 'virtual-root', text: 'Trace Root', children: [] };
+        const wrapperRoot: TraceNode = { 
+          id: 'virtual-root', 
+          text: 'Trace Root', 
+          children: [] 
+        };
+        
         wrapperRoot.children = await Promise.all(
           callTree.map(node => processNode(node, repoPath, traceData))
         );
-        return wrapperRoot; // Return the virtual root containing processed nodes
+        
+        return wrapperRoot;
       }
     } catch (err) {
       console.error("processTraceData: Error processing call tree:", err);
       throw new Error(`Failed to process trace tree: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-
+  
   // 3. No relevant data provided
   console.log('processTraceData: No content or callTree provided, returning null.');
-  return null; // Return null if neither content nor callTree is available
+  return null;
 };
 
 // Export types for use in other files
