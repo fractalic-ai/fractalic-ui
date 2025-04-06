@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Filter, ChevronUp, ChevronDown } from 'lucide-react';
+import { Filter, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Network } from 'lucide-react';
 import { Canvas } from './components/Canvas';
 import { TraceNode } from './components/TraceNode';
 import { DebugPanel } from './components/DebugPanel';
@@ -607,40 +607,12 @@ const handleLoadTrace = () => {
               <label className="flex items-center gap-2 text-gray-300">
                 <input
                   type="checkbox"
-                  checked={showAsTree}
-                  onChange={(e) => setShowAsTree(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
-                />
-                Show as tree
-              </label>
-              <label className="flex items-center gap-2 text-gray-300">
-                <input
-                  type="checkbox"
                   checked={isDebugPanelOpen}
                   onChange={(e) => setIsDebugPanelOpen(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
                 />
                 Show Debug Panel
               </label>
-              <label className="flex items-center gap-2 text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={layoutDirection === 'LR'}
-                  onChange={(e) => setLayoutDirection(e.target.checked ? 'LR' : 'RL')}
-                  className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
-                />
-                Left to Right Layout
-              </label>
-              {filterByCreator && (
-                <button
-                  onClick={() => setFilterByCreator(null)}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 flex items-center gap-2"
-                >
-                  <Filter className="w-4 h-4" />
-                  Clear Filter
-                </button>
-              )}
             </div>
           </div>
           
@@ -675,7 +647,40 @@ const handleLoadTrace = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="relative flex-1 overflow-hidden">
+        {/* Add both controls at the top of canvas area */}
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+          {/* Layout direction toggle button */}
+          <button
+            onClick={() => setLayoutDirection(layoutDirection === 'LR' ? 'RL' : 'LR')}
+            className={`p-2 rounded-md transition-colors ${
+              layoutDirection === 'LR' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+            title={layoutDirection === 'LR' ? "Switch to Right-to-Left layout" : "Switch to Left-to-Right layout"}
+          >
+            {layoutDirection === 'LR' ? (
+              <ArrowRight className="w-5 h-5" />
+            ) : (
+              <ArrowLeft className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* Show as tree toggle button */}
+          <button
+            onClick={() => setShowAsTree(!showAsTree)}
+            className={`p-2 rounded-md transition-colors ${
+              showAsTree 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+            title={showAsTree ? "Switch to linear view" : "Switch to tree view"}
+          >
+            <Network className="w-5 h-5" />
+          </button>
+        </div>
+
         {traceGroups.length > 0 ? (
           <>
             <Canvas 
