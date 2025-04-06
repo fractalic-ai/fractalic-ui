@@ -530,57 +530,52 @@ export default function GitDiffViewer() {
     fetchDiffContent,
   ]);
 
-  const handleCommitSelect = useCallback(async (node: any) => {
-    console.log('[handleCommitSelect] Triggered with node:', node);
-    setSelectedCommit([node]); // Select the clicked commit
+  const handleCommitSelect = useCallback(
+    async (node: any) => {
+      console.log('[handleCommitSelect] Called with node:', node);
+      
+      // If node has trace file information, process trace data
+      if (node.trc_file && node.trc_commit_hash) {
+        console.log(`[handleCommitSelect] Found trace info: file='${node.trc_file}', commit='${node.trc_commit_hash}'`);
+        
+        try {
+          console.log('[handleCommitSelect] Fetching trace content...');
+          const response = await fetch(
+            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+              repoPath
+            )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${encodeURIComponent(node.trc_commit_hash)}`
+          );
+          console.log('[handleCommitSelect] Fetch response received:', response.status, response.statusText);
 
-    if (node && node.trc_file && node.trc_commit_hash) {
-      console.log(`[handleCommitSelect] Found trace info: file='${node.trc_file}', commit='${node.trc_commit_hash}'`);
-      setSelectedView('trace'); // Switch to TraceView
-      console.log('[handleCommitSelect] Switched view to trace.');
+          if (response.ok) {
+            const content = await response.text();
+            console.log('[handleCommitSelect] Successfully fetched trace content (length:', content.length, ')');
 
-      try {
-        console.log('[handleCommitSelect] Fetching trace content...');
-        const response = await fetch(
-          `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
-            repoPath
-          )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${encodeURIComponent(node.trc_commit_hash)}`
-        );
-        console.log('[handleCommitSelect] Fetch response received:', response.status, response.statusText);
-
-        if (response.ok) {
-          const content = await response.text();
-          console.log('[handleCommitSelect] Successfully fetched trace content (length:', content.length, ')');
-
-          // >>> Call updateTraceEntry to update the context cache <<<
-          const traceEntry = { content, commitHash: node.trc_commit_hash, filePath: node.trc_file };
-          updateTraceEntry(node.trc_commit_hash, traceEntry);
-          console.log('[handleCommitSelect] Called updateTraceEntry with:', traceEntry);
-
-          // The TraceView component itself will handle fetching/displaying
-          // based on the updated context or its own props.
-          // No need to setDiffContent here for trace view.
-        } else {
-          const errorText = await response.text();
-          console.error('[handleCommitSelect] Failed to fetch trace file:', response.status, response.statusText, errorText);
-          // Optionally display an error message to the user
+            // Call updateTraceEntry to update the context cache
+            const traceEntry = { content, commitHash: node.trc_commit_hash, filePath: node.trc_file };
+            updateTraceEntry(node.trc_commit_hash, traceEntry);
+            console.log('[handleCommitSelect] Called updateTraceEntry with:', traceEntry);
+          } else {
+            const errorText = await response.text();
+            console.error('[handleCommitSelect] Failed to fetch trace file:', response.status, response.statusText, errorText);
+          }
+        } catch (err) {
+          console.error('[handleCommitSelect] Network or other error fetching trace:', err);
         }
-      } catch (err) {
-        console.error('[handleCommitSelect] Network or other error fetching trace:', err);
-        // Optionally display an error message to the user
+      } else {
+        console.log('[handleCommitSelect] Node does not have trc_file or trc_commit_hash.');
       }
-    } else {
-      console.log('[handleCommitSelect] Node does not have trc_file or trc_commit_hash.');
-      // Handle cases where the node doesn't have trace info - e.g., select the file diff
+      
+      // Continue with regular commit selection handling
       if (node && node.id) {
-        // Assuming node.id corresponds to a file path for diffing
-        // You might need different logic here based on your node structure
-        console.log('[handleCommitSelect] Falling back to selecting file diff for node id:', node.id);
-        await handleFileSelect({ path: node.id, name: node.text }); // Adjust based on actual file selection logic
+        setSelectedCommit([node]);
+        if (node.ctx_file && node.md_file) {
+          fetchDiffContent(repoPath, node.md_file, node.ctx_file, node.md_commit_hash, node.ctx_commit_hash);
+        }
       }
-    }
-    console.log('[handleCommitSelect] Finished.');
-  }, [repoPath, updateTraceEntry, handleFileSelect]); // Added updateTraceEntry and handleFileSelect to dependencies
+    },
+    [repoPath, updateTraceEntry, fetchDiffContent]
+  );
 
   const handleBreadcrumbClick = useCallback(
     async (node: any) => {
@@ -1134,14 +1129,6 @@ export default function GitDiffViewer() {
                       repoPath={repoPath}
                       handleBreadcrumbClick={handleBreadcrumbClick}
                       currentFilePath={currentFilePath}
-                      branchHash={branchHash}
-                      onBranchHashClick={handleBranchHashClick}
-                      branchNotification={branchNotification}
-                      handleBranchSelect={handleBranchSelect}
-                      onSave={async () => {
-                        // The save functionality is now handled in the Editor component
-                        return Promise.resolve();
-                      }}
                     />
                   </div>
                 </ResizablePanel>

@@ -11,6 +11,8 @@ import MarkdownViewer from './MarkdownViewer';
 import styles from '@/components/MarkdownViewer.module.css';
 import { TraceView } from "./TraceView";
 import CanvasDisplay from "./Canvas/CanvasDisplay";
+import { useTrace } from '@/contexts/TraceContext';
+import { processTraceData } from '@/lib/traceProcessor';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -113,6 +115,7 @@ function EditorComponent(props: EditorProps) {
     onSave,
   } = props;
 
+  const { traceData } = useTrace();
   const { toast } = useToast();
   const [isVisited, setIsVisited] = useState(false);
   const [isButtonClicked, setIsButtonClicked] = useState(false);
@@ -124,7 +127,9 @@ function EditorComponent(props: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
+  const [inspectorTraceData, setInspectorTraceData] = useState<any>(null);
+  const [isInspectorLoading, setIsInspectorLoading] = useState(false);
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
@@ -305,6 +310,73 @@ function EditorComponent(props: EditorProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const processInspectorTrace = async () => {
+      if (props.selectedView !== "inspector" || !props.selectedCommit || props.selectedCommit.length === 0) {
+        return;
+      }
+      
+      setIsInspectorLoading(true);
+      try {
+        const selectedNode = props.selectedCommit[0]; // Use the first element of the array
+        
+        if (!selectedNode?.trc_file || !selectedNode?.trc_commit_hash) {
+          console.log("[Inspector] No trace information available in selected commit");
+          setInspectorTraceData(null);
+          return;
+        }
+        
+        console.log("[Inspector] Processing trace data for", selectedNode.trc_file);
+        
+        // Fetch the trace content if not already in context
+        let traceContent;
+        if (traceData[selectedNode.trc_commit_hash]) {
+          console.log("[Inspector] Using cached trace content from context");
+          traceContent = traceData[selectedNode.trc_commit_hash].content;
+        } else {
+          console.log("[Inspector] Fetching trace content from API");
+          const response = await fetch(
+            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+              props.repoPath
+            )}&file_path=${encodeURIComponent(selectedNode.trc_file)}&commit_hash=${encodeURIComponent(selectedNode.trc_commit_hash)}`
+          );
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch trace: ${response.status} ${response.statusText}`);
+          }
+          
+          traceContent = await response.text();
+        }
+        
+        // Process the trace data - create a proper TraceTreeNode structure
+        try {
+          const parsedContent = JSON.parse(traceContent);
+          console.log("[Inspector] Parsed trace content:", parsedContent);
+          
+          // Create a virtual root node containing the trace data
+          const traceTreeNode = {
+            id: 'trace-root',
+            text: 'Trace Root',
+            trace_content: traceContent, // This is important - CanvasDisplay expects the original JSON in trace_content
+            children: []
+          };
+          
+          setInspectorTraceData(traceTreeNode);
+        } catch (parseError) {
+          console.error("[Inspector] Error parsing trace content:", parseError);
+          setInspectorTraceData(null);
+        }
+      } catch (error) {
+        console.error("[Inspector] Error processing trace data:", error);
+        setInspectorTraceData(null);
+      } finally {
+        setIsInspectorLoading(false);
+      }
+    };
+    
+    processInspectorTrace();
+  }, [props.selectedView, props.selectedCommit, props.repoPath, traceData]);
+
   const renderEditorSettings = () => (
     <div className="flex items-center space-x-4 p-2 border-b border-border bg-card text-card-foreground">
       <div className="flex items-center space-x-2">
@@ -392,7 +464,7 @@ function EditorComponent(props: EditorProps) {
       
       if (selectedView === 'trace' && selectedCommit.length > 0) {
         return (
-          <div className="h-full w-full overflow-hidden">
+          <div className="h-full w-full flex flex-col flex-grow">
             <TraceView 
               repoPath={repoPath}
               callTree={selectedCommit.length > 0 ? [selectedCommit[0]] : undefined}
@@ -402,10 +474,24 @@ function EditorComponent(props: EditorProps) {
         );
       }
   
-      if (selectedView === 'inspector' && selectedCommit.length > 0) {
+      if (selectedView === 'inspector') {
         return (
-          <div className="h-full w-full overflow-hidden">
-            <CanvasDisplay />
+          <div className="h-full w-full flex flex-col flex-grow">
+            {isInspectorLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-gray-400">Loading trace data...</span>
+              </div>
+            ) : inspectorTraceData ? (
+              <CanvasDisplay initialTraceData={inspectorTraceData} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-gray-500">
+                  <p>No trace data available for the selected commit.</p>
+                  <p className="text-sm mt-2">Select a commit with trace information to view details.</p>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
@@ -565,7 +651,7 @@ function EditorComponent(props: EditorProps) {
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                <Eye className="mr-2 h-4 w-4" />
+                <GitCommit className="mr-2 h-4 w-4" />
                 Inspector
               </Button>
             </>

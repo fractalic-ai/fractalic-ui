@@ -102,7 +102,11 @@ const RenderGroupsTree: React.FC<{
   );
 };
 
-const CanvasDisplay: React.FC = () => {
+interface CanvasDisplayProps {
+  initialTraceData?: any; // Add prop for initial trace data
+}
+
+const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   // State declarations
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [hierarchicalGroups, setHierarchicalGroups] = useState<ProcessedTraceGroup | null>(null);
@@ -509,6 +513,66 @@ const handleLoadTrace = () => {
   const handleConnectionSegmentsUpdate = useCallback((segments: Array<{ path: string; type: string }>) => {
     setConnectionSegments(segments);
   }, []);
+
+  // Handle initial trace data if provided
+  useEffect(() => {
+    if (initialTraceData) {
+      try {
+        console.log("[CanvasDisplay] Processing initialTraceData:", initialTraceData);
+        
+        if (!initialTraceData.trace_content) {
+          console.error("[CanvasDisplay] No trace_content found in initialTraceData");
+          setError('No valid trace content found in initialTraceData');
+          return;
+        }
+        
+        // Process the trace tree into a nested structure of groups
+        const processedRoot = processTraceTreeToGroups(initialTraceData);
+        
+        if (!processedRoot) {
+          console.error("[CanvasDisplay] Failed to process initialTraceData into groups");
+          setError('Failed to process trace data into visual groups');
+          return;
+        }
+        
+        console.log("[CanvasDisplay] Successfully processed initialTraceData:", processedRoot);
+        
+        // Set the hierarchical structure for TreeLayout
+        setHierarchicalGroups(processedRoot);
+        
+        // Convert the tree to a flat array of groups
+        const flatGroups = convertToFlatGroups(processedRoot);
+        
+        if (flatGroups.length === 0) {
+          console.error("[CanvasDisplay] No trace groups generated from initialTraceData");
+          setError('No valid trace groups found in the data');
+          return;
+        }
+        
+        setTraceGroups(flatGroups);
+        setExpandedDetails(new Set());
+        setFilterByCreator(null);
+        setError(null);
+        
+        // Ensure connections are properly drawn
+        setTimeout(() => {
+          const forceUpdate = () => {
+            collectNodePositions();
+            const renderEvent = new CustomEvent('force-connections-update');
+            window.dispatchEvent(renderEvent);
+          };
+          
+          forceUpdate();
+          setTimeout(forceUpdate, 100);
+          setTimeout(forceUpdate, 300);
+          setTimeout(forceUpdate, 600);
+        }, 100);
+      } catch (err) {
+        console.error("[CanvasDisplay] Error processing initial trace data:", err);
+        setError(`Error processing trace data: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }, [initialTraceData]);
 
   return (
     <div className={`${styles.canvasContainer} ${styles.customScrollbar} h-screen flex flex-col bg-gray-900`}>
