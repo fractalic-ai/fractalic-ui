@@ -127,6 +127,7 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   const [connectionSegments, setConnectionSegments] = useState<Array<{ path: string; type: string }>>([]);
   const [layoutUpdateCounter, setLayoutUpdateCounter] = useState(0);
   const [areAllNodesCollapsed, setAreAllNodesCollapsed] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<'LR' | 'RL'>('LR'); // Default to left-to-right layout
 
   // Refs
   const nodeRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -621,6 +622,15 @@ const handleLoadTrace = () => {
                 />
                 Show Debug Panel
               </label>
+              <label className="flex items-center gap-2 text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={layoutDirection === 'LR'}
+                  onChange={(e) => setLayoutDirection(e.target.checked ? 'LR' : 'RL')}
+                  className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
+                />
+                Left to Right Layout
+              </label>
               {filterByCreator && (
                 <button
                   onClick={() => setFilterByCreator(null)}
@@ -690,6 +700,7 @@ const handleLoadTrace = () => {
                     collapsedNodes={collapsedNodes}
                     expandedDetails={expandedDetails}
                     forceUpdate={layoutUpdateCounter}
+                    layoutDirection={layoutDirection}
                   />
                 }
                 

@@ -7,6 +7,7 @@ interface TreeLayoutProps {
   collapsedNodes?: Set<string>;
   expandedDetails?: Set<string>;
   forceUpdate?: number; // Add a counter to force layout updates
+  layoutDirection?: 'LR' | 'RL'; // Add layout direction prop
 }
 
 interface TreeNode {
@@ -32,7 +33,8 @@ export const TreeLayout: React.FC<TreeLayoutProps> = ({
   onLayout, 
   collapsedNodes, 
   expandedDetails,
-  forceUpdate = 0 
+  forceUpdate = 0,
+  layoutDirection = 'LR' // Default to left-to-right
 }) => {
   const [layoutMap, setLayoutMap] = useState(
     new Map<string, { x: number; y: number; width: number; height: number }>()
@@ -117,9 +119,9 @@ export const TreeLayout: React.FC<TreeLayoutProps> = ({
         const levelXPositions: Map<number, number> = new Map();
         const maxLevel = Math.max(...Array.from(nodesByLevel.keys()));
         
-        // Start from furthest level (right-to-left layout)
-        for (let level = maxLevel; level >= 0; level--) {
-          const prevLevelPos = levelXPositions.get(level + 1);
+        // Start from furthest level (left-to-right or right-to-left layout)
+        for (let level = 0; level <= maxLevel; level++) {
+          const prevLevelPos = levelXPositions.get(level - 1);
           let levelX;
           
           if (prevLevelPos !== undefined) {
@@ -129,7 +131,7 @@ export const TreeLayout: React.FC<TreeLayoutProps> = ({
             );
             levelX = prevLevelPos + HORIZONTAL_GAP + widthOfThisLevel;
           } else {
-            // This is the rightmost level
+            // This is the leftmost level
             levelX = PADDING;
           }
           
@@ -167,7 +169,7 @@ export const TreeLayout: React.FC<TreeLayoutProps> = ({
           // Position each node in this level
           let currentY = topY;
           nodes.forEach(node => {
-            node.x = levelX;
+            node.x = layoutDirection === 'LR' ? levelX : -levelX;
             node.y = currentY;
             currentY += node.height + VERTICAL_GAP;
           });
@@ -229,7 +231,7 @@ export const TreeLayout: React.FC<TreeLayoutProps> = ({
         onLayout(finalMap);
       }
     }, 200);
-  }, [processedGroups, onLayout, collapsedNodes, expandedDetails]);
+  }, [processedGroups, onLayout, collapsedNodes, expandedDetails, layoutDirection]);
 
   // Run layout calculation when dependencies change, including collapse state
   useEffect(() => {
