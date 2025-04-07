@@ -21,11 +21,16 @@
 }
 
 .connectionPathHover {
-  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4));
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
   animation: dashOffset 1.5s linear infinite;
 }
 
 /* Remove all pattern animations to eliminate flicker */
 .connectionPattern, .connectionPatternHover, .animatedPattern, .animatedPatternHover {
   animation: none;
-} 
+}
+
+/* Add styles for the hitbox path */
+.connectionHitbox {
+  cursor: pointer;
+}

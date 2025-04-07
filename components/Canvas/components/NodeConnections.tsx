@@ -754,8 +754,10 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
 
   // --- Connection Styling ---
   const getConnectionStyle = (type: ConnectionType, isHovered: boolean) => {
-    const baseWidth = 1.5;
-    const hoverWidth = baseWidth * 3; // Make hover width 3x larger
+    // Base width now takes zoom level into account to maintain consistent visual thickness
+    const baseWidth = Math.max(1.5, 2 / transform.scale);
+    const hoverWidth = baseWidth * 1.8; // Less extreme difference for better visual consistency
+    const hitboxWidth = Math.max(10, 12 / transform.scale); // Much wider transparent hitbox for easier hovering
     const opacity = isHovered ? 1 : 0.6;
     
     switch (type) {
@@ -765,7 +767,8 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
           strokeWidth: isHovered ? hoverWidth : baseWidth, 
           strokeDasharray: isHovered ? "8, 4" : "none",  // Only apply dash pattern on hover
           circleFill: isHovered ? "#22C55E" : "rgba(34, 197, 94, 0.8)",
-          circleRadius: isHovered ? 5 : 3
+          circleRadius: isHovered ? 5 : 3,
+          hitboxWidth: hitboxWidth
         };
       case ConnectionType.IDENTITY: 
         return { 
@@ -773,7 +776,8 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
           strokeWidth: isHovered ? hoverWidth : baseWidth, 
           strokeDasharray: isHovered ? "8, 4" : "none",  // Only apply dash pattern on hover
           circleFill: isHovered ? "#3B82F6" : "rgba(59, 130, 246, 0.8)",
-          circleRadius: isHovered ? 5 : 3
+          circleRadius: isHovered ? 5 : 3,
+          hitboxWidth: hitboxWidth
         };
       default: 
         return { 
@@ -781,7 +785,8 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
           strokeWidth: isHovered ? hoverWidth - 0.5 : baseWidth - 0.5, 
           strokeDasharray: "3, 3", 
           circleFill: isHovered ? "#999" : "rgba(150, 150, 150, 0.8)",
-          circleRadius: isHovered ? 5 : 3
+          circleRadius: isHovered ? 5 : 3,
+          hitboxWidth: hitboxWidth
         };
     }
   };
@@ -816,7 +821,21 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
 
           return (
             <g key={id} className={`connection-group type-${type} ${isHovered ? 'hovered' : ''}`}>
-              {/* Main path - single element with appropriate styling */}
+              {/* Invisible hitbox path - wider and handles mouse events */}
+              <path
+                d={path}
+                stroke="transparent"
+                strokeWidth={style.hitboxWidth}
+                fill="none"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                pointerEvents="stroke"
+                onMouseEnter={() => setHoveredConnectionId(id)}
+                onMouseLeave={() => setHoveredConnectionId(null)}
+                style={{ cursor: 'pointer' }}
+              />
+              
+              {/* Visible path - thinner and purely visual */}
               <path
                 d={path}
                 fill="none"
@@ -828,25 +847,31 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
                 className={`connection-path ${isHovered ? 'connection-path-hover' : ''}`}
                 style={{ 
                   transition: transition.path,
-                  strokeDashoffset: isHovered ? "0" : "none" // No animation when not hovered
+                  strokeDashoffset: isHovered ? "0" : "none", // No animation when not hovered
+                  pointerEvents: "none" // The visible line doesn't handle mouse events
                 }}
-                onMouseEnter={() => setHoveredConnectionId(id)}
-                onMouseLeave={() => setHoveredConnectionId(null)}
-                pointerEvents="stroke" // Enable mouse events on the stroke
               />
               
-              {/* Connection endpoints */}
+              {/* Connection endpoints - adjusted for better visibility */}
               <circle
-                cx={start.x} cy={start.y} r={style.circleRadius}
+                cx={start.x} cy={start.y} 
+                r={isHovered ? style.circleRadius : Math.max(style.circleRadius, 3 / transform.scale)}
                 fill={style.circleFill}
                 className="connection-endpoint start"
-                style={{ transition: transition.endpoint }}
+                style={{ 
+                  transition: transition.endpoint,
+                  pointerEvents: "none"
+                }}
               />
               <circle
-                cx={end.x} cy={end.y} r={style.circleRadius}
+                cx={end.x} cy={end.y} 
+                r={isHovered ? style.circleRadius : Math.max(style.circleRadius, 3 / transform.scale)}
                 fill={style.circleFill}
                 className="connection-endpoint end"
-                style={{ transition: transition.endpoint }}
+                style={{ 
+                  transition: transition.endpoint,
+                  pointerEvents: "none"
+                }}
               />
             </g>
           );
