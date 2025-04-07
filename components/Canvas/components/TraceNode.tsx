@@ -189,7 +189,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         </div>
         
         {isDetailsExpanded && !isCollapsed && (
-          <div className={`bg-gray-850 border-t border-gray-700 p-4 transition-all duration-300 ease-in-out ${styles.traceNodeContent}`}>
+          <div className={`border-t border-gray-700 p-4 transition-all duration-300 ease-in-out ${styles.traceNodeContent}`} style={{ backgroundColor: '#1A202C' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <table className="w-full border-collapse">
