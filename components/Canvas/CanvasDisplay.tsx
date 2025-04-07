@@ -1,8 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Filter, ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Network } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Network } from 'lucide-react';
 import { Canvas } from './components/Canvas';
 import { TraceNode } from './components/TraceNode';
-import { DebugPanel } from './components/DebugPanel';
 import { TraceNodeData, TraceTreeNode, ProcessedTraceGroup, TraceGroup, NodePosition } from './types';
 import { TreeLayout } from './components/TreeLayout';
 import { connectionManager, Connection } from './utils/ConnectionManager';
@@ -112,11 +111,7 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   const [hierarchicalGroups, setHierarchicalGroups] = useState<ProcessedTraceGroup | null>(null);
   const [traceGroups, setTraceGroups] = useState<TraceGroup[]>([]);
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
-  const [inputValue, setInputValue] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
   const [filterByCreator, setFilterByCreator] = useState<string | null>(null);
-  const [isPanelExpanded, setIsPanelExpanded] = useState(true);
-  const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [showAsTree, setShowAsTree] = useState(false);
   const [groupLayouts, setGroupLayouts] = useState(
@@ -144,11 +139,6 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
     setCollapsedNodes(newCollapsed);
   }, [collapsedNodes]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    setError(null);
-  };
-  
   // Move the collectNodePositions function here, before it's used
   const collectNodePositions = useCallback(() => {
     const newPositions = new Map<string, NodePosition[]>();
@@ -269,7 +259,6 @@ const handleLoadTrace = () => {
     setTraceGroups(flatGroups);
     setExpandedDetails(new Set());
     setFilterByCreator(null);
-    setError(null);
     setInputValue('');
 
     // Better approach to ensure connections are properly drawn
@@ -293,7 +282,6 @@ const handleLoadTrace = () => {
 
   } catch (err) {
     console.error("Error processing trace data:", err);
-    setError('Invalid JSON format or no valid trace content found. Please check your input.');
   }
 };
 
@@ -557,7 +545,6 @@ const handleLoadTrace = () => {
         setTraceGroups(flatGroups);
         setExpandedDetails(new Set());
         setFilterByCreator(null);
-        setError(null);
         
         // Better approach to ensure connections are properly drawn
         setTimeout(() => {
@@ -578,75 +565,12 @@ const handleLoadTrace = () => {
         }, 100);
       } catch (err) {
         console.error("[CanvasDisplay] Error processing initial trace data:", err);
-        setError(`Error processing trace data: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }, [initialTraceData]);
 
   return (
     <div className={`${styles.canvasContainer} ${styles.customScrollbar} h-screen flex flex-col bg-gray-900`}>
-      <div className={`flex-none bg-gray-800 border-b border-gray-700 transition-all duration-300 ease-in-out
-        ${isPanelExpanded ? 'p-4 md:p-6' : 'p-2'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-100">Trace File Viewer</h1>
-              <button
-                onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-                className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded-md transition-colors"
-                title={isPanelExpanded ? "Collapse input panel" : "Expand input panel"}
-              >
-                {isPanelExpanded ? (
-                  <ChevronUp className="w-5 h-5" />
-                ) : (
-                  <ChevronDown className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={isDebugPanelOpen}
-                  onChange={(e) => setIsDebugPanelOpen(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
-                />
-                Show Debug Panel
-              </label>
-            </div>
-          </div>
-          
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden
-            ${isPanelExpanded ? 'h-auto opacity-100 mt-4' : 'h-0 opacity-0'}`}>
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <label htmlFor="traceInput" className="block text-sm font-medium text-gray-300 mb-2">
-                  Paste Trace Data (JSON format)
-                </label>
-                <textarea
-                  id="traceInput"
-                  className="w-full h-24 px-3 py-2 bg-gray-900 border border-gray-700 rounded-md shadow-sm text-gray-300 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500 custom-scrollbar"
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  placeholder="Paste your trace data here..."
-                />
-              </div>
-              <button
-                onClick={handleLoadTrace}
-                className="px-6 py-2 h-10 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 
-                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-              >
-                Load Trace Data
-              </button>
-            </div>
-            {error && (
-              <p className="mt-2 text-red-400 text-sm">{error}</p>
-            )}
-          </div>
-        </div>
-      </div>
-
       <div className="relative flex-1 overflow-hidden">
         {/* Add both controls at the top of canvas area */}
         <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -782,13 +706,6 @@ const handleLoadTrace = () => {
                 </div>
               </div>
             </Canvas>
-            <DebugPanel
-              nodePositions={getNodePositions()}
-              isOpen={isDebugPanelOpen}
-              onToggle={() => setIsDebugPanelOpen(!isDebugPanelOpen)}
-              transform={transform}
-              connectionSegments={connectionSegments}
-            />
           </>
         ) : (
           <div className="h-full flex items-center justify-center text-center text-gray-400">
