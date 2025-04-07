@@ -7,6 +7,8 @@ import styles from '../styles/TraceNode.module.css';
 
 interface TraceNodeProps {
   node: TraceNodeData;
+  hoveredCreator?: string | null;
+  setHoveredCreator?: (val: string | null) => void;
   isDetailsExpanded: boolean;
   isCollapsed: boolean;
   onToggleDetails: () => void;
@@ -19,6 +21,8 @@ interface TraceNodeProps {
 
 export const TraceNode: React.FC<TraceNodeProps> = ({
   node,
+  hoveredCreator,
+  setHoveredCreator,
   isDetailsExpanded,
   isCollapsed,
   onToggleDetails,
@@ -153,21 +157,27 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
               <span className="ml-2 text-sm text-gray-400">[{node.type}]</span>
               <span className="ml-2 text-sm text-gray-400">Key: {node.key}</span>
             </div>
-            
-            {node.content && !isCollapsed && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const textField = nodeRef.current?.querySelector('[data-text-field-id]');
-                  const wrapButton = textField?.querySelector('button');
-                  if (wrapButton) wrapButton.click();
-                }}
-                className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-gray-700 rounded-md transition-colors duration-200"
-                title="Toggle word wrap"
-              >
-                {/* Button content handled by TextField component */}
-              </button>
-            )}
+
+            {/* New "Childs" button in the top right */}
+            <button
+              className="text-sm px-2 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setHoveredCreator?.(node.key);
+              }}
+              onMouseLeave={(e) => {
+                e.stopPropagation();
+                setHoveredCreator?.(null);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Filter by this node as creator
+                onFilterByCreator(node.key);
+              }}
+              title="Show child nodes only"
+            >
+              childs
+            </button>
           </div>
           
           {!isCollapsed && (

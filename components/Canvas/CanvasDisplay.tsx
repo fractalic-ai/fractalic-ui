@@ -124,6 +124,7 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   const [areAllNodesCollapsed, setAreAllNodesCollapsed] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'RL'>('LR'); // Default to left-to-right layout
   const [highlightSource, setHighlightSource] = useState(false);
+  const [hoveredCreator, setHoveredCreator] = useState<string | null>(null); // Add hoveredCreator state
 
   // Refs
   const nodeRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -662,6 +663,11 @@ const handleLoadTrace = () => {
                           top: layout ? `${layout.y}px` : undefined,
                           position: layout ? 'absolute' : 'relative',
                           transition: 'left 0.3s ease-out, top 0.3s ease-out',
+                          // Dim everything else if hoveredCreator is set and these nodes aren't children
+                          opacity: hoveredCreator &&
+                                   !group.data.some(n => n.key === hoveredCreator || n.created_by === hoveredCreator)
+                                    ? 0.5
+                                    : 1
                         }}
                         data-trace-id={group.id}
                       >
@@ -680,7 +686,13 @@ const handleLoadTrace = () => {
                                 }}
                                 style={{
                                   marginLeft: indentLevel > 0 ? `${indentLevel * 54}px` : undefined,
-                                  width: `${baseWidth - 48}px` // Adjust width to account for padding
+                                  width: `${baseWidth - 48}px`, // Adjust width to account for padding
+                                  // Similar dimming logic per node
+                                  opacity: hoveredCreator &&
+                                           node.created_by !== hoveredCreator &&
+                                           node.key !== hoveredCreator
+                                            ? 0.5
+                                            : 1
                                 }}
                                 className="transition-all duration-300 ease-in-out"
                               >
@@ -694,6 +706,8 @@ const handleLoadTrace = () => {
                                   filterByCreator={filterByCreator}
                                   onZoomToFit={zoomToFitRef.current}
                                   highlightSource={highlightSource}
+                                  hoveredCreator={hoveredCreator}
+                                  setHoveredCreator={setHoveredCreator}
                                 />
                               </div>
                             );
