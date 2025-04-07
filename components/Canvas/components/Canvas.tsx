@@ -252,7 +252,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           </button>
           <button
             onClick={() => toggleConnectionVisibility('created-by')}
-            className={`p-2 flex items-center ${showCreatedByConnections ? 'bg-green-600' : 'bg-gray-800'} text-gray-300 rounded-r-md hover:bg-gray-700 transition-colors`}
+            className={`p-2 flex items-center ${showCreatedByConnections ? 'bg-blue-600' : 'bg-gray-800'} text-gray-300 rounded-r-md hover:bg-gray-700 transition-colors`}
             title={showCreatedByConnections ? "Hide green Created-by connections" : "Show green Created-by connections"}
           >
             {showCreatedByConnections ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
