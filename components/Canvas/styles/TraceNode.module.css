@@ -11,4 +11,9 @@
 .traceNodeContent {
   transition: max-height 200ms ease-in-out, opacity 200ms ease-in-out;
   overflow: hidden;
-} 
+}
+
+/* Source highlighting style - simplified with no border or glow */
+.sourceHighlighted {
+  /* No additional styling needed here - all applied directly in the component */
+}

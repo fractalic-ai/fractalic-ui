@@ -123,6 +123,7 @@ const CanvasDisplay: React.FC<CanvasDisplayProps> = ({ initialTraceData }) => {
   const [layoutUpdateCounter, setLayoutUpdateCounter] = useState(0);
   const [areAllNodesCollapsed, setAreAllNodesCollapsed] = useState(false);
   const [layoutDirection, setLayoutDirection] = useState<'LR' | 'RL'>('LR'); // Default to left-to-right layout
+  const [highlightSource, setHighlightSource] = useState(false);
 
   // Refs
   const nodeRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -619,6 +620,8 @@ const handleLoadTrace = () => {
               traceGroups={traceGroups}
               onConnectionSegmentsUpdate={handleConnectionSegmentsUpdate}
               collectNodePositions={collectNodePositions} // Pass the function here
+              highlightSource={highlightSource}
+              onHighlightSourceChange={(value) => setHighlightSource(value)}
             >
               <div className="relative p-4">
                 {/* Pass the hierarchical groups to TreeLayout */}
@@ -690,6 +693,7 @@ const handleLoadTrace = () => {
                                   onFilterByCreator={handleFilterByCreator}
                                   filterByCreator={filterByCreator}
                                   onZoomToFit={zoomToFitRef.current}
+                                  highlightSource={highlightSource}
                                 />
                               </div>
                             );

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Move, ZoomIn, ZoomOut, Minimize, Maximize, Eye, EyeOff } from 'lucide-react';
+import { Move, ZoomIn, ZoomOut, Minimize, Maximize, Eye, EyeOff, GitBranch, Sparkles } from 'lucide-react';
 import { NodeConnections } from './NodeConnections';
 import { TraceTreeNode } from '../types';
 import { ConnectionType } from '../utils/ConnectionManager';
@@ -17,7 +17,9 @@ interface CanvasProps {
   traceGroups?: any[];
   connections?: any[];
   onConnectionSegmentsUpdate?: (segments: any[]) => void;
-  collectNodePositions?: () => void; // Add this prop
+  collectNodePositions?: () => void;
+  onHighlightSourceChange?: (value: boolean) => void;
+  highlightSource?: boolean;
 }
 
 interface Transform {
@@ -38,7 +40,9 @@ export const Canvas: React.FC<CanvasProps> = ({
   traceGroups,
   connections,
   onConnectionSegmentsUpdate,
-  collectNodePositions, // Add this to the props destructuring
+  collectNodePositions,
+  onHighlightSourceChange,
+  highlightSource = false,
 }) => {
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -47,19 +51,16 @@ export const Canvas: React.FC<CanvasProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const transformTimeoutRef = useRef<number | null>(null);
   
-  // Add connection visibility state
   const [showIdentityConnections, setShowIdentityConnections] = useState(true);
   const [showCreatedByConnections, setShowCreatedByConnections] = useState(true);
 
   const updateTransform = useCallback((newTransform: Transform) => {
     setTransform(newTransform);
     
-    // Cancel any pending transform updates
     if (transformTimeoutRef.current) {
       window.clearTimeout(transformTimeoutRef.current);
     }
     
-    // Immediately notify of transform change
     if (onTransformChange) {
       onTransformChange(newTransform);
     }
@@ -78,15 +79,11 @@ export const Canvas: React.FC<CanvasProps> = ({
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
     
-        // Use the same approach as panning
         const newX = mouseX - (mouseX - transform.x) * (newScale / transform.scale);
         const newY = mouseY - (mouseY - transform.y) * (newScale / transform.scale);
     
-        // Update transform without triggering path recalculation
         updateTransform({ x: newX, y: newY, scale: newScale });
         
-        // We only need to collect node positions, not recalculate paths
-        // This prevents paths from changing shape during zoom
         if (collectNodePositions) {
           collectNodePositions();
         }
@@ -133,7 +130,6 @@ export const Canvas: React.FC<CanvasProps> = ({
 
       updateTransform({ x: newX, y: newY, scale: newScale });
       
-      // Update positions without changing paths
       if (collectNodePositions) {
         collectNodePositions();
       }
@@ -180,7 +176,6 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, [handleWheel]);
 
   const toggleConnectionVisibility = (type: 'identity' | 'created-by') => {
-    // When toggling visibility, force a path update to ensure connections render correctly
     const fireUpdate = () => {
       const event = new CustomEvent('force-connections-update');
       window.dispatchEvent(event);
@@ -195,10 +190,8 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  // Add listener for node resize events to trigger layout updates
   useEffect(() => {
     const handleNodeResize = () => {
-      // Trigger a connection update when node sizes change
       const event = new CustomEvent('force-connections-update');
       window.dispatchEvent(event);
     };
@@ -210,11 +203,9 @@ export const Canvas: React.FC<CanvasProps> = ({
     };
   }, []);
   
-  // Set up ResizeObservers for group containers
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Find all group containers and observe them
     const groupElements = containerRef.current.querySelectorAll('[data-trace-id]');
     groupElements.forEach(element => {
       const groupId = element.getAttribute('data-trace-id');
@@ -224,7 +215,6 @@ export const Canvas: React.FC<CanvasProps> = ({
     });
     
     return () => {
-      // Clean up observers
       if (containerRef.current) {
         const groupElements = containerRef.current.querySelectorAll('[data-trace-id]');
         groupElements.forEach(element => {
@@ -238,9 +228,8 @@ export const Canvas: React.FC<CanvasProps> = ({
   }, [traceTree, traceGroups]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-gray-900 rounded-lg">
+    <div className="relative h-full">
       <div className="absolute top-4 right-4 flex gap-2 z-10">
-        {/* Connection visibility toggle buttons */}
         <div className="flex mr-4">
           <button
             onClick={() => toggleConnectionVisibility('identity')}
@@ -258,8 +247,15 @@ export const Canvas: React.FC<CanvasProps> = ({
             {showCreatedByConnections ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
             <div className="w-3 h-3 bg-green-400 rounded-full ml-2" />
           </button>
+          <button
+            onClick={() => onHighlightSourceChange && onHighlightSourceChange(!highlightSource)}
+            className={`ml-2 p-2 flex items-center ${highlightSource ? 'bg-blue-600' : 'bg-gray-800'} text-gray-300 rounded-md hover:bg-gray-700 transition-colors`}
+            title={highlightSource ? "Disable source node highlighting" : "Highlight generated nodes (with created_by fields)"}
+          >
+            <Sparkles className="w-5 h-5" />
+            <div className="w-3 h-3 bg-green-500 rounded-full ml-2" />
+          </button>
         </div>
-
         <button
           onClick={() => onCollapseAll ? onCollapseAll() : null}
           className={`p-2 bg-gray-800 text-gray-300 rounded-md hover:bg-gray-700 transition-colors ${areAllNodesCollapsed ? 'bg-gray-700' : ''}`}
@@ -301,11 +297,10 @@ export const Canvas: React.FC<CanvasProps> = ({
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             transformOrigin: '0 0',
-            transition: 'none', // Remove transition to fix zoom issue
-            position: 'relative' // Ensure proper positioning context
+            transition: 'none',
+            position: 'relative'
           }}
         >
-          {/* Put the NodeConnections component BEFORE the children so it sits behind them */}
           {nodePositions && (
             <NodeConnections
               nodePositions={nodePositions}
@@ -318,7 +313,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               onConnectionSegmentsUpdate={onConnectionSegmentsUpdate}
               showIdentityConnections={showIdentityConnections}
               showCreatedByConnections={showCreatedByConnections}
-              collectNodePositions={collectNodePositions || (() => {})} // Pass the function with a fallback
+              collectNodePositions={collectNodePositions || (() => {})}
             />
           )}
           {children}

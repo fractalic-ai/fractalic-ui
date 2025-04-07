@@ -14,6 +14,7 @@ interface TraceNodeProps {
   onFilterByCreator: (key: string) => void;
   filterByCreator: string | null;
   onZoomToFit?: (element: HTMLElement) => void;
+  highlightSource?: boolean;
 }
 
 export const TraceNode: React.FC<TraceNodeProps> = ({
@@ -24,14 +25,18 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
   onToggleCollapse,
   onFilterByCreator,
   filterByCreator,
-  onZoomToFit
+  onZoomToFit,
+  highlightSource = false
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
-  
+
+  // Determine if this node should be highlighted
+  const shouldHighlight = highlightSource && !!node.created_by;
+
   // Add ResizeObserver to track size changes
   useEffect(() => {
     if (!nodeRef.current) return;
-    
+
     // Create a ResizeObserver to detect when this node's size changes
     const resizeObserver = new ResizeObserver(() => {
       // Dispatch event for layout recalculation with debounce
@@ -47,10 +52,10 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         window.dispatchEvent(event);
       }
     });
-    
+
     // Start observing
     resizeObserver.observe(nodeRef.current);
-    
+
     // Clean up
     return () => {
       resizeObserver.disconnect();
@@ -67,7 +72,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
 
   const handleToggleCollapse = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     // Dispatch an event to notify about the transition
     const event = new CustomEvent('node-transition', {
       detail: {
@@ -77,13 +82,13 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
       }
     });
     window.dispatchEvent(event);
-    
+
     // Notify of transition start explicitly
     const transitionEvent = new CustomEvent('transition-started', {
       detail: { nodeKey: node.key, element: nodeRef.current }
     });
     window.dispatchEvent(transitionEvent);
-    
+
     onToggleCollapse();
   };
 
@@ -91,7 +96,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
   useEffect(() => {
     const element = nodeRef.current;
     if (!element) return;
-    
+
     const handleTransitionStart = (e: TransitionEvent) => {
       if (e.propertyName === 'height' || e.propertyName === 'max-height') {
         // Dispatch event to start continuous connection updates
@@ -100,7 +105,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         }));
       }
     };
-    
+
     element.addEventListener('transitionstart', handleTransitionStart);
     return () => element.removeEventListener('transitionstart', handleTransitionStart);
   }, [node.key]);
@@ -116,7 +121,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         }
       });
       window.dispatchEvent(event);
-      
+
       // Also dispatch the regular update event for backward compatibility
       const updateEvent = new CustomEvent('force-connections-update');
       window.dispatchEvent(updateEvent);
@@ -140,8 +145,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         className={styles.traceNode}
         onClick={handleToggleCollapse}
       >
-        <div className="bg-gray-800 p-3 cursor-pointer" 
-        >
+        <div className={`p-3 cursor-pointer ${shouldHighlight ? 'bg-[#1c392a]' : 'bg-gray-800'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               {getNodeIcon(node.type)}
