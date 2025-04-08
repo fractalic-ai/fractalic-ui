@@ -1129,6 +1129,11 @@ export default function GitDiffViewer() {
                       repoPath={repoPath}
                       handleBreadcrumbClick={handleBreadcrumbClick}
                       currentFilePath={currentFilePath}
+                      branchNotification={branchNotification}
+                      branchHash={branchHash}
+                      onBranchHashClick={handleBranchHashClick}
+                      handleBranchSelect={handleBranchSelect}
+                      onSave={() => Promise.resolve()}
                     />
                   </div>
                 </ResizablePanel>
