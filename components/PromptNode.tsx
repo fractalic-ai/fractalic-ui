@@ -346,7 +346,7 @@ const PromptNode: React.FC<PromptNodeProps> = ({
           }}
           variant="ghost"
           size="sm"
-          className="h-7 px-3 text-sm bg-[var(--notebook-node-bg)] hover:bg-muted text-muted-foreground shadow-sm border border-[rgba(255,255,255,0.15)]"
+          className="node-action-button h-7 px-3 text-sm text-white shadow-sm border border-[rgba(255,255,255,0.15)]"
         >
           <Plus className="w-3.5 h-3.5 mr-1.5" />
           Node
@@ -358,7 +358,7 @@ const PromptNode: React.FC<PromptNodeProps> = ({
           }}
           variant="ghost"
           size="sm"
-          className="h-7 px-3 text-sm bg-[var(--notebook-node-bg)] hover:bg-muted text-muted-foreground shadow-sm border border-[rgba(255,255,255,0.15)]"
+          className="node-action-button h-7 px-3 text-sm text-white shadow-sm border border-[rgba(255,255,255,0.15)]"
         >
           <Plus className="w-3.5 h-3.5 mr-1.5" />
           Operation

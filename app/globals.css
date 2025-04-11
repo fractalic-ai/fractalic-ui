@@ -532,7 +532,25 @@ button[aria-selected="true"]:hover {
 .dark .notebook-theme,
 .dark .notebook-theme * {
   background-color: #111827 !important;
+}
 
+/* Custom hover style for node action buttons */
+.notebook-node .node-action-button {
+  transition: background-color 0.2s ease;
+  background-color: var(--notebook-node-bg);
+}
+
+
+
+/* Ensure the icon inside the button doesn't have its own background */
+.notebook-node .node-action-button svg {
+  background-color: transparent !important;
+}
+
+/* Custom hover style for node action buttons */
+.notebook-node .node-action-button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
 }
 
 
