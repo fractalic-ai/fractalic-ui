@@ -187,4 +187,28 @@
   background-color: var(--notebook-node-bg) !important;
 }
 
+/* Fix cursor visibility in notebook mode */
+.notebook-theme .monaco-editor .cursor {
+  visibility: visible !important;
+  border-left-width: 1px !important;
+  border-left-style: solid !important;
+  border-left-color: #FFFFFF !important;
+  transition: border-left-color 0.1s linear !important;
+}
+
+.notebook-theme .monaco-editor .view-overlays .cursor-line {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Ensure cursor is properly sized and positioned */
+.notebook-theme .monaco-editor .cursor-line-style {
+  background-color: transparent !important;
+}
+
+/* Ensure cursor has proper contrast */
+.notebook-theme .monaco-editor .view-overlays .current-line {
+  border: none !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
 

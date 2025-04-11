@@ -96,7 +96,10 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
           roundedSelection: false,
           padding: { top: 4, bottom: 4 },
           // Disable web workers to prevent the errors
-          useWorker: false
+          useWorker: false,
+          cursorBlinking: 'smooth',
+          cursorStyle: 'line',
+          cursorWidth: 1
         });
 
         disposablesRef.current.push(

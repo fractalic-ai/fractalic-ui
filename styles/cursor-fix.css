@@ -1,0 +1,20 @@
+/* Cursor visibility fixes for notebook mode */
+.notebook-theme .monaco-editor .cursor {
+  background-color: white !important;
+  border-left: 2px solid white !important;
+  width: 2px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Improve line highlighting */
+.notebook-theme .monaco-editor .view-lines .view-line {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Ensure cursor doesn't disappear when typing */
+.notebook-theme .monaco-editor-background,
+.notebook-theme .monaco-editor .lines-content,
+.notebook-theme .monaco-editor .view-lines {
+  pointer-events: auto !important;
+}

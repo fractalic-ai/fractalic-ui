@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { TraceProvider } from '@/contexts/TraceContext';
+import '@/styles/cursor-fix.css';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
