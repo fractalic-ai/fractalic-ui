@@ -51,6 +51,11 @@ interface ProviderSettings {
   contextSize: number;
 }
 
+// Add interface for runtime settings
+interface RuntimeSettings {
+  enableOperationsVisibility: boolean;
+}
+
 // Add interface for env vars
 interface EnvVariable {
   key: string;
@@ -81,9 +86,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     }), {})
   );
 
-  // Add new state
-  const [activeTab, setActiveTab] = useState<'providers' | 'environment'>('providers');
+  // Update activeTab type to include 'runtime'
+  const [activeTab, setActiveTab] = useState<'providers' | 'environment' | 'runtime'>('providers');
   const [envVars, setEnvVars] = useState<EnvVariable[]>([]);
+  // Add state for runtime settings
+  const [runtimeSettings, setRuntimeSettings] = useState<RuntimeSettings>({
+    enableOperationsVisibility: false
+  });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -117,6 +126,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           const providerSettingsData = data.settings?.settings || {}; // Handle case where it might be missing
           const environmentData = data.settings?.environment || []; // Extract environment data
           const defaultProviderData = data.settings?.defaultProvider || providers[0].id; // Extract default provider
+          const runtimeData = data.settings?.runtime || { enableOperationsVisibility: false }; // Extract runtime settings
 
           const newSettings = providers.reduce((acc, provider) => ({
             ...acc,
@@ -138,6 +148,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           // Use the extracted defaultProviderData and environmentData
           setDefaultProvider(defaultProviderData); 
           setEnvVars(environmentData);
+          // Set runtime settings
+          setRuntimeSettings(runtimeData);
 
           setIsLoading(false);
         })
@@ -207,7 +219,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     const configToSave = {
       settings: updatedSettings,
       defaultProvider: defaultProvider,
-      environment: envVars
+      environment: envVars,
+      runtime: runtimeSettings
     };
     
     console.log("Saving configuration:", JSON.stringify(configToSave, null, 2));
@@ -282,6 +295,17 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             )}
           >
             Environment Variables
+          </Button>
+          <Button
+            onClick={() => setActiveTab('runtime')}
+            className={cn(
+              "h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-base font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+              activeTab === 'runtime'
+                ? 'bg-muted text-foreground shadow'
+                : 'bg-transparent text-gray-400 border border-border hover:bg-muted/50 hover:text-foreground'
+            )}
+          >
+            Runtime
           </Button>
         </div>
 
@@ -503,7 +527,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'environment' ? (
               <div className="space-y-4 p-4">
                 <div className="flex justify-end">
                   <Button 
@@ -540,6 +564,37 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                     </Button>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="space-y-6 p-4">
+                <div className="bg-muted/30 p-6 rounded-lg border border-border">
+                  <h3 className="text-lg font-medium text-gray-200 mb-4">Runtime Settings</h3>
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor={`${uniqueId}-settings-modal-enable-operations-visibility`} className="text-gray-300 font-medium">
+                          Enable operations visibility for LLM in context
+                        </Label>
+                        <p className="text-sm text-gray-400">
+                          When enabled, Fractalic operations will be visible to the LLM as part of the context window. 
+                          This can improve the model's understanding of your workflow, but may consume additional tokens. 
+                          Use with caution in production environments.
+                        </p>
+                      </div>
+                      <Switch
+                        id={`${uniqueId}-settings-modal-enable-operations-visibility`}
+                        checked={runtimeSettings.enableOperationsVisibility}
+                        onCheckedChange={(checked) => 
+                          setRuntimeSettings(prev => ({
+                            ...prev,
+                            enableOperationsVisibility: checked
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
