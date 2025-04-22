@@ -109,6 +109,13 @@ export const operationSchema = {
         maximum: 1,
         description: "Optional temperature setting for LLM call to control randomness."
       },
+      "stop-sequences": {
+        type: 'array',
+        items: {
+          type: 'string'
+        },
+        description: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter)."
+      },
       "run-once": {
         type: "enum",
         enum: ['false', 'true'],

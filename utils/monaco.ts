@@ -19,7 +19,7 @@ export function registerFractalicLanguage(monaco: any) {
         [/^@(llm|shell|import|run|return|goto)\b/, "operation-keyword"],
 
         // Field names - Capture name and colon together
-        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to)(:)/,
+        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to|stop-sequences)(:)/,
           ["white", "field-name", "punctuation.colon"]],
 
         // String values (double and single quoted)
@@ -236,7 +236,8 @@ export function registerFractalicHoverProvider(monaco: any) {
               { name: "to", required: "No", description: "Target block reference" },
               { name: "provider", required: "No", description: "Override for language model provider" },
               { name: "model", required: "No", description: "Override for specific model" },
-              { name: "temperature", required: "No", description: "Controls randomness (0.0-1.0)" }
+              { name: "temperature", required: "No", description: "Controls randomness (0.0-1.0)" },
+              { name: "stop-sequences", required: "No", description: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter)." }
             ],
             note: "* Either prompt or block must be provided"
           },
@@ -360,6 +361,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
       { label: "provider", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override for language model provider", insertText: "provider: ", range: paramRange },
       { label: "model", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override for specific model", insertText: "model: ", range: paramRange },
       { label: "temperature", kind: monaco.languages.CompletionItemKind.Field, documentation: "Controls randomness (0.0-1.0)", insertText: "temperature: ", range: paramRange },
+      { label: "stop-sequences", kind: monaco.languages.CompletionItemKind.Field, documentation: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter).", insertText: "stop-sequences: ", range: paramRange },
       // Snippets (adjust insertText and potentially range if triggeredBySpace)
       {
         label: "full-llm-operation (prompt)",
@@ -712,4 +714,4 @@ export function setupFractalicLanguage(monaco: any) {
   } catch (error) {
     console.error("Error setting up Fractalic language:", error);
   }
-} 
+}
