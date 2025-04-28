@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogOverlay,
 } from "@/components/ui/dialog";
-import { CheckCircle2, X } from 'lucide-react';
+import { CheckCircle2, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SettingsModalProps {
@@ -96,6 +96,10 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Add state for model dropdown
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelInputValue, setModelInputValue] = useState<string>("");
+
   // Clear form state when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -160,6 +164,19 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
         });
     }
   }, [isOpen]);
+
+  // Keep modelInputValue in sync with settings[activeProvider].model
+  useEffect(() => {
+    setModelInputValue(settings[activeProvider]?.model || "");
+  }, [activeProvider, settings[activeProvider]?.model]);
+
+  // Filter model options based on input value (substring match, case-insensitive)
+  const filteredModelOptions = useMemo(() => {
+    const options = modelOptions[activeProvider] || [];
+    if (!modelInputValue) return options;
+    const filter = modelInputValue.toLowerCase();
+    return options.filter(opt => opt.toLowerCase().includes(filter));
+  }, [activeProvider, modelInputValue]);
 
   // Prevent rendering form until settings are loaded
 
@@ -382,13 +399,57 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                     )}
                     <div className="space-y-2">
                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300">Model</Label>
-                      <Input
-                        type="text"
-                        id={`${uniqueId}-settings-modal-${activeProvider}-model`}
-                        value={settings[activeProvider]?.model || ''}
-                        onChange={(e) => handleSettingChange(activeProvider, "model", e.target.value)}
-                        className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          id={`${uniqueId}-settings-modal-${activeProvider}-model`}
+                          value={modelInputValue}
+                          onChange={(e) => {
+                            setModelInputValue(e.target.value);
+                            handleSettingChange(activeProvider, "model", e.target.value);
+                            setModelDropdownOpen(true);
+                          }}
+                          onFocus={() => setModelDropdownOpen(true)}
+                          autoComplete="off"
+                          className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-10"
+                        />
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+                          onClick={() => setModelDropdownOpen((open) => !open)}
+                        >
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                        {modelDropdownOpen && (
+                          <div
+                            className="absolute z-20 mt-1 w-full bg-background border border-border rounded shadow-lg max-h-48 overflow-auto"
+                            onMouseLeave={() => setModelDropdownOpen(false)}
+                          >
+                            {filteredModelOptions.length === 0 ? (
+                              <div className="px-3 py-2 text-gray-400 text-sm">No models found</div>
+                            ) : (
+                              filteredModelOptions.map((option) => (
+                                <div
+                                  key={option}
+                                  className={cn(
+                                    "px-3 py-2 cursor-pointer hover:bg-muted text-foreground",
+                                    option === modelInputValue ? "bg-muted font-semibold" : ""
+                                  )}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setModelInputValue(option);
+                                    handleSettingChange(activeProvider, "model", option);
+                                    setModelDropdownOpen(false);
+                                  }}
+                                >
+                                  {option}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
