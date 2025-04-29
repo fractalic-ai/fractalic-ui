@@ -405,70 +405,78 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                 <div className="w-1/4 border-r border-border pr-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold text-gray-400">Providers</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleAddProvider}
-                      className="ml-2"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                  {providers.length === 0 && (
-                    <div className="text-gray-400 text-sm py-2">No providers added.</div>
-                  )}
-                  {providers.map((provider) => {
-                    // Get model name from settings
-                    const modelName = settings[provider.id]?.model || "No model selected";
-                    // Find provider name from fetchedModels
-                    let providerName = "";
-                    if (modelName && fetchedModels.length > 0) {
-                      const match = fetchedModels.find(m => m.model === modelName);
-                      providerName = match ? match.provider : "";
-                    }
-                    return (
-                      <div
-                        key={provider.id}
-                        className={cn(
-                          "flex items-center justify-between p-2 cursor-pointer rounded-md hover:bg-muted group",
-                          activeProvider === provider.id ? "bg-muted" : ""
-                        )}
-                        onClick={() => setActiveProvider(provider.id)}
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddProvider}
+                        className="ml-2"
                       >
-                        <div>
-                          <span className={cn(
-                            activeProvider === provider.id ? "font-semibold text-foreground" : "",
-                            defaultProvider !== provider.id ? "text-gray-400" : "text-foreground"
-                          )}>{modelName}</span>
-                          <div className="text-xs">
-                            {modelName && providerName
-                              ? <span className="text-blue-400">{providerName}</span>
-                              : <span className="text-red-400">Provider not detected</span>
-                            }
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (activeProvider) handleDeleteProvider(activeProvider);
+                        }}
+                        className="ml-1"
+                        disabled={!activeProvider}
+                        title="Delete selected provider"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  <div
+                    className="overflow-y-auto max-h-[400px] scrollbar-thin"
+                    style={{
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgba(120,120,120,0.5) transparent',
+                    }}
+                  >
+                    {providers.length === 0 && (
+                      <div className="text-gray-400 text-sm py-2">No providers added.</div>
+                    )}
+                    {providers.map((provider) => {
+                      // Get model name from settings
+                      const modelName = settings[provider.id]?.model || "No model selected";
+                      // Find provider name from fetchedModels
+                      let providerName = "";
+                      if (modelName && fetchedModels.length > 0) {
+                        const match = fetchedModels.find(m => m.model === modelName);
+                        providerName = match ? match.provider : "";
+                      }
+                      return (
+                        <div
+                          key={provider.id}
+                          className={cn(
+                            "flex items-center justify-between p-2 cursor-pointer rounded-md hover:bg-muted group",
+                            activeProvider === provider.id ? "bg-muted" : ""
+                          )}
+                          onClick={() => setActiveProvider(provider.id)}
+                        >
+                          <div>
+                            <span className={cn(
+                              activeProvider === provider.id ? "font-semibold text-foreground" : "",
+                              defaultProvider !== provider.id ? "text-gray-400" : "text-foreground"
+                            )}>{modelName}</span>
+                            <div className="text-xs">
+                              {modelName && providerName
+                                ? <span className="text-blue-400">{providerName}</span>
+                                : <span className="text-red-400">Provider not detected</span>
+                              }
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-1">
                           {defaultProvider === provider.id && (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                           )}
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleDeleteProvider(provider.id);
-                            }}
-                            title="Delete provider"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="w-3/4 pl-4 overflow-y-auto">
                   {activeProvider && settings[activeProvider] ? (
@@ -814,6 +822,22 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           </div>
         </form>
       </DialogContent>
+      <style jsx global>{`
+        .scrollbar-thin {
+          scrollbar-width: thin;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: rgba(120,120,120,0.5);
+          border-radius: 4px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+      `}</style>
     </Dialog>
   );
 }
