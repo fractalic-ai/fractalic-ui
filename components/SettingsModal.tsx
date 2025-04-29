@@ -29,13 +29,7 @@ interface SettingsModalProps {
   setGlobalSettings: (settings: any) => void;
 }
 
-const providers = [
-  { id: "openai", name: "OpenAI" },
-  { id: "anthropic", name: "Anthropic" },
-  { id: "groq", name: "Groq" },
-];
-
-// Unified model list for all providers
+// Remove static allModels array, keep for fallback only
 const allModels = [
   "gpt-4o",
   "gpt-4-turbo",
@@ -81,24 +75,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   const sessionId = useMemo(() => `llm-settings-${Date.now()}`, [isOpen]);
   const uniqueId = useId();
   
-  const [activeProvider, setActiveProvider] = useState(providers[0].id);
-  const [defaultProvider, setDefaultProvider] = useState<string>(providers[0].id);
+  // Providers are now dynamic, each provider is { id }
+  const [providers, setProviders] = useState<{ id: string }[]>([]);
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
+  const [defaultProvider, setDefaultProvider] = useState<string | null>(null);
   const [maskedInputs, setMaskedInputs] = useState<Record<string, boolean>>({});
   
-  const [settings, setSettings] = useState<Record<string, ProviderSettings>>(
-    providers.reduce((acc, provider) => ({
-      ...acc,
-      [provider.id]: {
-        apiKey: "",
-        base_url: "", // Added field
-        model: allModels[0],
-        temperature: 0.7,
-        topP: 1,
-        topK: 50,
-        contextSize: 4096,
-      },
-    }), {})
-  );
+  const [settings, setSettings] = useState<Record<string, ProviderSettings>>({});
 
   // Update activeTab type to include 'runtime'
   const [activeTab, setActiveTab] = useState<'providers' | 'environment' | 'runtime'>('providers');
@@ -146,30 +129,18 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           // Access the nested 'settings' object here: data.settings.settings
           const providerSettingsData = data.settings?.settings || {}; // Handle case where it might be missing
           const environmentData = data.settings?.environment || []; // Extract environment data
-          const defaultProviderData = data.settings?.defaultProvider || providers[0].id; // Extract default provider
+          const defaultProviderData = data.settings?.defaultProvider || null; // Extract default provider
           const runtimeData = data.settings?.runtime || { enableOperationsVisibility: false }; // Extract runtime settings
 
-          const newSettings = providers.reduce((acc, provider) => ({
-            ...acc,
-            [provider.id]: {
-              // Use providerSettingsData instead of data.settings directly
-              apiKey: providerSettingsData[provider.id]?.apiKey || "",
-              base_url: providerSettingsData[provider.id]?.base_url || "",
-              model: providerSettingsData[provider.id]?.model || allModels[0],
-              temperature: providerSettingsData[provider.id]?.temperature ?? 0.7,
-              topP: providerSettingsData[provider.id]?.topP ?? 1,
-              topK: providerSettingsData[provider.id]?.topK ?? 50,
-              contextSize: providerSettingsData[provider.id]?.contextSize ?? 4096,
-            },
-          }), {});
-          
-          console.log('Processed newSettings object:', JSON.stringify(newSettings, null, 2));
-
-          setSettings(newSettings);
-          // Use the extracted defaultProviderData and environmentData
-          setDefaultProvider(defaultProviderData); 
+          // Build providers list from keys of providerSettingsData
+          const loadedProviders = Object.keys(providerSettingsData).map((modelName) => ({
+            id: modelName,
+          }));
+          setProviders(loadedProviders);
+          setActiveProvider(loadedProviders.length > 0 ? loadedProviders[0].id : null);
+          setDefaultProvider(defaultProviderData || (loadedProviders.length > 0 ? loadedProviders[0].id : null));
+          setSettings(providerSettingsData);
           setEnvVars(environmentData);
-          // Set runtime settings
           setRuntimeSettings(runtimeData);
 
           setIsLoading(false);
@@ -180,7 +151,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           setIsLoading(false);
         });
     }
-  }, [isOpen]);
+  // Add fetchedModels as dependency so provider names are matched after models are loaded
+  }, [isOpen, fetchedModels]);
 
   // Fetch model list from LiteLLM registry when modal opens
   useEffect(() => {
@@ -254,6 +226,51 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     setEnvVars(updated);
   };
 
+  // Add Provider handler (no prompt, just add with default model name)
+  const handleAddProvider = () => {
+    // Generate a unique id for the new provider
+    let baseId = "No model selected";
+    let id = baseId;
+    let counter = 1;
+    while (providers.some(p => p.id === id)) {
+      id = `${baseId} (${counter++})`;
+    }
+    setProviders(prev => [...prev, { id }]);
+    setSettings(prev => ({
+      ...prev,
+      [id]: {
+        apiKey: "",
+        base_url: "",
+        model: "", // No model selected yet
+        temperature: 0.7,
+        topP: 1,
+        topK: 50,
+        contextSize: 4096,
+      }
+    }));
+    setActiveProvider(id);
+  };
+
+  // Delete Provider handler
+  const handleDeleteProvider = (providerId: string) => {
+    if (!window.confirm("Are you sure you want to delete this provider?")) return;
+    setProviders(prev => prev.filter(p => p.id !== providerId));
+    setSettings(prev => {
+      const newSettings = { ...prev };
+      delete newSettings[providerId];
+      return newSettings;
+    });
+    // If deleting active or default, update
+    if (activeProvider === providerId) {
+      const remaining = providers.filter(p => p.id !== providerId);
+      setActiveProvider(remaining.length > 0 ? remaining[0].id : null);
+    }
+    if (defaultProvider === providerId) {
+      const remaining = providers.filter(p => p.id !== providerId);
+      setDefaultProvider(remaining.length > 0 ? remaining[0].id : null);
+    }
+  };
+
   // Update save handler
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,8 +294,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     });
     
     // Create the payload for saving
+    // Only save settings for current providers
+    const filteredSettings = {};
+    providers.forEach(p => {
+      if (updatedSettings[p.id]) filteredSettings[p.id] = updatedSettings[p.id];
+    });
     const configToSave = {
-      settings: updatedSettings,
+      settings: filteredSettings,
       defaultProvider: defaultProvider,
       environment: envVars,
       runtime: runtimeSettings
@@ -381,276 +403,328 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             {activeTab === 'providers' ? (
               <div className="flex">
                 <div className="w-1/4 border-r border-border pr-4">
-                  {providers.map((provider) => (
-                    <div
-                      key={provider.id}
-                      className={cn(
-                        "flex items-center justify-between p-2 cursor-pointer rounded-md hover:bg-muted",
-                        activeProvider === provider.id ? "bg-muted" : ""
-                      )}
-                      onClick={() => setActiveProvider(provider.id)}
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-gray-400">Providers</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAddProvider}
+                      className="ml-2"
                     >
-                      <span className={cn(
-                        activeProvider === provider.id ? "font-semibold text-foreground" : "",
-                        defaultProvider !== provider.id ? "text-gray-400" : "text-foreground"
-                      )}>{provider.name}</span>
-                      {defaultProvider === provider.id && (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                  ))}
+                      Add
+                    </Button>
+                  </div>
+                  {providers.length === 0 && (
+                    <div className="text-gray-400 text-sm py-2">No providers added.</div>
+                  )}
+                  {providers.map((provider) => {
+                    // Get model name from settings
+                    const modelName = settings[provider.id]?.model || "No model selected";
+                    // Find provider name from fetchedModels
+                    let providerName = "";
+                    if (modelName && fetchedModels.length > 0) {
+                      const match = fetchedModels.find(m => m.model === modelName);
+                      providerName = match ? match.provider : "";
+                    }
+                    return (
+                      <div
+                        key={provider.id}
+                        className={cn(
+                          "flex items-center justify-between p-2 cursor-pointer rounded-md hover:bg-muted group",
+                          activeProvider === provider.id ? "bg-muted" : ""
+                        )}
+                        onClick={() => setActiveProvider(provider.id)}
+                      >
+                        <div>
+                          <span className={cn(
+                            activeProvider === provider.id ? "font-semibold text-foreground" : "",
+                            defaultProvider !== provider.id ? "text-gray-400" : "text-foreground"
+                          )}>{modelName}</span>
+                          <div className="text-xs">
+                            {modelName && providerName
+                              ? <span className="text-blue-400">{providerName}</span>
+                              : <span className="text-red-400">Provider not detected</span>
+                            }
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {defaultProvider === provider.id && (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          )}
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleDeleteProvider(provider.id);
+                            }}
+                            title="Delete provider"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="w-3/4 pl-4 overflow-y-auto">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-default`} className="text-gray-300">Set as Default</Label>
-                      <Switch
-                        id={`${uniqueId}-settings-modal-${activeProvider}-default`}
-                        checked={defaultProvider === activeProvider}
-                        onCheckedChange={() => handleDefaultChange(activeProvider)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-api-key`} className="text-gray-300">API Key</Label>
-                      <Input
-                        id={`${uniqueId}-${sessionId}-${activeProvider}-api-key`}
-                        name={`${sessionId}-api-key`}
-                        value={settings[activeProvider]?.apiKey || ''}
-                        onChange={(e) => handleApiKeyChange(activeProvider, e.target.value)}
-                        type="text"
-                        className={cn(
-                          "bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                          maskedInputs[activeProvider] && "font-mono [text-security: disc]"
-                        )}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck="false"
-                        data-lpignore="true"
-                        aria-autocomplete="none"
-                      />
-                    </div>
-                    {activeProvider === "openai" && (
+                  {activeProvider && settings[activeProvider] ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-default`} className="text-gray-300">Set as Default</Label>
+                        <Switch
+                          id={`${uniqueId}-settings-modal-${activeProvider}-default`}
+                          checked={defaultProvider === activeProvider}
+                          onCheckedChange={() => handleDefaultChange(activeProvider)}
+                        />
+                      </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-gray-300">Base URL</Label>
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-api-key`} className="text-gray-300">API Key</Label>
                         <Input
-                          id={`${uniqueId}-${sessionId}-${activeProvider}-base-url`}
-                          value={settings[activeProvider]?.base_url || ''}
-                          onChange={(e) => handleSettingChange(activeProvider, "base_url", e.target.value)}
+                          id={`${uniqueId}-${sessionId}-${activeProvider}-api-key`}
+                          name={`${sessionId}-api-key`}
+                          value={settings[activeProvider]?.apiKey || ''}
+                          onChange={(e) => handleApiKeyChange(activeProvider, e.target.value)}
                           type="text"
-                          className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      {/* Model label with provider name if matched */}
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300 flex items-center">
-                        Model
-                        {(() => {
-                          // Find provider for current modelInputValue
-                          const match = (fetchedModels.length > 0
-                            ? fetchedModels
-                            : allModels.map(m => ({model: m, provider: ""}))
-                          ).find(opt => opt.model === modelInputValue);
-                          if (match && match.provider) {
-                            return (
-                              <span className="ml-2 text-sm">
-                                (provider: <span className="text-blue-400">{match.provider}</span>)
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </Label>
-                      <div className="relative">
-                        <Input
-                          type="text"
-                          id={`${uniqueId}-settings-modal-${activeProvider}-model`}
-                          value={modelInputValue}
-                          onChange={(e) => {
-                            setModelInputValue(e.target.value);
-                            handleSettingChange(activeProvider, "model", e.target.value);
-                            setModelDropdownOpen(true);
-                          }}
-                          onFocus={() => setModelDropdownOpen(true)}
+                          className={cn(
+                            "bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                            maskedInputs[activeProvider] && "font-mono [text-security: disc]"
+                          )}
                           autoComplete="off"
-                          className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-10"
+                          autoCorrect="off"
+                          spellCheck="false"
+                          data-lpignore="true"
+                          aria-autocomplete="none"
                         />
-                        <button
-                          type="button"
-                          tabIndex={-1}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
-                          onClick={() => setModelDropdownOpen((open) => !open)}
-                        >
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
-                        </button>
-                        {modelDropdownOpen && (
-                          <div
-                            className="absolute z-20 mt-1 w-full bg-background border border-border rounded shadow-lg max-h-48 overflow-auto"
-                            onMouseLeave={() => setModelDropdownOpen(false)}
+                      </div>
+                      {activeProvider.toLowerCase().includes("openai") && (
+                        <div className="space-y-2">
+                          <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-gray-300">Base URL</Label>
+                          <Input
+                            id={`${uniqueId}-${sessionId}-${activeProvider}-base-url`}
+                            value={settings[activeProvider]?.base_url || ''}
+                            onChange={(e) => handleSettingChange(activeProvider, "base_url", e.target.value)}
+                            type="text"
+                            className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {/* Model label with provider name if matched */}
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300 flex items-center">
+                          Model
+                          {(() => {
+                            // Find provider for current modelInputValue
+                            const match = (fetchedModels.length > 0
+                              ? fetchedModels
+                              : allModels.map(m => ({model: m, provider: ""}))
+                            ).find(opt => opt.model === modelInputValue);
+                            if (match && match.provider) {
+                              return (
+                                <span className="ml-2 text-sm">
+                                  (provider: <span className="text-blue-400">{match.provider}</span>)
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            type="text"
+                            id={`${uniqueId}-settings-modal-${activeProvider}-model`}
+                            value={modelInputValue}
+                            onChange={(e) => {
+                              setModelInputValue(e.target.value);
+                              handleSettingChange(activeProvider, "model", e.target.value);
+                              setModelDropdownOpen(true);
+                            }}
+                            onFocus={() => setModelDropdownOpen(true)}
+                            autoComplete="off"
+                            className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-10"
+                          />
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
+                            onClick={() => setModelDropdownOpen((open) => !open)}
                           >
-                            {filteredModelOptions.length === 0 ? (
-                              <div className="px-3 py-2 text-gray-400 text-sm">No models found</div>
-                            ) : (
-                              filteredModelOptions.map((option) => (
-                                <div
-                                  key={option.model}
-                                  className={cn(
-                                    "px-3 py-2 cursor-pointer hover:bg-muted text-foreground flex items-center",
-                                    option.model === modelInputValue ? "bg-muted font-semibold" : ""
-                                  )}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setModelInputValue(option.model);
-                                    handleSettingChange(activeProvider, "model", option.model);
-                                    setModelDropdownOpen(false);
-                                  }}
-                                >
-                                  {option.provider && (
-                                    <span className="text-blue-400 mr-2">{option.provider}</span>
-                                  )}
-                                  <span>{option.model}</span>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          </button>
+                          {modelDropdownOpen && (
+                            <div
+                              className="absolute z-20 mt-1 w-full bg-background border border-border rounded shadow-lg max-h-48 overflow-auto"
+                              onMouseLeave={() => setModelDropdownOpen(false)}
+                            >
+                              {filteredModelOptions.length === 0 ? (
+                                <div className="px-3 py-2 text-gray-400 text-sm">No models found</div>
+                              ) : (
+                                filteredModelOptions.map((option) => (
+                                  <div
+                                    key={option.model}
+                                    className={cn(
+                                      "px-3 py-2 cursor-pointer hover:bg-muted text-foreground flex items-center",
+                                      option.model === modelInputValue ? "bg-muted font-semibold" : ""
+                                    )}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setModelInputValue(option.model);
+                                      handleSettingChange(activeProvider, "model", option.model);
+                                      setModelDropdownOpen(false);
+                                    }}
+                                  >
+                                    {option.provider && (
+                                      <span className="text-blue-400 mr-2">{option.provider}</span>
+                                    )}
+                                    <span>{option.model}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
+                        <Input
+                          type="number"
+                          id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
+                          value={String(settings[activeProvider]?.temperature ?? 0)}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            let numValue: number;
+
+                            if (inputValue === '' || inputValue === '-') {
+                               numValue = 0;
+                            } else {
+                              numValue = parseFloat(inputValue);
+                              if (!isNaN(numValue)) {
+                                numValue = Math.max(0, Math.min(1, numValue));
+                                // Explicitly round input value to nearest 0.1 step
+                                numValue = Math.round(numValue * 10) / 10;
+                              } else {
+                                numValue = 0;
+                              }
+                            }
+                            console.log(`Input changed temperature to: ${numValue}`);
+                            handleSettingChange(activeProvider, "temperature", numValue);
+                          }}
+                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          min={0}
+                          max={1}
+                          step={0.1}
+                        />
+                        <Slider
+                          id={`${uniqueId}-settings-modal-${activeProvider}-temperature-slider`}
+                          value={[Number(settings[activeProvider]?.temperature ?? 0)]}
+                          onValueChange={([value]) => {
+                             // 1. Round the incoming value from the slider to the nearest 0.1
+                             const roundedValue = Math.round(value * 10) / 10;
+
+                             // 2. Only update state if the rounded value is different
+                             //    from the current state to prevent potential feedback loops
+                             if (roundedValue !== Number(settings[activeProvider]?.temperature ?? 0)) {
+                               console.log(`Slider raw value: ${value}, Rounded & Setting: ${roundedValue}`);
+                               handleSettingChange(activeProvider, "temperature", roundedValue);
+                             } else {
+                               // Optional: Log when no change is needed
+                               // console.log(`Slider value ${value} rounded to ${roundedValue}, matches current state. No update.`);
+                             }
+                          }}
+                          max={1}
+                          min={0}
+                          step={0.1}
+                          className="flex-grow"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-4">
+                         <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-gray-300">Top P</Label>
+                         <Input
+                           type="number"
+                           id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
+                           value={String(settings[activeProvider]?.topP ?? 1)}
+                           onChange={(e) => {
+                             const inputValue = e.target.value;
+                             let numValue = parseFloat(inputValue);
+                             if (!isNaN(numValue)) {
+                               numValue = Math.max(0, Math.min(1, numValue));
+                               // Round Top P input value
+                               numValue = Math.round(numValue * 10) / 10;
+                             } else {
+                               numValue = 1;
+                             }
+                             handleSettingChange(activeProvider, "topP", numValue);
+                           }}
+                           className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                           min={0}
+                           max={1}
+                           step={0.1}
+                         />
+                         <Slider
+                           id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
+                           value={[Number(settings[activeProvider]?.topP ?? 1)]}
+                           onValueChange={([value]) => {
+                             // Round Top P slider value
+                             const roundedValue = Math.round(value * 10) / 10;
+                             if (roundedValue !== Number(settings[activeProvider]?.topP ?? 1)) {
+                               handleSettingChange(activeProvider, "topP", roundedValue);
+                             }
+                           }}
+                           max={1}
+                           min={0}
+                           step={0.1}
+                           className="flex-grow"
+                         />
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-gray-300">Top K</Label>
+                        <Input
+                          type="number"
+                          id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
+                          value={settings[activeProvider]?.topK.toString()}
+                          onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
+                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          min={0}
+                          max={100}
+                          step={1}
+                        />
+                        <Slider
+                          id={`${uniqueId}-settings-modal-${activeProvider}-top-k-slider`}
+                          value={[settings[activeProvider]?.topK || 50]}
+                          onValueChange={([value]) => handleSettingChange(activeProvider, "topK", value)}
+                          max={100}
+                          step={1}
+                          className="flex-grow"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-gray-300">Context Size</Label>
+                        <Input
+                          type="number"
+                          id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
+                          value={settings[activeProvider]?.contextSize.toString()}
+                          onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
+                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          min={1024}
+                          step={1024}
+                        />
+                        <Slider
+                          id={`${uniqueId}-settings-modal-${activeProvider}-context-size-slider`}
+                          value={[settings[activeProvider]?.contextSize || 4096]}
+                          onValueChange={([value]) => handleSettingChange(activeProvider, "contextSize", value)}
+                          min={1024}
+                          max={32768}
+                          step={1024}
+                          className="flex-grow"
+                        />
                       </div>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
-                      <Input
-                        type="number"
-                        id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
-                        value={String(settings[activeProvider]?.temperature ?? 0)}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          let numValue: number;
-
-                          if (inputValue === '' || inputValue === '-') {
-                             numValue = 0;
-                          } else {
-                            numValue = parseFloat(inputValue);
-                            if (!isNaN(numValue)) {
-                              numValue = Math.max(0, Math.min(1, numValue));
-                              // Explicitly round input value to nearest 0.1 step
-                              numValue = Math.round(numValue * 10) / 10;
-                            } else {
-                              numValue = 0;
-                            }
-                          }
-                          console.log(`Input changed temperature to: ${numValue}`);
-                          handleSettingChange(activeProvider, "temperature", numValue);
-                        }}
-                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        min={0}
-                        max={1}
-                        step={0.1}
-                      />
-                      <Slider
-                        id={`${uniqueId}-settings-modal-${activeProvider}-temperature-slider`}
-                        value={[Number(settings[activeProvider]?.temperature ?? 0)]}
-                        onValueChange={([value]) => {
-                           // 1. Round the incoming value from the slider to the nearest 0.1
-                           const roundedValue = Math.round(value * 10) / 10;
-
-                           // 2. Only update state if the rounded value is different
-                           //    from the current state to prevent potential feedback loops
-                           if (roundedValue !== Number(settings[activeProvider]?.temperature ?? 0)) {
-                             console.log(`Slider raw value: ${value}, Rounded & Setting: ${roundedValue}`);
-                             handleSettingChange(activeProvider, "temperature", roundedValue);
-                           } else {
-                             // Optional: Log when no change is needed
-                             // console.log(`Slider value ${value} rounded to ${roundedValue}, matches current state. No update.`);
-                           }
-                        }}
-                        max={1}
-                        min={0}
-                        step={0.1}
-                        className="flex-grow"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-4">
-                       <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-gray-300">Top P</Label>
-                       <Input
-                         type="number"
-                         id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
-                         value={String(settings[activeProvider]?.topP ?? 1)}
-                         onChange={(e) => {
-                           const inputValue = e.target.value;
-                           let numValue = parseFloat(inputValue);
-                           if (!isNaN(numValue)) {
-                             numValue = Math.max(0, Math.min(1, numValue));
-                             // Round Top P input value
-                             numValue = Math.round(numValue * 10) / 10;
-                           } else {
-                             numValue = 1;
-                           }
-                           handleSettingChange(activeProvider, "topP", numValue);
-                         }}
-                         className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                         min={0}
-                         max={1}
-                         step={0.1}
-                       />
-                       <Slider
-                         id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
-                         value={[Number(settings[activeProvider]?.topP ?? 1)]}
-                         onValueChange={([value]) => {
-                           // Round Top P slider value
-                           const roundedValue = Math.round(value * 10) / 10;
-                           if (roundedValue !== Number(settings[activeProvider]?.topP ?? 1)) {
-                             handleSettingChange(activeProvider, "topP", roundedValue);
-                           }
-                         }}
-                         max={1}
-                         min={0}
-                         step={0.1}
-                         className="flex-grow"
-                       />
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-gray-300">Top K</Label>
-                      <Input
-                        type="number"
-                        id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
-                        value={settings[activeProvider]?.topK.toString()}
-                        onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
-                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        min={0}
-                        max={100}
-                        step={1}
-                      />
-                      <Slider
-                        id={`${uniqueId}-settings-modal-${activeProvider}-top-k-slider`}
-                        value={[settings[activeProvider]?.topK || 50]}
-                        onValueChange={([value]) => handleSettingChange(activeProvider, "topK", value)}
-                        max={100}
-                        step={1}
-                        className="flex-grow"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-gray-300">Context Size</Label>
-                      <Input
-                        type="number"
-                        id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
-                        value={settings[activeProvider]?.contextSize.toString()}
-                        onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
-                        className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        min={1024}
-                        step={1024}
-                      />
-                      <Slider
-                        id={`${uniqueId}-settings-modal-${activeProvider}-context-size-slider`}
-                        value={[settings[activeProvider]?.contextSize || 4096]}
-                        onValueChange={([value]) => handleSettingChange(activeProvider, "contextSize", value)}
-                        min={1024}
-                        max={32768}
-                        step={1024}
-                        className="flex-grow"
-                      />
-                    </div>
-                  </div>
+                  ) : (
+                    <div className="text-gray-400 text-sm py-2">Select a provider to edit settings.</div>
+                  )}
                 </div>
               </div>
             ) : activeTab === 'environment' ? (
