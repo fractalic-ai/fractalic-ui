@@ -184,14 +184,23 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
-    // Always use the full list (from registry if available, else fallback)
     const options = fetchedModels.length > 0
       ? fetchedModels
       : allModels.map(m => ({ model: m, provider: "" }));
     if (!modelInputValue) return options;
-    const filter = modelInputValue.toLowerCase();
-    // Only filter by model name, not provider
-    return options.filter(opt => opt.model.toLowerCase().includes(filter));
+  
+    // Treat every space as "*" (wildcard for any text)
+    // Escape regex special chars except space, then replace space with .*
+    const escaped = modelInputValue.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&');
+    const pattern = escaped.trim().replace(/\s+/g, '.*');
+    try {
+      const regex = new RegExp(pattern, 'i');
+      return options.filter(opt => regex.test(opt.model));
+    } catch {
+      // fallback to substring match if regex fails
+      const filter = modelInputValue.toLowerCase().replace(/\s+/g, '');
+      return options.filter(opt => opt.model.toLowerCase().replace(/\s+/g, '').includes(filter));
+    }
   }, [fetchedModels, modelInputValue]);
 
   // Prevent rendering form until settings are loaded
@@ -570,26 +579,66 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                               {filteredModelOptions.length === 0 ? (
                                 <div className="px-3 py-2 text-gray-400 text-sm">No models found</div>
                               ) : (
-                                filteredModelOptions.map((option) => (
-                                  <div
-                                    key={option.model}
-                                    className={cn(
-                                      "px-3 py-2 cursor-pointer hover:bg-muted text-foreground flex items-center",
-                                      option.model === modelInputValue ? "bg-muted font-semibold" : ""
-                                    )}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setModelInputValue(option.model);
-                                      handleSettingChange(activeProvider, "model", option.model);
-                                      setModelDropdownOpen(false);
-                                    }}
-                                  >
-                                    {option.provider && (
-                                      <span className="text-blue-400 mr-2">{option.provider}</span>
-                                    )}
-                                    <span>{option.model}</span>
-                                  </div>
-                                ))
+                                filteredModelOptions.map((option) => {
+                                  // Highlight matched parts
+                                  let display: React.ReactNode = option.model;
+                                  if (modelInputValue) {
+                                    // Prepare regex for highlighting
+                                    const escaped = modelInputValue.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&');
+                                    const pattern = escaped.trim().replace(/\s+/g, '.*');
+                                    try {
+                                      const regex = new RegExp(pattern, 'ig');
+                                      let lastIndex = 0;
+                                      let parts: React.ReactNode[] = [];
+                                      let match: RegExpExecArray | null;
+                                      let model = option.model;
+                                      let regex2 = new RegExp(pattern, 'ig');
+                                      let found = false;
+                                      // Find all matches and highlight
+                                      while ((match = regex2.exec(model)) !== null) {
+                                        found = true;
+                                        if (match.index > lastIndex) {
+                                          parts.push(model.slice(lastIndex, match.index));
+                                        }
+                                        parts.push(
+                                          <span key={match.index} className="text-blue-400 font-semibold">
+                                            {model.slice(match.index, regex2.lastIndex)}
+                                          </span>
+                                        );
+                                        lastIndex = regex2.lastIndex;
+                                        // Prevent infinite loop for zero-length matches
+                                        if (match.index === regex2.lastIndex) regex2.lastIndex++;
+                                      }
+                                      if (found && lastIndex < model.length) {
+                                        parts.push(model.slice(lastIndex));
+                                      }
+                                      display = found ? parts : model;
+                                    } catch {
+                                      // fallback: no highlight
+                                      display = option.model;
+                                    }
+                                  }
+                                  return (
+                                    <div
+                                      key={option.model}
+                                      className={cn(
+                                        "px-3 py-2 cursor-pointer hover:bg-muted text-foreground flex items-center",
+                                        option.model === modelInputValue ? "bg-muted font-semibold" : ""
+                                      )}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        setModelInputValue(option.model);
+                                        handleSettingChange(activeProvider, "model", option.model);
+                                        setModelDropdownOpen(false);
+                                      }}
+                                    >
+                                      {option.provider && (
+                                        <span className="text-blue-400 mr-2">{option.provider}</span>
+                                      )}
+                                      <span>{display}</span>
+                                    </div>
+                                  );
+                                })
                               )}
                             </div>
                           )}
