@@ -114,6 +114,9 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelInputValue, setModelInputValue] = useState<string>("");
 
+  // Add state for fetched models
+  const [fetchedModels, setFetchedModels] = useState<{model: string, provider: string}[]>([]);
+
   // Clear form state when modal closes
   useEffect(() => {
     if (!isOpen) {
@@ -179,6 +182,29 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     }
   }, [isOpen]);
 
+  // Fetch model list from LiteLLM registry when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetch("https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json")
+        .then(async (resp) => {
+          if (!resp.ok) throw new Error(`Failed to fetch model registry: ${resp.status}`);
+          const data = await resp.json();
+          // Skip the first record, and extract model/provider
+          const models: {model: string, provider: string}[] = Object.entries(data)
+            .slice(1)
+            .map(([model, info]: [string, any]) => ({
+              model,
+              provider: info.litellm_provider || "unknown"
+            }));
+          setFetchedModels(models);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch model registry:", err);
+          setFetchedModels([]); // fallback to empty
+        });
+    }
+  }, [isOpen]);
+
   // Keep modelInputValue in sync with settings[activeProvider].model
   useEffect(() => {
     setModelInputValue(settings[activeProvider]?.model || "");
@@ -186,11 +212,11 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
-    const options = allModels || [];
+    const options = fetchedModels.length > 0 ? fetchedModels : allModels.map(m => ({model: m, provider: ""}));
     if (!modelInputValue) return options;
     const filter = modelInputValue.toLowerCase();
-    return options.filter(opt => opt.toLowerCase().includes(filter));
-  }, [activeProvider, modelInputValue]);
+    return options.filter(opt => opt.model.toLowerCase().includes(filter));
+  }, [fetchedModels, modelInputValue]);
 
   // Prevent rendering form until settings are loaded
 
@@ -445,19 +471,22 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                             ) : (
                               filteredModelOptions.map((option) => (
                                 <div
-                                  key={option}
+                                  key={option.model}
                                   className={cn(
-                                    "px-3 py-2 cursor-pointer hover:bg-muted text-foreground",
-                                    option === modelInputValue ? "bg-muted font-semibold" : ""
+                                    "px-3 py-2 cursor-pointer hover:bg-muted text-foreground flex items-center",
+                                    option.model === modelInputValue ? "bg-muted font-semibold" : ""
                                   )}
                                   onMouseDown={(e) => {
                                     e.preventDefault();
-                                    setModelInputValue(option);
-                                    handleSettingChange(activeProvider, "model", option);
+                                    setModelInputValue(option.model);
+                                    handleSettingChange(activeProvider, "model", option.model);
                                     setModelDropdownOpen(false);
                                   }}
                                 >
-                                  {option}
+                                  {option.provider && (
+                                    <span className="text-blue-400 mr-2">{option.provider}</span>
+                                  )}
+                                  <span>{option.model}</span>
                                 </div>
                               ))
                             )}
