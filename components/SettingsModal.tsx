@@ -212,9 +212,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
-    const options = fetchedModels.length > 0 ? fetchedModels : allModels.map(m => ({model: m, provider: ""}));
+    // Always use the full list (from registry if available, else fallback)
+    const options = fetchedModels.length > 0
+      ? fetchedModels
+      : allModels.map(m => ({ model: m, provider: "" }));
     if (!modelInputValue) return options;
     const filter = modelInputValue.toLowerCase();
+    // Only filter by model name, not provider
     return options.filter(opt => opt.model.toLowerCase().includes(filter));
   }, [fetchedModels, modelInputValue]);
 
@@ -438,7 +442,25 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                       </div>
                     )}
                     <div className="space-y-2">
-                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300">Model</Label>
+                      {/* Model label with provider name if matched */}
+                      <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300 flex items-center">
+                        Model
+                        {(() => {
+                          // Find provider for current modelInputValue
+                          const match = (fetchedModels.length > 0
+                            ? fetchedModels
+                            : allModels.map(m => ({model: m, provider: ""}))
+                          ).find(opt => opt.model === modelInputValue);
+                          if (match && match.provider) {
+                            return (
+                              <span className="ml-2 text-sm">
+                                (provider: <span className="text-blue-400">{match.provider}</span>)
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </Label>
                       <div className="relative">
                         <Input
                           type="text"
