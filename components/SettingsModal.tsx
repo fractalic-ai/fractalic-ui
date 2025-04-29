@@ -348,7 +348,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[900px] bg-background text-foreground rounded-lg shadow-lg z-50 border border-border">
+      <DialogContent className="sm:max-w-[1035px] bg-background text-foreground rounded-lg shadow-lg z-50 border border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground text-3xl font-bold">Settings</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -402,7 +402,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           <div className="h-[500px] overflow-y-auto pr-2">
             {activeTab === 'providers' ? (
               <div className="flex">
-                <div className="w-1/4 border-r border-border pr-4">
+                <div className="w-[32%] border-r border-border pr-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold text-gray-400">Providers</span>
                     <div className="flex gap-1">
@@ -478,7 +478,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                     })}
                   </div>
                 </div>
-                <div className="w-3/4 pl-4 overflow-y-auto">
+                <div className="w-[68%] pl-4 overflow-y-auto">
                   {activeProvider && settings[activeProvider] ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
