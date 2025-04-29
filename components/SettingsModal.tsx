@@ -35,11 +35,25 @@ const providers = [
   { id: "groq", name: "Groq" },
 ];
 
-const modelOptions: Record<string, string[]> = {
-  openai: ["gpt-3.5-turbo", "gpt-4o"],
-  anthropic: ["claude-3-5-sonnet-latest", "claude-instant-1"],
-  groq: ["llama2-70b-4096", "mixtral-8x7b-32768"],
-};
+// Unified model list for all providers
+const allModels = [
+  "gpt-4o",
+  "gpt-4-turbo",
+  "gpt-4",
+  "gpt-3.5-turbo",
+  "gpt-3.5-turbo-16k",
+  "text-davinci-003",
+  "text-ada-001",
+  "claude-3-opus-20240229",
+  "claude-3-sonnet-20240229",
+  "claude-3-haiku-20240307",
+  "claude-2.1",
+  "claude-2.0",
+  "llama3-70b-8192",
+  "llama3-8b-8192",
+  "mixtral-8x7b-32768",
+  "gemma-7b-it"
+];
 
 interface ProviderSettings {
   apiKey: string;
@@ -77,7 +91,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       [provider.id]: {
         apiKey: "",
         base_url: "", // Added field
-        model: modelOptions[provider.id][0],
+        model: allModels[0],
         temperature: 0.7,
         topP: 1,
         topK: 50,
@@ -138,7 +152,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
               // Use providerSettingsData instead of data.settings directly
               apiKey: providerSettingsData[provider.id]?.apiKey || "",
               base_url: providerSettingsData[provider.id]?.base_url || "",
-              model: providerSettingsData[provider.id]?.model || modelOptions[provider.id][0],
+              model: providerSettingsData[provider.id]?.model || allModels[0],
               temperature: providerSettingsData[provider.id]?.temperature ?? 0.7,
               topP: providerSettingsData[provider.id]?.topP ?? 1,
               topK: providerSettingsData[provider.id]?.topK ?? 50,
@@ -172,7 +186,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
-    const options = modelOptions[activeProvider] || [];
+    const options = allModels || [];
     if (!modelInputValue) return options;
     const filter = modelInputValue.toLowerCase();
     return options.filter(opt => opt.toLowerCase().includes(filter));
