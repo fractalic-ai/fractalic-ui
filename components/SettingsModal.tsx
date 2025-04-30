@@ -280,11 +280,11 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     }
   };
 
-  // Update save handler
+  // When saving settings, use provider field as TOML block key if available
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const updatedSettings = {...settings};
+
+    const updatedSettings = { ...settings };
 
     // Ensure all numeric settings are correctly formatted as numbers before saving
     Object.keys(updatedSettings).forEach(provider => {
@@ -293,30 +293,40 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       updatedSettings[provider].topK = Number(updatedSettings[provider].topK ?? 50);
       updatedSettings[provider].contextSize = Number(updatedSettings[provider].contextSize ?? 4096);
 
-      // Add a check for NaN just in case, though previous steps should prevent it
-      if (isNaN(updatedSettings[provider].temperature)) updatedSettings[provider].temperature = 0.7; // Or a safe default
+      if (isNaN(updatedSettings[provider].temperature)) updatedSettings[provider].temperature = 0.7;
       if (isNaN(updatedSettings[provider].topP)) updatedSettings[provider].topP = 1;
       if (isNaN(updatedSettings[provider].topK)) updatedSettings[provider].topK = 50;
       if (isNaN(updatedSettings[provider].contextSize)) updatedSettings[provider].contextSize = 4096;
+    });
 
-      console.log(`Final ${provider} temperature before save:`, updatedSettings[provider].temperature);
-    });
-    
-    // Create the payload for saving
-    // Only save settings for current providers
-    const filteredSettings = {};
+    // Build filteredSettings using provider field as key if available
+    const filteredSettings: Record<string, ProviderSettings> = {};
     providers.forEach(p => {
-      if (updatedSettings[p.id]) filteredSettings[p.id] = updatedSettings[p.id];
+      const s = updatedSettings[p.id];
+      if (s) {
+        // Try to get provider from fetchedModels based on model
+        let providerKey = "";
+        if (s.model && fetchedModels.length > 0) {
+          const match = fetchedModels.find(m => m.model === s.model);
+          if (match && match.provider) {
+            providerKey = match.provider;
+          }
+        }
+        // Fallback to model or id if provider not found
+        if (!providerKey) providerKey = s.model || p.id || "No model selected";
+        filteredSettings[providerKey] = s;
+      }
     });
+
     const configToSave = {
       settings: filteredSettings,
       defaultProvider: defaultProvider,
       environment: envVars,
       runtime: runtimeSettings
     };
-    
+
     console.log("Saving configuration:", JSON.stringify(configToSave, null, 2));
-    
+
     try {
       const response = await fetch('/save_settings', {
         method: 'POST',
@@ -325,10 +335,9 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
         },
         body: JSON.stringify(configToSave),
       });
-      
+
       if (response.ok) {
         console.log('Settings saved successfully');
-        // Now we use the same structure for global settings
         setGlobalSettings(configToSave);
       } else {
         const errorData = await response.text();
@@ -517,6 +526,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                           aria-autocomplete="none"
                         />
                       </div>
+                      {/* base_url input is always hidden */}
+                      {/* 
                       {activeProvider.toLowerCase().includes("openai") && (
                         <div className="space-y-2">
                           <Label htmlFor={`${uniqueId}-${sessionId}-${activeProvider}-base-url`} className="text-gray-300">Base URL</Label>
@@ -528,7 +539,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                             className="bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                           />
                         </div>
-                      )}
+                      )} 
+                      */}
                       <div className="space-y-2">
                         {/* Model label with provider name if matched */}
                         <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-model`} className="text-gray-300 flex items-center">
