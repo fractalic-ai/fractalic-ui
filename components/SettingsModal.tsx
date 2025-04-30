@@ -99,6 +99,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Add state for fetched models
   const [fetchedModels, setFetchedModels] = useState<{model: string, provider: string}[]>([]);
+  const [modelRegistry, setModelRegistry] = useState<Record<string, any>>({});
+  const [modelDetailsTab, setModelDetailsTab] = useState<'advanced' | 'info'>('advanced');
 
   // Clear form state when modal closes
   useEffect(() => {
@@ -160,9 +162,10 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       fetch("https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json")
         .then(async (resp) => {
           if (!resp.ok) throw new Error(`Failed to fetch model registry: ${resp.status}`);
-          const data = await resp.json();
+          const registryData = await resp.json();
+          setModelRegistry(registryData);
           // Skip the first record, and extract model/provider
-          const models: {model: string, provider: string}[] = Object.entries(data)
+          const models: {model: string, provider: string}[] = Object.entries(registryData)
             .slice(1)
             .map(([model, info]: [string, any]) => ({
               model,
@@ -656,139 +659,207 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
-                        <Input
-                          type="number"
-                          id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
-                          value={String(settings[activeProvider]?.temperature ?? 0)}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            let numValue: number;
 
-                            if (inputValue === '' || inputValue === '-') {
-                               numValue = 0;
-                            } else {
-                              numValue = parseFloat(inputValue);
-                              if (!isNaN(numValue)) {
-                                numValue = Math.max(0, Math.min(1, numValue));
-                                // Explicitly round input value to nearest 0.1 step
-                                numValue = Math.round(numValue * 10) / 10;
-                              } else {
-                                numValue = 0;
+                      {/* model details tabs */}
+                      <div className="mt-4">
+                        <div className="flex space-x-8 border-b border-border mb-4">
+                          <button
+                            type="button"
+                            onClick={() => setModelDetailsTab('advanced')}
+                            className={cn(
+                              'pb-2',
+                              modelDetailsTab === 'advanced'
+                                ? 'border-b-2 border-foreground text-foreground'
+                                : 'text-gray-400'
+                            )}
+                          >
+                            Advanced
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModelDetailsTab('info')}
+                            className={cn(
+                              'pb-2',
+                              modelDetailsTab === 'info'
+                                ? 'border-b-2 border-foreground text-foreground'
+                                : 'text-gray-400'
+                            )}
+                          >
+                            Info
+                          </button>
+                        </div>
+                        {modelDetailsTab === 'advanced' ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-4">
+                              <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-temperature`} className="w-24 text-gray-300">Temperature</Label>
+                              <Input
+                                type="number"
+                                id={`${uniqueId}-settings-modal-${activeProvider}-temperature`}
+                                value={String(settings[activeProvider]?.temperature ?? 0)}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  let numValue: number;
+
+                                  if (inputValue === '' || inputValue === '-') {
+                                    numValue = 0;
+                                  } else {
+                                    numValue = parseFloat(inputValue);
+                                    if (!isNaN(numValue)) {
+                                      numValue = Math.max(0, Math.min(1, numValue));
+                                      // Explicitly round input value to nearest 0.1 step
+                                      numValue = Math.round(numValue * 10) / 10;
+                                    } else {
+                                      numValue = 0;
+                                    }
+                                  }
+                                  console.log(`Input changed temperature to: ${numValue}`);
+                                  handleSettingChange(activeProvider, "temperature", numValue);
+                                }}
+                                className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                min={0}
+                                max={1}
+                                step={0.1}
+                              />
+                              <Slider
+                                id={`${uniqueId}-settings-modal-${activeProvider}-temperature-slider`}
+                                value={[Number(settings[activeProvider]?.temperature ?? 0)]}
+                                onValueChange={([value]) => {
+                                  // 1. Round the incoming value from the slider to the nearest 0.1
+                                  const roundedValue = Math.round(value * 10) / 10;
+
+                                  // 2. Only update state if the rounded value is different
+                                  //    from the current state to prevent potential feedback loops
+                                  if (roundedValue !== Number(settings[activeProvider]?.temperature ?? 0)) {
+                                    console.log(`Slider raw value: ${value}, Rounded & Setting: ${roundedValue}`);
+                                    handleSettingChange(activeProvider, "temperature", roundedValue);
+                                  } else {
+                                    // Optional: Log when no change is needed
+                                    // console.log(`Slider value ${value} rounded to ${roundedValue}, matches current state. No update.`);
+                                  }
+                                }}
+                                max={1}
+                                min={0}
+                                step={0.1}
+                                className="flex-grow"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-gray-300">Top P</Label>
+                              <Input
+                                type="number"
+                                id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
+                                value={String(settings[activeProvider]?.topP ?? 1)}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  let numValue = parseFloat(inputValue);
+                                  if (!isNaN(numValue)) {
+                                    numValue = Math.max(0, Math.min(1, numValue));
+                                    // Round Top P input value
+                                    numValue = Math.round(numValue * 10) / 10;
+                                  } else {
+                                    numValue = 1;
+                                  }
+                                  handleSettingChange(activeProvider, "topP", numValue);
+                                }}
+                                className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                min={0}
+                                max={1}
+                                step={0.1}
+                              />
+                              <Slider
+                                id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
+                                value={[Number(settings[activeProvider]?.topP ?? 1)]}
+                                onValueChange={([value]) => {
+                                  // Round Top P slider value
+                                  const roundedValue = Math.round(value * 10) / 10;
+                                  if (roundedValue !== Number(settings[activeProvider]?.topP ?? 1)) {
+                                    handleSettingChange(activeProvider, "topP", roundedValue);
+                                  }
+                                }}
+                                max={1}
+                                min={0}
+                                step={0.1}
+                                className="flex-grow"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-gray-300">Top K</Label>
+                              <Input
+                                type="number"
+                                id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
+                                value={settings[activeProvider]?.topK.toString()}
+                                onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
+                                className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                min={0}
+                                max={100}
+                                step={1}
+                              />
+                              <Slider
+                                id={`${uniqueId}-settings-modal-${activeProvider}-top-k-slider`}
+                                value={[settings[activeProvider]?.topK || 50]}
+                                onValueChange={([value]) => handleSettingChange(activeProvider, "topK", value)}
+                                max={100}
+                                step={1}
+                                className="flex-grow"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-gray-300">Context Size</Label>
+                              <Input
+                                type="number"
+                                id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
+                                value={settings[activeProvider]?.contextSize.toString()}
+                                onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
+                                className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                min={1024}
+                                step={1024}
+                              />
+                              <Slider
+                                id={`${uniqueId}-settings-modal-${activeProvider}-context-size-slider`}
+                                value={[settings[activeProvider]?.contextSize || 4096]}
+                                onValueChange={([value]) => handleSettingChange(activeProvider, "contextSize", value)}
+                                min={1024}
+                                max={32768}
+                                step={1024}
+                                className="flex-grow"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className="overflow-y-auto max-h-[200px] min-h-[200px] scrollbar-thin"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(120,120,120,0.5) transparent' }}
+                          >
+                            {(() => {
+                              const modelKey = settings[activeProvider!]?.model;
+                              const infoRecord = modelRegistry[modelKey] ?? {};
+                              const entries = Object.entries(infoRecord);
+                              if (entries.length === 0) {
+                                return <div className="px-3 py-2 text-gray-400 text-sm">No model info available</div>;
                               }
-                            }
-                            console.log(`Input changed temperature to: ${numValue}`);
-                            handleSettingChange(activeProvider, "temperature", numValue);
-                          }}
-                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          min={0}
-                          max={1}
-                          step={0.1}
-                        />
-                        <Slider
-                          id={`${uniqueId}-settings-modal-${activeProvider}-temperature-slider`}
-                          value={[Number(settings[activeProvider]?.temperature ?? 0)]}
-                          onValueChange={([value]) => {
-                             // 1. Round the incoming value from the slider to the nearest 0.1
-                             const roundedValue = Math.round(value * 10) / 10;
-
-                             // 2. Only update state if the rounded value is different
-                             //    from the current state to prevent potential feedback loops
-                             if (roundedValue !== Number(settings[activeProvider]?.temperature ?? 0)) {
-                               console.log(`Slider raw value: ${value}, Rounded & Setting: ${roundedValue}`);
-                               handleSettingChange(activeProvider, "temperature", roundedValue);
-                             } else {
-                               // Optional: Log when no change is needed
-                               // console.log(`Slider value ${value} rounded to ${roundedValue}, matches current state. No update.`);
-                             }
-                          }}
-                          max={1}
-                          min={0}
-                          step={0.1}
-                          className="flex-grow"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-4">
-                         <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-p`} className="w-24 text-gray-300">Top P</Label>
-                         <Input
-                           type="number"
-                           id={`${uniqueId}-settings-modal-${activeProvider}-top-p`}
-                           value={String(settings[activeProvider]?.topP ?? 1)}
-                           onChange={(e) => {
-                             const inputValue = e.target.value;
-                             let numValue = parseFloat(inputValue);
-                             if (!isNaN(numValue)) {
-                               numValue = Math.max(0, Math.min(1, numValue));
-                               // Round Top P input value
-                               numValue = Math.round(numValue * 10) / 10;
-                             } else {
-                               numValue = 1;
-                             }
-                             handleSettingChange(activeProvider, "topP", numValue);
-                           }}
-                           className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                           min={0}
-                           max={1}
-                           step={0.1}
-                         />
-                         <Slider
-                           id={`${uniqueId}-settings-modal-${activeProvider}-top-p-slider`}
-                           value={[Number(settings[activeProvider]?.topP ?? 1)]}
-                           onValueChange={([value]) => {
-                             // Round Top P slider value
-                             const roundedValue = Math.round(value * 10) / 10;
-                             if (roundedValue !== Number(settings[activeProvider]?.topP ?? 1)) {
-                               handleSettingChange(activeProvider, "topP", roundedValue);
-                             }
-                           }}
-                           max={1}
-                           min={0}
-                           step={0.1}
-                           className="flex-grow"
-                         />
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-top-k`} className="w-24 text-gray-300">Top K</Label>
-                        <Input
-                          type="number"
-                          id={`${uniqueId}-settings-modal-${activeProvider}-top-k`}
-                          value={settings[activeProvider]?.topK.toString()}
-                          onChange={(e) => handleSettingChange(activeProvider, "topK", parseInt(e.target.value) || 50)}
-                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          min={0}
-                          max={100}
-                          step={1}
-                        />
-                        <Slider
-                          id={`${uniqueId}-settings-modal-${activeProvider}-top-k-slider`}
-                          value={[settings[activeProvider]?.topK || 50]}
-                          onValueChange={([value]) => handleSettingChange(activeProvider, "topK", value)}
-                          max={100}
-                          step={1}
-                          className="flex-grow"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <Label htmlFor={`${uniqueId}-settings-modal-${activeProvider}-context-size`} className="w-24 text-gray-300">Context Size</Label>
-                        <Input
-                          type="number"
-                          id={`${uniqueId}-settings-modal-${activeProvider}-context-size`}
-                          value={settings[activeProvider]?.contextSize.toString()}
-                          onChange={(e) => handleSettingChange(activeProvider, "contextSize", parseInt(e.target.value) || 4096)}
-                          className="w-20 bg-muted border-gray-700 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          min={1024}
-                          step={1024}
-                        />
-                        <Slider
-                          id={`${uniqueId}-settings-modal-${activeProvider}-context-size-slider`}
-                          value={[settings[activeProvider]?.contextSize || 4096]}
-                          onValueChange={([value]) => handleSettingChange(activeProvider, "contextSize", value)}
-                          min={1024}
-                          max={32768}
-                          step={1024}
-                          className="flex-grow"
-                        />
+                              return entries.map(([key, value]) => (
+                                <div key={key} className="flex justify-between">
+                                  <span>{key.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span>
+                                  <span>
+                                    {typeof value === 'boolean'
+                                      ? value
+                                        ? <CheckCircle2 className="w-4 h-4 text-green-500"/>
+                                        : '-'
+                                      : typeof value === 'number'
+                                      ? (() => {
+                                          const s = value.toString();
+                                          const [intPart, fracPart] = s.split('.');
+                                          const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                                          return fracPart ? `${grouped}.${fracPart}` : grouped;
+                                        })()
+                                      : String(value)
+                                    }
+                                  </span>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
