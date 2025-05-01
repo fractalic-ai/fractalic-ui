@@ -132,16 +132,26 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           // Access the nested 'settings' object here: data.settings.settings
           const providerSettingsData = data.settings?.settings || {}; // Handle case where it might be missing
           const environmentData = data.settings?.environment || []; // Extract environment data
-          const defaultProviderData = data.settings?.defaultProvider || null; // Extract default provider
+          const defaultProviderModel = data.settings?.defaultProvider || null; // Extract default provider
           const runtimeData = data.settings?.runtime || { enableOperationsVisibility: false }; // Extract runtime settings
 
           // Build providers list from keys of providerSettingsData
           const loadedProviders = Object.keys(providerSettingsData).map((modelName) => ({
             id: modelName,
           }));
+          
+          // Determine the provider ID whose model matches the defaultProviderModel
+          let defaultProviderId: string | null = null;
+          if (defaultProviderModel) {
+            const match = loadedProviders.find(p => providerSettingsData[p.id].model === defaultProviderModel);
+            defaultProviderId = match?.id || (loadedProviders[0]?.id || null);
+          } else {
+            defaultProviderId = loadedProviders[0]?.id || null;
+          }
+
           setProviders(loadedProviders);
-          setActiveProvider(loadedProviders.length > 0 ? loadedProviders[0].id : null);
-          setDefaultProvider(defaultProviderData || (loadedProviders.length > 0 ? loadedProviders[0].id : null));
+          setActiveProvider(defaultProviderId);
+          setDefaultProvider(defaultProviderId);
           setSettings(providerSettingsData);
           setEnvVars(environmentData);
           setRuntimeSettings(runtimeData);
