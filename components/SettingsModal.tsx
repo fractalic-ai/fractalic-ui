@@ -1,3 +1,4 @@
+//TODO: #1 For selected active record we should save to settings a model name, not a provider name
 import React, { useState, useId, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
