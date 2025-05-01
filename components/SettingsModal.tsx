@@ -322,9 +322,11 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       }
     });
 
+    // save model name as defaultProvider instead of provider ID
+    const defaultModel = defaultProvider ? settings[defaultProvider].model : '';
     const configToSave = {
       settings: filteredSettings,
-      defaultProvider: defaultProvider,
+      defaultProvider: defaultModel,
       environment: envVars,
       runtime: runtimeSettings
     };
