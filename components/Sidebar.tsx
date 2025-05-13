@@ -2,15 +2,15 @@ import { Button } from "@/components/ui/button"
 import { PenSquare, GitBranch } from 'lucide-react'
 
 interface SidebarProps {
-  mode: 'edit' | 'git'
-  setMode: (mode: 'edit' | 'git') => void
+  mode: 'edit' | 'git' | 'mcp'
+  setMode: (mode: 'edit' | 'git' | 'mcp') => void
   isPanelVisible: boolean
   togglePanel: () => void
   className?: string
 }
 
 export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, className }: SidebarProps) {
-  const handleModeClick = (newMode: 'edit' | 'git') => {
+  const handleModeClick = (newMode: 'edit' | 'git' | 'mcp') => {
     if (mode === newMode) {
       togglePanel();
     } else {

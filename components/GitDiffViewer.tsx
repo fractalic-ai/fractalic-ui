@@ -173,7 +173,7 @@ export default function GitDiffViewer() {
   const [selectedCommit, setSelectedCommit] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [mode, setMode] = useState<'edit' | 'git'>('edit');
+  const [mode, setMode] = useState<'edit' | 'git' | 'mcp'>('edit');
   const [diffContent, setDiffContent] = useState<{ original: string; modified: string }>({
     original: '',
     modified: '',
@@ -233,6 +233,7 @@ export default function GitDiffViewer() {
         fetchDirectoryContents(currentEditPath, false);
       }
     }
+    // MCP mode doesn't need to fetch directory contents
   }, [currentGitPath, currentEditPath, mode]);
 
   useEffect(() => {
@@ -993,7 +994,7 @@ export default function GitDiffViewer() {
           onLayout={handlePanelResize}
         >
           {/* Left Panel */}
-          {isPanelVisible && (
+          {isPanelVisible && mode !== 'mcp' && (
             <>
               <ResizablePanel 
                 defaultSize={previousPanelSize} 
@@ -1029,10 +1030,6 @@ export default function GitDiffViewer() {
                         <Button variant="ghost" size="icon" onClick={startNewFile}>
                           <Plus className="h-4 w-4" />
                           <span className="sr-only">New File</span>
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={startNewFolder}>
-                          <FolderPlus className="h-4 w-4" />
-                          <span className="sr-only">New Folder</span>
                         </Button>
                       </div>
                     )}
@@ -1101,7 +1098,7 @@ export default function GitDiffViewer() {
             </>
           )}
           {/* Right Panel */}
-          <ResizablePanel defaultSize={isPanelVisible ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible ? 2 : 1}>
+          <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' ? 2 : 1}>
             <div className="flex flex-col h-full bg-[#141414]">
               <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
                 <ResizablePanel

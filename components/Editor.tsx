@@ -51,9 +51,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import MCPManager from './MCPManager';
 
 interface EditorProps {
-  mode: "edit" | "git";
+  mode: "edit" | "git" | "mcp";
   selectedView: "sideBySide" | "inline" | "report" | "trace" | "inspector";
   setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace" | "inspector") => void;
   selectedCommit: any[];
@@ -425,6 +426,10 @@ function EditorComponent(props: EditorProps) {
   );
 
   const renderEditor = () => {
+    if (mode === 'mcp') {
+      return <MCPManager className="h-full" />;
+    }
+    
     if (mode === 'git') {
       if (selectedView === 'report' && diffContent.modified) {
         return (
@@ -632,6 +637,10 @@ function EditorComponent(props: EditorProps) {
                 Inspector
               </Button>
             </>
+          ) : mode === "mcp" ? (
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-semibold">MCP Management</h2>
+            </div>
           ) : (
             <>
               <Button
