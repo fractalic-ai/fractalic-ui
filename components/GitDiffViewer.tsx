@@ -17,7 +17,7 @@ import { TraceView } from "./TraceView";
 import styles from './MarkdownViewer.module.css';
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Filter, Plus, FolderPlus } from "lucide-react";
+import { Filter, Plus, FolderPlus, PenSquare, GitBranch, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTrace } from '@/contexts/TraceContext';
 

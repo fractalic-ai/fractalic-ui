@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { PenSquare, GitBranch } from 'lucide-react'
+import { PenSquare, GitBranch, Server } from 'lucide-react'
 
 interface SidebarProps {
   mode: 'edit' | 'git' | 'mcp'
@@ -37,6 +37,15 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, cl
       >
         <GitBranch className="h-6 w-6" />
         <span className="sr-only">Git mode</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handleModeClick('mcp')}
+        className={`w-12 h-12 ${mode === 'mcp' ? 'text-white' : 'text-gray-400'}`}
+      >
+        <Server className="h-6 w-6" />
+        <span className="sr-only">MCP Management</span>
       </Button>
     </div>
   )
