@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Play, Square, RefreshCw, AlertCircle, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface MCPServer {
   name: string;
@@ -158,20 +161,29 @@ export default function MCPManager({ className }: MCPManagerProps) {
         )}
       </div>
       {/* Right: Server Details */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 h-full p-0 bg-gradient-to-br from-[#18181b] to-[#23232b] overflow-y-auto">
         {!selectedServer || !servers[selectedServer] ? (
-          <div className="text-gray-400">Select a server to view details.</div>
+          <div className="text-gray-400 p-8 text-lg">Select a server to view details.</div>
         ) : (
-          <div className="max-w-2xl mx-auto">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  {selectedServer}
-                  <Badge className={getStateColor(servers[selectedServer].state)}>
-                    {servers[selectedServer].state}
-                  </Badge>
-                </CardTitle>
-                <div className="flex gap-2">
+          <div className="h-full w-full flex flex-col justify-center items-center p-0">
+            <Card className="w-full h-full shadow-xl rounded-xl bg-[#20212b] border-0 flex flex-col">
+              <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
+                <div>
+                  <CardTitle className="text-2xl font-extrabold tracking-tight flex items-center gap-4">
+                    <span>{selectedServer}</span>
+                    <Badge className={getStateColor(servers[selectedServer].state) + ' text-base px-3 py-1 rounded-full capitalize'}>
+                      {servers[selectedServer].state}
+                    </Badge>
+                  </CardTitle>
+                  <CardDescription className="mt-2 text-gray-400 text-base">
+                    {servers[selectedServer].healthy ? (
+                      <span className="flex items-center gap-2 text-green-400 font-medium"><CheckCircle className="h-5 w-5" /> Healthy</span>
+                    ) : (
+                      <span className="flex items-center gap-2 text-red-400 font-medium"><XCircle className="h-5 w-5" /> Unhealthy</span>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-3 mt-4 md:mt-0">
                   <Button
                     variant="outline"
                     size="sm"
@@ -206,48 +218,45 @@ export default function MCPManager({ className }: MCPManagerProps) {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Transport:</span>
-                    <span>{servers[selectedServer].transport}</span>
+              <CardContent className="flex-1 p-8 flex flex-col gap-8 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-6 text-base">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400 font-medium">Transport</span>
+                    <span className="font-mono text-lg">{servers[selectedServer].transport}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>PID:</span>
-                    <span>{servers[selectedServer].pid || 'N/A'}</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400 font-medium">PID</span>
+                    <span className="font-mono text-lg">{servers[selectedServer].pid || 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Uptime:</span>
-                    <span>{servers[selectedServer].uptime ? `${Math.round(servers[selectedServer].uptime!)}s` : 'N/A'}</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400 font-medium">Uptime</span>
+                    <span className="font-mono text-lg">{servers[selectedServer].uptime ? `${Math.round(servers[selectedServer].uptime!)}s` : 'N/A'}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Retries:</span>
-                    <span>{servers[selectedServer].retries}</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400 font-medium">Retries</span>
+                    <span className="font-mono text-lg">{servers[selectedServer].retries}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Restarts:</span>
-                    <span>{servers[selectedServer].restarts}</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-400 font-medium">Restarts</span>
+                    <span className="font-mono text-lg">{servers[selectedServer].restarts}</span>
                   </div>
-                  {servers[selectedServer].last_error && (
-                    <div className="text-sm text-red-500 mt-2">
-                      <AlertCircle className="h-4 w-4 inline mr-1" />
-                      {servers[selectedServer].last_error}
-                    </div>
-                  )}
                 </div>
+                {servers[selectedServer].last_error && (
+                  <div className="text-sm text-red-500 mt-2 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {servers[selectedServer].last_error}
+                  </div>
+                )}
                 <div className="mb-2">
-                  <div className="font-semibold mb-1">Available Tools</div>
+                  <div className="font-semibold mb-3 text-lg">Available Tools</div>
                   {toolsLoading ? (
                     <div className="text-gray-400">Loading tools...</div>
                   ) : tools && tools.tools.length > 0 ? (
-                    <ul className="list-disc pl-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {tools.tools.map((tool, idx) => (
-                        <li key={tool.name + idx} className="mb-1">
-                          <span className="font-mono text-sm">{tool.name}</span>
-                          {tool.description && <span className="text-xs text-gray-400 ml-2">{tool.description}</span>}
-                        </li>
+                        <ToolCard key={tool.name + idx} tool={tool} />
                       ))}
-                    </ul>
+                    </div>
                   ) : (
                     <div className="text-gray-400">No tools found.</div>
                   )}
@@ -260,6 +269,59 @@ export default function MCPManager({ className }: MCPManagerProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ToolCard({ tool }: { tool: any }) {
+  const [expanded, setExpanded] = useState(false);
+  // Try to extract parameters from tool.inputSchema if available
+  let params: { name: string; type: string }[] = [];
+  if (tool.inputSchema && tool.inputSchema.properties) {
+    params = Object.entries(tool.inputSchema.properties).map(([name, prop]: [string, any]) => ({
+      name,
+      type: prop.type || 'unknown',
+    }));
+  }
+  // Description preview (first sentence or 100 chars)
+  const preview = tool.description
+    ? tool.description.split('. ')[0].slice(0, 100) + (tool.description.length > 100 ? '...' : '')
+    : 'No description available.';
+  return (
+    <div className={`rounded-lg shadow-md bg-[#23232b] border border-[#23232b] p-5 flex flex-col transition-all duration-200 ${expanded ? 'ring-2 ring-primary' : ''}`}
+      style={{ minHeight: 180 }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-lg font-bold text-primary">{tool.name}</div>
+        <Button variant="ghost" size="sm" onClick={() => setExpanded(e => !e)}>
+          {expanded ? 'Hide' : 'Details'}
+        </Button>
+      </div>
+      <div className="text-gray-400 text-base mt-2 mb-2">
+        {preview}
+      </div>
+      <div className="flex flex-col gap-1 mb-2">
+        <span className="text-xs text-gray-500 font-semibold">Parameters:</span>
+        {params.length > 0 ? (
+          <ul className="ml-2">
+            {params.map((p) => (
+              <li key={p.name} className="text-sm text-gray-300">
+                <span className="font-mono text-xs text-primary">{p.name}</span>
+                <span className="text-xs text-gray-400 ml-2">({p.type})</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-xs text-gray-500">No parameters</span>
+        )}
+      </div>
+      {expanded && (
+        <div className="mt-2 text-gray-300 text-sm">
+          <div className="mb-2 font-semibold">Description</div>
+          <div className="mb-2 whitespace-pre-line">{tool.description || 'No description available.'}</div>
+          {/* Parameter details and test UI can go here */}
+        </div>
+      )}
     </div>
   );
 } 
