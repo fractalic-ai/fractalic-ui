@@ -74,7 +74,12 @@ export default function MCPManager({ className }: MCPManagerProps) {
       const response = await fetch('http://127.0.0.1:5859/tools');
       if (!response.ok) throw new Error('Failed to fetch tools');
       const data = await response.json();
-      setTools(data[serverName] || { tools: [] });
+      console.log('Fetched tools:', data);
+      if (data && data[serverName]) {
+        setTools(data[serverName]);
+      } else {
+        setTools({ tools: [], error: `No tools found for server: ${serverName}` });
+      }
     } catch (err) {
       setTools({ tools: [], error: err instanceof Error ? err.message : 'Failed to fetch tools' });
     } finally {
@@ -116,10 +121,10 @@ export default function MCPManager({ className }: MCPManagerProps) {
   }, []);
 
   useEffect(() => {
-    if (selectedServer) {
+    if (selectedServer && servers[selectedServer]) {
       fetchTools(selectedServer);
     }
-  }, [selectedServer]);
+  }, [selectedServer, servers]);
 
   const getStateColor = (state: string) => {
     switch (state) {
@@ -275,52 +280,137 @@ export default function MCPManager({ className }: MCPManagerProps) {
 
 function ToolCard({ tool }: { tool: any }) {
   const [expanded, setExpanded] = useState(false);
+  const [paramValues, setParamValues] = useState<Record<string, any>>({});
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
+
   // Try to extract parameters from tool.inputSchema if available
-  let params: { name: string; type: string }[] = [];
+  let params: { name: string; type: string; schema: any; description?: string }[] = [];
   if (tool.inputSchema && tool.inputSchema.properties) {
     params = Object.entries(tool.inputSchema.properties).map(([name, prop]: [string, any]) => ({
       name,
       type: prop.type || 'unknown',
+      schema: prop,
+      description: prop.description || '',
     }));
   }
   // Description preview (first sentence or 100 chars)
   const preview = tool.description
     ? tool.description.split('. ')[0].slice(0, 100) + (tool.description.length > 100 ? '...' : '')
     : 'No description available.';
+
+  // Handle input changes
+  const handleParamChange = (name: string, value: any) => {
+    setParamValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Test tool call
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const response = await fetch('http://127.0.0.1:5859/call_tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tool.name, arguments: paramValues }),
+      });
+      const data = await response.json();
+      setTestResult(data);
+    } catch (err) {
+      setTestResult({ error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  // Render input by type
+  const renderInput = (param: any) => {
+    const value = paramValues[param.name] ?? '';
+    if (param.type === 'boolean') {
+      return (
+        <input
+          type="checkbox"
+          checked={!!value}
+          onChange={e => handleParamChange(param.name, e.target.checked)}
+          className="ml-2"
+        />
+      );
+    }
+    if (param.type === 'number' || param.type === 'integer') {
+      return (
+        <input
+          type="number"
+          value={value}
+          onChange={e => handleParamChange(param.name, e.target.valueAsNumber)}
+          className="ml-2 px-2 py-1 rounded bg-[#23232b] border border-gray-700 text-white w-full max-w-xs"
+        />
+      );
+    }
+    // Default to text
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={e => handleParamChange(param.name, e.target.value)}
+        className="ml-2 px-2 py-1 rounded bg-[#23232b] border border-gray-700 text-white w-full max-w-xs"
+      />
+    );
+  };
+
   return (
-    <div className={`rounded-lg shadow-md bg-[#23232b] border border-[#23232b] p-5 flex flex-col transition-all duration-200 ${expanded ? 'ring-2 ring-primary' : ''}`}
+    <div
+      className={`rounded-2xl shadow-lg bg-[#23232b] border border-[#23232b] p-6 flex flex-col transition-all duration-200 mb-4 hover:shadow-xl ${expanded ? 'ring-2 ring-primary scale-[1.01] z-10' : ''}`}
       style={{ minHeight: 180 }}
     >
-      <div className="flex items-center justify-between">
-        <div className="font-mono text-lg font-bold text-primary">{tool.name}</div>
-        <Button variant="ghost" size="sm" onClick={() => setExpanded(e => !e)}>
-          {expanded ? 'Hide' : 'Details'}
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-mono text-xl font-bold text-primary tracking-tight">{tool.name}</div>
+        <Button variant="ghost" size="sm" onClick={() => setExpanded(e => !e)} className="text-xs font-semibold">
+          {expanded ? 'Hide Details' : 'Show Details'}
         </Button>
       </div>
-      <div className="text-gray-400 text-base mt-2 mb-2">
-        {preview}
-      </div>
-      <div className="flex flex-col gap-1 mb-2">
-        <span className="text-xs text-gray-500 font-semibold">Parameters:</span>
-        {params.length > 0 ? (
-          <ul className="ml-2">
-            {params.map((p) => (
-              <li key={p.name} className="text-sm text-gray-300">
-                <span className="font-mono text-xs text-primary">{p.name}</span>
-                <span className="text-xs text-gray-400 ml-2">({p.type})</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <span className="text-xs text-gray-500">No parameters</span>
-        )}
-      </div>
+      <div className="text-gray-300 text-base mb-3 min-h-[32px]">{preview}</div>
       {expanded && (
-        <div className="mt-2 text-gray-300 text-sm">
-          <div className="mb-2 font-semibold">Description</div>
-          <div className="mb-2 whitespace-pre-line">{tool.description || 'No description available.'}</div>
-          {/* Parameter details and test UI can go here */}
-        </div>
+        <>
+          <div className="mb-4">
+            <div className="mb-1 font-semibold text-gray-200">Description</div>
+            <div className="mb-2 whitespace-pre-line text-gray-400 text-sm">{tool.description || 'No description available.'}</div>
+          </div>
+          <div className="mb-4">
+            <div className="mb-1 font-semibold text-gray-200">Parameters</div>
+            {params.length > 0 ? (
+              <ul className="flex flex-col gap-4">
+                {params.map((p) => (
+                  <li key={p.name} className="flex flex-col gap-1 bg-[#23232b] rounded p-2 border border-[#29293a]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm text-primary font-bold">{p.name}</span>
+                      <span className="text-xs text-gray-400">({p.type})</span>
+                    </div>
+                    {p.description && <div className="text-xs text-gray-400 mb-1">{p.description}</div>}
+                    <div className="w-full flex items-center">{renderInput(p)}</div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-xs text-gray-500">No parameters</span>
+            )}
+          </div>
+          {params.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 self-start"
+              onClick={handleTest}
+              disabled={testing}
+            >
+              {testing ? 'Testing...' : 'Test'}
+            </Button>
+          )}
+          {testResult && (
+            <div className="mt-3 p-2 bg-[#18181b] rounded text-xs text-gray-200 max-h-40 overflow-auto w-full">
+              <pre className="whitespace-pre-wrap break-all">{JSON.stringify(testResult, null, 2)}</pre>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
