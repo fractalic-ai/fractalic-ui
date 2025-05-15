@@ -17,6 +17,9 @@ interface MCPServer {
   healthy: boolean;
   restarts: number;
   last_error: string | null;
+  stdout: any[];
+  stderr: any[];
+  last_output_renewal: number | null;
 }
 
 interface MCPManagerProps {
@@ -183,6 +186,65 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               {server.last_error}
             </div>
           )}
+
+          {/* Terminal Output Section (Collapsible) */}
+          <Accordion type="single" collapsible className="mb-4">
+            <AccordionItem value="terminal-output">
+              <AccordionTrigger className="font-semibold text-lg">Terminal Output</AccordionTrigger>
+              <AccordionContent>
+                <div className="flex flex-col gap-2">
+                  <div className="bg-black rounded p-2 max-h-40 overflow-auto border border-gray-700">
+                    {(() => {
+                      // Combine stdout and stderr, sort by timestamp (descending)
+                      const lines: { timestamp: string, line: string, source: string }[] = [];
+                      if (Array.isArray(server.stdout)) {
+                        for (const entry of server.stdout) {
+                          if (typeof entry === 'string') {
+                            lines.push({ timestamp: '', line: entry, source: 'stdout' });
+                          } else if (entry && entry.timestamp && entry.line) {
+                            lines.push({ ...entry, source: 'stdout' });
+                          }
+                        }
+                      }
+                      if (Array.isArray(server.stderr)) {
+                        for (const entry of server.stderr) {
+                          if (typeof entry === 'string') {
+                            lines.push({ timestamp: '', line: entry, source: 'stderr' });
+                          } else if (entry && entry.timestamp && entry.line) {
+                            lines.push({ ...entry, source: 'stderr' });
+                          }
+                        }
+                      }
+                      lines.sort((a, b) => {
+                        if (!a.timestamp && !b.timestamp) return 0;
+                        if (!a.timestamp) return 1;
+                        if (!b.timestamp) return -1;
+                        return b.timestamp.localeCompare(a.timestamp); // most recent first
+                      });
+                      return lines.length > 0 ? (
+                        lines.map((entry, idx) => (
+                          <div key={idx} className={entry.source === 'stderr' ? 'text-red-300' : 'text-gray-200'}>
+                            {entry.timestamp && (
+                              <span className="text-xs text-gray-500 mr-2">[{entry.timestamp}]</span>
+                            )}
+                            <span>{entry.line}</span>
+                            {entry.source === 'stderr' && <span className="ml-2 text-xs text-red-400">(stderr)</span>}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-gray-500 italic">No terminal output</div>
+                      );
+                    })()}
+                  </div>
+                  <div className="mt-2 text-xs text-gray-400">
+                    <span className="font-semibold">Last Output Update:</span>{' '}
+                    {server.last_output_renewal ? new Date(server.last_output_renewal).toLocaleString() : 'N/A'}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
           <div className="mb-2">
             <div className="font-semibold mb-3 text-lg">Available Tools</div>
             {toolsLoading ? (
