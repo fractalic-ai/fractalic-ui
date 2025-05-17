@@ -85,7 +85,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   const [settings, setSettings] = useState<Record<string, ProviderSettings>>({});
 
   // Update activeTab type to include 'runtime'
-  const [activeTab, setActiveTab] = useState<'providers' | 'environment' | 'runtime'>('providers');
+  const [activeTab, setActiveTab] = useState<'providers' | 'environment' | 'runtime' | 'mcp'>('providers');
   const [envVars, setEnvVars] = useState<EnvVariable[]>([]);
   // Add state for runtime settings
   const [runtimeSettings, setRuntimeSettings] = useState<RuntimeSettings>({
@@ -102,6 +102,10 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   const [fetchedModels, setFetchedModels] = useState<{model: string, provider: string}[]>([]);
   const [modelRegistry, setModelRegistry] = useState<Record<string, any>>({});
   const [modelDetailsTab, setModelDetailsTab] = useState<'advanced' | 'info'>('advanced');
+
+  // Add state for MCP tab
+  const [mcpServers, setMcpServers] = useState<string[]>([]);
+  const [mcpDefaultProvider, setMcpDefaultProvider] = useState<string>("");
 
   // Clear form state when modal closes
   useEffect(() => {
@@ -151,11 +155,13 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
           setProviders(loadedProviders);
           setActiveProvider(defaultProviderId);
-          setDefaultProvider(defaultProviderId);
+          setDefaultProvider(defaultProviderId ?? null);
           setSettings(providerSettingsData);
           setEnvVars(environmentData);
           setRuntimeSettings(runtimeData);
-
+          // Load MCP fields
+          setMcpServers(data.settings?.mcp?.mcpServers || []);
+          setMcpDefaultProvider(data.settings?.defaultProvider || "");
           setIsLoading(false);
         })
         .catch((err) => {
@@ -193,8 +199,9 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Keep modelInputValue in sync with settings[activeProvider].model
   useEffect(() => {
-    setModelInputValue(settings[activeProvider]?.model || "");
-  }, [activeProvider, settings[activeProvider]?.model]);
+    const activeKey = activeProvider ?? '';
+    setModelInputValue((activeKey && settings[activeKey]) ? settings[activeKey].model : "");
+  }, [activeProvider, activeProvider ? settings[activeProvider]?.model : undefined]);
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
@@ -333,12 +340,14 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     });
 
     // save model name as defaultProvider instead of provider ID
-    const defaultModel = defaultProvider ? settings[defaultProvider].model : '';
+    const defaultProviderKey = defaultProvider ?? '';
+    const defaultModel = (defaultProviderKey && settings[defaultProviderKey]) ? settings[defaultProviderKey].model : '';
     const configToSave = {
       settings: filteredSettings,
-      defaultProvider: defaultModel,
+      defaultProvider: mcpDefaultProvider || defaultModel,
       environment: envVars,
-      runtime: runtimeSettings
+      runtime: runtimeSettings,
+      mcp: { mcpServers },
     };
 
     console.log("Saving configuration:", JSON.stringify(configToSave, null, 2));
@@ -423,6 +432,17 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
             )}
           >
             Runtime
+          </Button>
+          <Button
+            onClick={() => setActiveTab('mcp')}
+            className={cn(
+              "h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-base font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+              activeTab === 'mcp'
+                ? 'bg-muted text-foreground shadow'
+                : 'bg-transparent text-gray-400 border border-border hover:bg-muted/50 hover:text-foreground'
+            )}
+          >
+            MCP
           </Button>
         </div>
 
@@ -918,7 +938,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : activeTab === 'runtime' ? (
               <div className="space-y-6 p-4">
                 <div className="bg-muted/30 p-6 rounded-lg border border-border">
                   <h3 className="text-lg font-medium text-gray-200 mb-4">Runtime Settings</h3>
@@ -949,6 +969,25 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                   </div>
                 </div>
               </div>
+            ) : activeTab === 'mcp' ? (
+              <div className="space-y-4 p-4">
+                <div>
+                  <Label className="text-gray-300 font-medium">Fractalic MCP Manager Address</Label>
+                  <Input
+                    className="mt-2 bg-muted border-gray-700 text-foreground font-mono"
+                    type="text"
+                    placeholder="Enter MCP manager address"
+                    value={mcpServers[0] || ''}
+                    onChange={e => {
+                      const arr = [...mcpServers];
+                      arr[0] = e.target.value;
+                      setMcpServers(arr.filter(Boolean)); // Remove empty if cleared
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-400 text-sm py-2">Unknown tab selected.</div>
             )}
           </div>
 
