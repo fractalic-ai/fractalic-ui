@@ -323,7 +323,41 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
               </div>
             )}
 
-            {node.response_content && (
+            {/* Render response_messages if present and has more than one message */}
+            {Array.isArray(node.response_messages) && node.response_messages.length > 1 ? (
+              <div className="mt-6">
+                <h3 className="font-medium text-gray-300 mb-2">LLM/Tool Conversation Trace</h3>
+                <div className="space-y-4">
+                  {node.response_messages.map((msg, idx) => (
+                    <div key={idx} className={`rounded p-3 border border-gray-700 bg-gray-800`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold text-gray-400 uppercase">{msg.role}</span>
+                        {msg.name && (
+                          <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
+                        )}
+                        {msg.tool_call_id && (
+                          <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-200 whitespace-pre-wrap break-words">
+                        {typeof msg.content === 'string' ? msg.content : (
+                          <pre className="bg-gray-900 p-2 rounded text-gray-300 overflow-x-auto text-xs">{JSON.stringify(msg.content, null, 2)}</pre>
+                        )}
+                      </div>
+                      {msg.tool_calls && (
+                        <div className="mt-2 text-xs text-gray-400">
+                          <span className="font-semibold">Tool Calls:</span>
+                          <pre className="bg-gray-900 p-2 rounded text-gray-300 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Fallback: Render response_content if present and not using response_messages */}
+            {(!Array.isArray(node.response_messages) || node.response_messages.length <= 1) && node.response_content && (
               <div className="mt-6">
                 <TextField content={node.response_content} title="Response Content" />
               </div>

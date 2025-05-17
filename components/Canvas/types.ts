@@ -19,6 +19,7 @@ export interface TraceNodeData {
   params?: any;
   response_content?: string;
   trace_node_id?: string;
+  response_messages?: any[];
 }
 
 export interface TraceGroup {
