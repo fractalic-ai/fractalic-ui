@@ -105,7 +105,6 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Add state for MCP tab
   const [mcpServers, setMcpServers] = useState<string[]>([]);
-  const [mcpDefaultProvider, setMcpDefaultProvider] = useState<string>("");
 
   // Clear form state when modal closes
   useEffect(() => {
@@ -161,7 +160,6 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           setRuntimeSettings(runtimeData);
           // Load MCP fields
           setMcpServers(data.settings?.mcp?.mcpServers || []);
-          setMcpDefaultProvider(data.settings?.defaultProvider || "");
           setIsLoading(false);
         })
         .catch((err) => {
@@ -344,7 +342,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     const defaultModel = (defaultProviderKey && settings[defaultProviderKey]) ? settings[defaultProviderKey].model : '';
     const configToSave = {
       settings: filteredSettings,
-      defaultProvider: mcpDefaultProvider || defaultModel,
+      defaultProvider: defaultModel,
       environment: envVars,
       runtime: runtimeSettings,
       mcp: { mcpServers },
