@@ -20,6 +20,8 @@ interface MCPServer {
   stdout: any[];
   stderr: any[];
   last_output_renewal: number | null;
+  tool_count?: number;
+  token_count?: number;
 }
 
 interface MCPManagerProps {
@@ -601,13 +603,21 @@ export default function MCPManager({ className }: MCPManagerProps) {
             {Object.entries(servers).map(([name, server]) => (
               <li
                 key={name}
-                className={`flex items-center px-4 py-3 cursor-pointer hover:bg-[#232323] ${selectedServer === name ? 'bg-[#232323] font-semibold' : ''}`}
+                className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${selectedServer === name ? 'bg-[#232323] font-semibold' : ''}`}
                 onClick={() => setSelectedServer(name)}
               >
-                <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
-                <span className="flex-1">{name}</span>
-                <span className="text-xs text-gray-400 ml-2">{server.state}</span>
-                {server.healthy ? <CheckCircle className="h-4 w-4 text-green-400 ml-2" /> : <XCircle className="h-4 w-4 text-red-400 ml-2" />}
+                <div className="flex items-center">
+                  <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
+                  <span className="flex-1">{name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{server.state}</span>
+                  {server.healthy ? <CheckCircle className="h-4 w-4 text-green-400 ml-2" /> : <XCircle className="h-4 w-4 text-red-400 ml-2" />}
+                </div>
+                {(server.tool_count !== undefined || server.token_count !== undefined) && (
+                  <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
+                    {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
+                    {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
