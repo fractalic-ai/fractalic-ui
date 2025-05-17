@@ -327,31 +327,41 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
             {Array.isArray(node.response_messages) && node.response_messages.length > 1 ? (
               <div className="mt-6">
                 <h3 className="font-medium text-gray-300 mb-2">LLM/Tool Conversation Trace</h3>
-                <div className="space-y-4">
-                  {node.response_messages.map((msg, idx) => (
-                    <div key={idx} className={`rounded p-3 border border-gray-700 bg-gray-800`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-gray-400 uppercase">{msg.role}</span>
-                        {msg.name && (
-                          <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
-                        )}
-                        {msg.tool_call_id && (
-                          <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-200 whitespace-pre-wrap break-words">
-                        {typeof msg.content === 'string' ? msg.content : (
-                          <pre className="bg-gray-900 p-2 rounded text-gray-300 overflow-x-auto text-xs">{JSON.stringify(msg.content, null, 2)}</pre>
-                        )}
-                      </div>
-                      {msg.tool_calls && (
-                        <div className="mt-2 text-xs text-gray-400">
-                          <span className="font-semibold">Tool Calls:</span>
-                          <pre className="bg-gray-900 p-2 rounded text-gray-300 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                <div className="bg-gray-900 border border-gray-700 rounded p-3 text-gray-300 space-y-3">
+                  {node.response_messages.map((msg, idx) => {
+                    const isTool = msg.role === 'tool' || msg.tool_calls || msg.tool_call_id || msg.name;
+                    return isTool ? (
+                      <div key={idx} className="rounded border border-blue-900 bg-[#1a2747] p-3 text-xs text-blue-200 font-mono">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold uppercase text-blue-300">{msg.role}</span>
+                          {msg.name && (
+                            <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
+                          )}
+                          {msg.tool_call_id && (
+                            <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="whitespace-pre-wrap break-words">
+                          {typeof msg.content === 'string' ? msg.content : (
+                            <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                          )}
+                        </div>
+                        {msg.tool_calls && (
+                          <div className="mt-2 text-xs text-blue-300">
+                            <span className="font-semibold">Tool Calls:</span>
+                            <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div key={idx} className="px-2 py-1 text-gray-100 text-sm">
+                        <span className="font-semibold text-blue-200 mr-2">{msg.role === 'assistant' ? 'Agent' : msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:</span>
+                        {typeof msg.content === 'string' ? msg.content : (
+                          <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
