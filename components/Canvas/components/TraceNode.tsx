@@ -63,8 +63,8 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         // Not JSON, render as plain text
         return (
           <div className="mb-2">
-            {parentKey && <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{parentKey}</div>}
-            <div className="bg-gray-900 px-2 py-1 rounded text-gray-100 text-xs break-all">{obj}</div>
+            {parentKey && <div className="px-2 py-1 rounded-full font-mono text-gray-400 text-[10px] font-semibold inline-block mb-1" style={{letterSpacing: 1, background: 'transparent'}}>{parentKey.toUpperCase()}</div>}
+            <div className="px-2 py-1 rounded text-gray-100 text-sm break-all" style={{background: 'rgba(0,0,0,0.33)'}}>{obj}</div>
           </div>
         );
       }
@@ -72,14 +72,14 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
     if (typeof obj !== 'object' || obj === null) {
       return (
         <div className="mb-2">
-          {parentKey && <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{parentKey}</div>}
-          <div className="bg-gray-900 px-2 py-1 rounded text-gray-100 text-xs break-all">{String(obj)}</div>
+          {parentKey && <div className="px-2 py-1 rounded-full font-mono text-gray-400 text-[10px] font-semibold inline-block mb-1" style={{letterSpacing: 1, background: 'transparent'}}>{parentKey.toUpperCase()}</div>}
+          <div className="px-2 py-1 rounded text-gray-100 text-sm break-all" style={{background: 'rgba(0,0,0,0.33)'}}>{String(obj)}</div>
         </div>
       );
     }
     return Object.entries(obj).map(([key, value]) => (
       <div key={parentKey + key} className="mb-2">
-        <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{key}</div>
+        <div className="px-2 py-1 rounded-full font-mono text-gray-400 text-[10px] font-semibold inline-block mb-1" style={{letterSpacing: 1, background: 'transparent'}}>{key.toUpperCase()}</div>
         {typeof value === 'object' && value !== null
           ? <div className="ml-4">{renderFormattedFields(value, key + '.')}</div>
           : renderFormattedFields(value, '')}
@@ -415,7 +415,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                     // Get memoized formatted content for this message
                     const { formattedContent, formattedToolCalls } = formattedContents[idx] || {};
                     return isTool ? (
-                      <div key={idx} className={`rounded border border-blue-900 ${viewMode === 'formatted' ? 'bg-gray-900' : 'bg-[#1a2747]'} p-3 text-xs text-blue-200 font-mono`}>
+                      <div key={idx} className={`rounded ${'bg-[rgb(34,43,65)]'} p-3 text-xs text-blue-200 font-mono`}>
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold uppercase text-blue-300">{msg.role}</span>
@@ -438,16 +438,18 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                         <div className="whitespace-pre-wrap break-words">
                           {viewMode === 'formatted' ? formattedContent : (
                             typeof msg.content === 'string' ? (
-                              <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{msg.content}</pre>
+                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{msg.content}</pre>
                             ) : (
-                              <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
                             )
                           )}
                         </div>
                         {msg.tool_calls && (
                           <div className="mt-2 text-xs text-blue-300">
                             <span className="font-semibold">Tool Calls:</span>
-                            {viewMode === 'formatted' ? formattedToolCalls : <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>}
+                            {viewMode === 'formatted' ? formattedToolCalls : (
+                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                            )}
                           </div>
                         )}
                       </div>
@@ -455,7 +457,7 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                       <div key={idx} className="px-2 py-1 text-gray-100 text-sm">
                         <span className="font-semibold text-blue-200 mr-2">{msg.role === 'assistant' ? 'Agent' : msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:</span>
                         {typeof msg.content === 'string' ? msg.content : (
-                          <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                          <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
                         )}
                       </div>
                     );
