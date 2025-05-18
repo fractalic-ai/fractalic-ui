@@ -147,10 +147,9 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
     >
       <div 
         className={styles.traceNode}
-        onClick={handleToggleCollapse}
       >
         <div className={`p-3 cursor-pointer ${shouldHighlight ? 'bg-[#1c392a]' : 'bg-gray-800'}`}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" onClick={handleToggleCollapse} style={{ cursor: 'pointer' }}>
             <div className="flex items-center">
               {getNodeIcon(node.type)}
               <span className="ml-2 font-medium text-gray-200 text-lg">{node.name || node.type}</span>
