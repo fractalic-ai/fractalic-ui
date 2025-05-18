@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, X, Filter } from 'lucide-react';
+import React, { useRef, useEffect, useMemo } from 'react';
+import { ChevronRight, ChevronDown, X, Filter, Eye, Table } from 'lucide-react';
 import { getNodeIcon } from '../utils/icons';
 import { TextField } from './TextField';
 import { TraceNodeData } from '../types';
@@ -36,6 +36,56 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
 
   // Determine if this node should be highlighted
   const shouldHighlight = highlightSource && !!node.created_by;
+
+  // Global view mode for all tool/tool response messages
+  const [globalToolViewMode, setGlobalToolViewMode] = React.useState<'raw' | 'formatted'>('raw');
+  // Per-message view mode state (index -> 'raw' | 'formatted' | undefined)
+  const [toolViewModes, setToolViewModes] = React.useState<Record<number, 'raw' | 'formatted'>>({});
+  const handleToggleViewMode = (idx: number) => {
+    setToolViewModes(prev => ({
+      ...prev,
+      [idx]: prev[idx] === 'formatted' ? 'raw' : 'formatted',
+    }));
+  };
+  const handleGlobalToggle = () => {
+    setGlobalToolViewMode(prev => prev === 'raw' ? 'formatted' : 'raw');
+    setToolViewModes({}); // Reset per-message overrides on global toggle
+  };
+
+  // Helper to render formatted JSON as field/value pairs, recursively parsing JSON strings
+  function renderFormattedFields(obj: any, parentKey = '') {
+    // If it's a string, try to parse as JSON
+    if (typeof obj === 'string') {
+      try {
+        const parsed = JSON.parse(obj);
+        return renderFormattedFields(parsed, parentKey);
+      } catch {
+        // Not JSON, render as plain text
+        return (
+          <div className="mb-2">
+            {parentKey && <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{parentKey}</div>}
+            <div className="bg-gray-900 px-2 py-1 rounded text-gray-100 text-xs break-all">{obj}</div>
+          </div>
+        );
+      }
+    }
+    if (typeof obj !== 'object' || obj === null) {
+      return (
+        <div className="mb-2">
+          {parentKey && <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{parentKey}</div>}
+          <div className="bg-gray-900 px-2 py-1 rounded text-gray-100 text-xs break-all">{String(obj)}</div>
+        </div>
+      );
+    }
+    return Object.entries(obj).map(([key, value]) => (
+      <div key={parentKey + key} className="mb-2">
+        <div className="bg-gray-800 px-2 py-1 rounded font-mono text-gray-200 text-xs font-semibold">{key}</div>
+        {typeof value === 'object' && value !== null
+          ? <div className="ml-4">{renderFormattedFields(value, key + '.')}</div>
+          : renderFormattedFields(value, '')}
+      </div>
+    ));
+  }
 
   // Add ResizeObserver to track size changes
   useEffect(() => {
@@ -132,6 +182,27 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
     }
   };
 
+  // Memoize all formatted contents for all messages at once
+  const formattedContents = useMemo(() => {
+    return (node.response_messages || []).map((msg, idx) => {
+      const viewMode = toolViewModes[idx] || globalToolViewMode;
+      if (viewMode !== 'formatted') return { formattedContent: null, formattedToolCalls: null };
+      let formattedContent;
+      if (typeof msg.content === 'string') {
+        try {
+          const parsed = JSON.parse(msg.content);
+          formattedContent = renderFormattedFields(parsed);
+        } catch {
+          formattedContent = renderFormattedFields(msg.content);
+        }
+      } else {
+        formattedContent = renderFormattedFields(msg.content);
+      }
+      const formattedToolCalls = msg.tool_calls ? renderFormattedFields(msg.tool_calls) : null;
+      return { formattedContent, formattedToolCalls };
+    });
+  }, [node.response_messages, toolViewModes, globalToolViewMode]);
+
   return (
     <div 
       ref={nodeRef}
@@ -149,34 +220,44 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
         className={styles.traceNode}
       >
         <div className={`p-3 cursor-pointer ${shouldHighlight ? 'bg-[#1c392a]' : 'bg-gray-800'}`}>
-          <div className="flex items-center justify-between" onClick={handleToggleCollapse} style={{ cursor: 'pointer' }}>
-            <div className="flex items-center">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center" onClick={handleToggleCollapse} style={{ cursor: 'pointer' }}>
               {getNodeIcon(node.type)}
               <span className="ml-2 font-medium text-gray-200 text-lg">{node.name || node.type}</span>
               <span className="ml-2 text-sm text-gray-400">[{node.type}]</span>
               <span className="ml-2 text-sm text-gray-400">Key: {node.key}</span>
             </div>
-
-            {/* New "Childs" button in the top right */}
-            <button
-              className="text-sm px-2 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                setHoveredCreator?.(node.key);
-              }}
-              onMouseLeave={(e) => {
-                e.stopPropagation();
-                setHoveredCreator?.(null);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                // Filter by this node as creator
-                onFilterByCreator(node.key);
-              }}
-              title="Show child nodes only"
-            >
-              childs
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Global view mode toggle button for all tool/tool response messages */}
+              {Array.isArray(node.response_messages) && node.response_messages.some(msg => msg.role === 'tool' || msg.tool_call_id || msg.tool_calls || msg.name) && (
+                <button
+                  className="p-1.5 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+                  onClick={e => { e.stopPropagation(); handleGlobalToggle(); }}
+                  title={globalToolViewMode === 'raw' ? 'Show all as formatted view' : 'Show all as raw JSON'}
+                >
+                  {globalToolViewMode === 'raw' ? <Table className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              )}
+              {/* Existing Childs button */}
+              <button
+                className="text-sm px-2 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600"
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setHoveredCreator?.(node.key);
+                }}
+                onMouseLeave={(e) => {
+                  e.stopPropagation();
+                  setHoveredCreator?.(null);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFilterByCreator(node.key);
+                }}
+                title="Show child nodes only"
+              >
+                childs
+              </button>
+            </div>
           </div>
           
           {!isCollapsed && (
@@ -329,26 +410,44 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                 <div className="bg-gray-900 border border-gray-700 rounded p-3 text-gray-300 space-y-3">
                   {node.response_messages.map((msg, idx) => {
                     const isTool = msg.role === 'tool' || msg.tool_calls || msg.tool_call_id || msg.name;
+                    // Determine which view mode to use: per-message override or global
+                    const viewMode = toolViewModes[idx] || globalToolViewMode;
+                    // Get memoized formatted content for this message
+                    const { formattedContent, formattedToolCalls } = formattedContents[idx] || {};
                     return isTool ? (
-                      <div key={idx} className="rounded border border-blue-900 bg-[#1a2747] p-3 text-xs text-blue-200 font-mono">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold uppercase text-blue-300">{msg.role}</span>
-                          {msg.name && (
-                            <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
-                          )}
-                          {msg.tool_call_id && (
-                            <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
-                          )}
+                      <div key={idx} className={`rounded border border-blue-900 ${viewMode === 'formatted' ? 'bg-gray-900' : 'bg-[#1a2747]'} p-3 text-xs text-blue-200 font-mono`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold uppercase text-blue-300">{msg.role}</span>
+                            {msg.name && (
+                              <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
+                            )}
+                            {msg.tool_call_id && (
+                              <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
+                            )}
+                          </div>
+                          {/* Per-message view mode toggle button */}
+                          <button
+                            className="ml-2 p-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+                            onClick={e => { e.stopPropagation(); handleToggleViewMode(idx); }}
+                            title={viewMode === 'formatted' ? 'Show raw JSON' : 'Show formatted view'}
+                          >
+                            {viewMode === 'formatted' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
+                          </button>
                         </div>
                         <div className="whitespace-pre-wrap break-words">
-                          {typeof msg.content === 'string' ? msg.content : (
-                            <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                          {viewMode === 'formatted' ? formattedContent : (
+                            typeof msg.content === 'string' ? (
+                              <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{msg.content}</pre>
+                            ) : (
+                              <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.content, null, 2)}</pre>
+                            )
                           )}
                         </div>
                         {msg.tool_calls && (
                           <div className="mt-2 text-xs text-blue-300">
                             <span className="font-semibold">Tool Calls:</span>
-                            <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>
+                            {viewMode === 'formatted' ? formattedToolCalls : <pre className="bg-[#101b2d] p-2 rounded text-blue-100 overflow-x-auto">{JSON.stringify(msg.tool_calls, null, 2)}</pre>}
                           </div>
                         )}
                       </div>
