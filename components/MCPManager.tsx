@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 interface MCPServer {
   name: string;
@@ -587,79 +588,86 @@ export default function MCPManager({ className }: MCPManagerProps) {
   }, [tools]);
 
   return (
-    <div className={`flex h-full ${className || ''}`}> {/* Two-panel layout */}
-      {/* Left: Server List */}
-      <div className="w-64 border-r bg-[#181818] flex flex-col overflow-y-auto">
-        <div className="p-4 font-bold text-lg border-b">MCP Servers</div>
-        {loading ? (
-          <div className="p-4">Loading servers...</div>
-        ) : error ? (
-          <div className="p-4 text-red-500 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            {error}
+    <div className={`h-full ${className || ''}`}>
+      <ResizablePanelGroup direction="horizontal">
+        {/* Left: Server List */}
+        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+          <div className="h-full bg-[#181818] flex flex-col overflow-y-auto">
+            <div className="p-4 font-bold text-lg border-b">MCP Servers</div>
+            {loading ? (
+              <div className="p-4">Loading servers...</div>
+            ) : error ? (
+              <div className="p-4 text-red-500 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                {error}
+              </div>
+            ) : (
+              <ul className="flex-1 divide-y divide-gray-800">
+                {Object.entries(servers).map(([name, server]) => (
+                  <li
+                    key={name}
+                    className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${selectedServer === name ? 'bg-[#232323] font-semibold' : ''}`}
+                    onClick={() => setSelectedServer(name)}
+                  >
+                    <div className="flex items-center">
+                      <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
+                      <span className="flex-1">{name}</span>
+                      <span className="text-xs text-gray-400 ml-2">{server.state}</span>
+                      {server.healthy ? <CheckCircle className="h-4 w-4 text-green-400 ml-2" /> : <XCircle className="h-4 w-4 text-red-400 ml-2" />}
+                    </div>
+                    {(server.tool_count !== undefined || server.token_count !== undefined) && (
+                      <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
+                        {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
+                        {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        ) : (
-          <ul className="flex-1 divide-y divide-gray-800">
-            {Object.entries(servers).map(([name, server]) => (
-              <li
-                key={name}
-                className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${selectedServer === name ? 'bg-[#232323] font-semibold' : ''}`}
-                onClick={() => setSelectedServer(name)}
-              >
-                <div className="flex items-center">
-                  <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
-                  <span className="flex-1">{name}</span>
-                  <span className="text-xs text-gray-400 ml-2">{server.state}</span>
-                  {server.healthy ? <CheckCircle className="h-4 w-4 text-green-400 ml-2" /> : <XCircle className="h-4 w-4 text-red-400 ml-2" />}
-                </div>
-                {(server.tool_count !== undefined || server.token_count !== undefined) && (
-                  <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
-                    {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
-                    {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      {/* Right: Server Details */}
-      <div className="flex-1 h-full p-0 bg-gradient-to-br from-[#18181b] to-[#23232b]">
-        <ServerDetailsPanel
-          server={selectedServer ? servers[selectedServer] : null}
-          tools={tools}
-          toolsLoading={toolsLoading}
-          toolCardState={toolCardState}
-          onToolExpand={(tool: string, expanded: boolean) => setToolCardState(prev => ({
-            ...prev,
-            [tool]: {
-              ...prev[tool],
-              expanded,
-            },
-          }))}
-          onParamChange={(tool: string, param: string, value: any) => setToolCardState(prev => ({
-            ...prev,
-            [tool]: {
-              ...prev[tool],
-              paramValues: {
-                ...((prev[tool] && prev[tool].paramValues) || {}),
-                [param]: value,
-              },
-            },
-          }))}
-          getStateColor={getStateColor}
-          onAction={handleAction}
-          onRestart={handleRestart}
-          fetchStatus={fetchStatus}
-          loading={loading}
-          actionLoading={actionLoading}
-          scrollRef={scrollRef}
-          scrollPos={selectedServer ? scrollPositions.current[selectedServer] ?? 0 : 0}
-          setScrollPos={(pos: number) => {
-            if (selectedServer) scrollPositions.current[selectedServer] = pos;
-          }}
-        />
-      </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle className="bg-[#23232b]" />
+        {/* Right: Server Details */}
+        <ResizablePanel defaultSize={75} minSize={60}>
+          <div className="h-full p-0 bg-gradient-to-br from-[#18181b] to-[#23232b]">
+            <ServerDetailsPanel
+              server={selectedServer ? servers[selectedServer] : null}
+              tools={tools}
+              toolsLoading={toolsLoading}
+              toolCardState={toolCardState}
+              onToolExpand={(tool: string, expanded: boolean) => setToolCardState(prev => ({
+                ...prev,
+                [tool]: {
+                  ...prev[tool],
+                  expanded,
+                },
+              }))}
+              onParamChange={(tool: string, param: string, value: any) => setToolCardState(prev => ({
+                ...prev,
+                [tool]: {
+                  ...prev[tool],
+                  paramValues: {
+                    ...((prev[tool] && prev[tool].paramValues) || {}),
+                    [param]: value,
+                  },
+                },
+              }))}
+              getStateColor={getStateColor}
+              onAction={handleAction}
+              onRestart={handleRestart}
+              fetchStatus={fetchStatus}
+              loading={loading}
+              actionLoading={actionLoading}
+              scrollRef={scrollRef}
+              scrollPos={selectedServer ? scrollPositions.current[selectedServer] ?? 0 : 0}
+              setScrollPos={(pos: number) => {
+                if (selectedServer) scrollPositions.current[selectedServer] = pos;
+              }}
+            />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 } 
