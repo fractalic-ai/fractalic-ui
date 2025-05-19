@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { ChevronRight, ChevronDown, X, Filter, Eye, Table } from 'lucide-react';
+import { ChevronRight, ChevronDown, X, Filter, Eye, Table, ArrowRight } from 'lucide-react';
 import { getNodeIcon } from '../utils/icons';
 import { TextField } from './TextField';
 import { TraceNodeData } from '../types';
@@ -410,43 +410,65 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                 <div className="bg-gray-900 border border-gray-700 rounded p-3 text-gray-300 space-y-3">
                   {node.response_messages.map((msg, idx) => {
                     const isTool = msg.role === 'tool' || msg.tool_calls || msg.tool_call_id || msg.name;
-                    // Determine which view mode to use: per-message override or global
                     const viewMode = toolViewModes[idx] || globalToolViewMode;
-                    // Get memoized formatted content for this message
                     const { formattedContent, formattedToolCalls } = formattedContents[idx] || {};
                     return isTool ? (
                       <div key={idx} className={`rounded ${'bg-[rgb(34,43,65)]'} p-3 text-xs text-blue-200 font-mono`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold uppercase text-blue-300">{msg.role}</span>
-                            {msg.name && (
-                              <span className="ml-2 text-xs text-blue-400">{msg.name}</span>
-                            )}
-                            {msg.tool_call_id && (
-                              <span className="ml-2 text-xs text-emerald-400">Tool Call ID: {msg.tool_call_id}</span>
-                            )}
-                          </div>
-                          {/* Per-message view mode toggle button */}
-                          <button
-                            className="ml-2 p-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
-                            onClick={e => { e.stopPropagation(); handleToggleViewMode(idx); }}
-                            title={viewMode === 'formatted' ? 'Show raw JSON' : 'Show formatted view'}
-                          >
-                            {viewMode === 'formatted' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
-                          </button>
-                        </div>
-                        <div className="whitespace-pre-wrap break-words">
-                          {viewMode === 'formatted' ? formattedContent : (
-                            typeof msg.content === 'string' ? (
-                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{msg.content}</pre>
-                            ) : (
-                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
-                            )
-                          )}
-                        </div>
+                        {msg.content !== null && (
+                          <>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold uppercase text-blue-300 flex items-center">
+                                  <ArrowRight className="w-4 h-4 mr-1 transform rotate-180" />
+                                  {msg.role === 'tool' ? 'TOOL RESPONSE' : msg.role.toUpperCase()}
+                                </span>
+                                {msg.name && (
+                                  <span className="ml-2 text-xs text-blue-400 font-normal">{msg.name}</span>
+                                )}
+                                {msg.tool_call_id && (
+                                  <span className="ml-2 text-xs text-emerald-400 font-normal">/ {msg.tool_call_id}</span>
+                                )}
+                              </div>
+                              <button
+                                className="ml-2 p-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+                                onClick={e => { e.stopPropagation(); handleToggleViewMode(idx); }}
+                                title={viewMode === 'formatted' ? 'Show raw JSON' : 'Show formatted view'}
+                              >
+                                {viewMode === 'formatted' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
+                              </button>
+                            </div>
+                            <div className="whitespace-pre-wrap break-words">
+                              {viewMode === 'formatted' ? formattedContent : (
+                                typeof msg.content === 'string' ? (
+                                  <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{msg.content}</pre>
+                                ) : (
+                                  <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
+                                )
+                              )}
+                            </div>
+                          </>
+                        )}
                         {msg.tool_calls && (
-                          <div className="mt-2 text-xs text-blue-300">
-                            <span className="font-semibold">Tool Calls:</span>
+                          <div className={`text-xs text-blue-300 ${msg.content !== null ? 'mt-2' : ''}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold uppercase flex items-center">
+                                <ArrowRight className="w-4 h-4 mr-1" />
+                                TOOL CALLS
+                                {msg.tool_calls[0]?.function?.name && (
+                                  <span className="ml-2 text-blue-400 normal-case font-normal">{msg.tool_calls[0].function.name}</span>
+                                )}
+                                {msg.tool_calls[0]?.id && (
+                                  <span className="ml-2 text-emerald-400 normal-case font-normal">/ {msg.tool_calls[0].id}</span>
+                                )}
+                              </span>
+                              <button
+                                className="ml-2 p-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+                                onClick={e => { e.stopPropagation(); handleToggleViewMode(idx); }}
+                                title={viewMode === 'formatted' ? 'Show raw JSON' : 'Show formatted view'}
+                              >
+                                {viewMode === 'formatted' ? <Eye className="w-4 h-4" /> : <Table className="w-4 h-4" />}
+                              </button>
+                            </div>
                             {viewMode === 'formatted' ? formattedToolCalls : (
                               <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.tool_calls, null, 2)}</pre>
                             )}
@@ -455,9 +477,22 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
                       </div>
                     ) : (
                       <div key={idx} className="px-2 py-1 text-gray-100 text-sm">
-                        <span className="font-semibold text-blue-200 mr-2">{msg.role === 'assistant' ? 'Agent' : msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:</span>
-                        {typeof msg.content === 'string' ? msg.content : (
-                          <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
+                        {msg.role === 'assistant' ? (
+                          msg.content !== null && (
+                            <>
+                              <span className="font-semibold text-blue-200 mr-2">Agent:</span>
+                              {typeof msg.content === 'string' ? msg.content : (
+                                <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
+                              )}
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <span className="font-semibold text-blue-200 mr-2">{msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:</span>
+                            {typeof msg.content === 'string' ? msg.content : (
+                              <pre className="p-2 rounded text-blue-100 overflow-x-auto" style={{background: 'rgba(0,0,0,0.33)'}}>{JSON.stringify(msg.content, null, 2)}</pre>
+                            )}
+                          </>
                         )}
                       </div>
                     );
