@@ -109,23 +109,23 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
       if (el) setScrollPos(el.scrollTop);
     }} className="h-full w-full flex flex-col justify-center items-center p-0 overflow-y-auto">
       <Card className="w-full h-full shadow-xl rounded-xl bg-[#20212b] border-0 flex flex-col">
-        <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
-          <div>
-            <CardTitle className="text-2xl font-extrabold tracking-tight flex items-center gap-4">
-              <span>{server.name}</span>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
+          <div className="flex flex-col gap-4">
+            <CardTitle className="text-2xl font-extrabold tracking-tight">
+              {server.name}
+            </CardTitle>
+            <div className="flex items-center gap-3">
               <Badge className={getStateColor(server.state) + ' text-base px-3 py-1 rounded-full capitalize'}>
                 {server.state}
               </Badge>
-            </CardTitle>
-            <CardDescription className="mt-2 text-gray-400 text-base">
               {server.healthy ? (
                 <span className="flex items-center gap-2 text-green-400 font-medium"><CheckCircle className="h-5 w-5" /> Healthy</span>
               ) : (
                 <span className="flex items-center gap-2 text-red-400 font-medium"><XCircle className="h-5 w-5" /> Unhealthy</span>
               )}
-            </CardDescription>
+            </div>
           </div>
-          <div className="flex gap-3 mt-4 md:mt-0">
+          <div className="flex gap-3">
             <Button
               variant="outline"
               size="sm"
