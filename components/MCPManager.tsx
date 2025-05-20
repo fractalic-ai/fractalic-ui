@@ -729,7 +729,8 @@ export default function MCPManager({ className }: MCPManagerProps) {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000); // Refresh every 5 seconds
+    // Use a single declaration for interval
+    const interval = setInterval(fetchStatus, 20000); // Refresh every 20 seconds
     return () => clearInterval(interval);
   }, []);
 
