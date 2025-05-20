@@ -458,7 +458,6 @@ const NavigationPanel = React.memo(function NavigationPanel({ servers, selectedI
 
   return (
     <div className="h-full bg-[#181818] flex flex-col">
-      <div className="p-4 font-bold text-lg border-b">MCP Control</div>
       <div className="flex-1 overflow-y-auto" ref={scrollRef} onScroll={() => {
         if (scrollRef.current) setScrollPos(scrollRef.current.scrollTop);
       }}>
@@ -518,22 +517,6 @@ const NavigationPanel = React.memo(function NavigationPanel({ servers, selectedI
                 })}
               </ul>
             )}
-          </div>
-        </div>
-        {/* Tools Section */}
-        <div>
-          <button
-            onClick={handleToolClick}
-            className={`w-full flex items-center gap-2 px-4 py-3 hover:bg-[#232323] ${
-              selectedItem.type === 'tool' ? 'bg-[#232323] font-semibold' : ''
-            }`}
-          >
-            <span className="inline-block w-2 h-2 rounded-full mr-3 bg-blue-500"></span>
-            <Wrench className="h-4 w-4" />
-            <span>Tools</span>
-          </button>
-          <div className="pl-8 px-4 py-2 text-gray-400">
-            Tools section coming soon...
           </div>
         </div>
       </div>
