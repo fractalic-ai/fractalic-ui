@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Filter, Plus, FolderPlus, PenSquare, GitBranch, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTrace } from '@/contexts/TraceContext';
+import ToolsManager from './ToolsManager';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
 
@@ -173,7 +174,7 @@ export default function GitDiffViewer() {
   const [selectedCommit, setSelectedCommit] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [mode, setMode] = useState<'edit' | 'git' | 'mcp'>('edit');
+  const [mode, setMode] = useState<'edit' | 'git' | 'mcp' | 'toolsManager'>('edit');
   const [diffContent, setDiffContent] = useState<{ original: string; modified: string }>({
     original: '',
     modified: '',
@@ -994,7 +995,7 @@ export default function GitDiffViewer() {
           onLayout={handlePanelResize}
         >
           {/* Left Panel */}
-          {isPanelVisible && mode !== 'mcp' && (
+          {isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' && (
             <>
               <ResizablePanel 
                 defaultSize={previousPanelSize} 
@@ -1098,60 +1099,64 @@ export default function GitDiffViewer() {
             </>
           )}
           {/* Right Panel */}
-          <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' ? 2 : 1}>
+          <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 2 : 1}>
             <div className="flex flex-col h-full bg-[#141414]">
-              <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
-                <ResizablePanel
-                  defaultSize={showConsole ? 70 : 100}
-                  minSize={30}
-                  id="editor-panel"
-                  order={1}
-                >
-                  <div className="relative h-full">
-                    <Editor
-                      mode={mode}
-                      selectedView={selectedView}
-                      setSelectedView={setSelectedView}
-                      selectedCommit={selectedCommit}
-                      editMode={editMode}
-                      setEditMode={setEditMode}
-                      lastCommitHash={lastCommitHash}
-                      setLastCommitHash={setLastCommitHash}
-                      handleRun={handleRun}
-                      diffContent={diffContent}
-                      editedContent={editedContent}
-                      handleContentChange={handleContentChange}
-                      theme={theme}
-                      editorContainerRef={editorContainerRef}
-                      repoPath={repoPath}
-                      handleBreadcrumbClick={handleBreadcrumbClick}
-                      currentFilePath={currentFilePath}
-                      branchNotification={branchNotification}
-                      branchHash={branchHash}
-                      onBranchHashClick={handleBranchHashClick}
-                      handleBranchSelect={handleBranchSelect}
-                      onSave={() => Promise.resolve()}
-                    />
-                  </div>
-                </ResizablePanel>
-                {/* Console Panel */}
-                {showConsole && (
-                  <>
-                    <ResizableHandle />
-                    <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
-                      <div className="h-full w-full overflow-hidden bg-[#141414]">
-                        <DynamicConsole
-                          setShowConsole={setShowConsole}
-                          onResize={handlePanelResize}
-                          currentPath={mode === 'git' ? currentGitPath : currentEditPath}
-                          currentFilePath={currentFilePath}
-                          onSpecialOutput={handleSpecialOutput}
-                        />
-                      </div>
-                    </ResizablePanel>
-                  </>
-                )}
-              </ResizablePanelGroup>
+              {mode === 'toolsManager' ? (
+                <ToolsManager currentEditPath={currentEditPath} />
+              ) : (
+                <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
+                  <ResizablePanel
+                    defaultSize={showConsole ? 70 : 100}
+                    minSize={30}
+                    id="editor-panel"
+                    order={1}
+                  >
+                    <div className="relative h-full">
+                      <Editor
+                        mode={mode}
+                        selectedView={selectedView}
+                        setSelectedView={setSelectedView}
+                        selectedCommit={selectedCommit}
+                        editMode={editMode}
+                        setEditMode={setEditMode}
+                        lastCommitHash={lastCommitHash}
+                        setLastCommitHash={setLastCommitHash}
+                        handleRun={handleRun}
+                        diffContent={diffContent}
+                        editedContent={editedContent}
+                        handleContentChange={handleContentChange}
+                        theme={theme}
+                        editorContainerRef={editorContainerRef}
+                        repoPath={repoPath}
+                        handleBreadcrumbClick={handleBreadcrumbClick}
+                        currentFilePath={currentFilePath}
+                        branchNotification={branchNotification}
+                        branchHash={branchHash}
+                        onBranchHashClick={handleBranchHashClick}
+                        handleBranchSelect={handleBranchSelect}
+                        onSave={() => Promise.resolve()}
+                      />
+                    </div>
+                  </ResizablePanel>
+                  {/* Console Panel */}
+                  {showConsole && (
+                    <>
+                      <ResizableHandle />
+                      <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
+                        <div className="h-full w-full overflow-hidden bg-[#141414]">
+                          <DynamicConsole
+                            setShowConsole={setShowConsole}
+                            onResize={handlePanelResize}
+                            currentPath={mode === 'git' ? currentGitPath : currentEditPath}
+                            currentFilePath={currentFilePath}
+                            onSpecialOutput={handleSpecialOutput}
+                          />
+                        </div>
+                      </ResizablePanel>
+                    </>
+                  )}
+                </ResizablePanelGroup>
+              )}
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

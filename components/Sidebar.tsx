@@ -1,16 +1,16 @@
 import { Button } from "@/components/ui/button"
-import { PenSquare, GitBranch, Server } from 'lucide-react'
+import { PenSquare, GitBranch, Server, Wrench } from 'lucide-react'
 
 interface SidebarProps {
-  mode: 'edit' | 'git' | 'mcp'
-  setMode: (mode: 'edit' | 'git' | 'mcp') => void
+  mode: 'edit' | 'git' | 'mcp' | 'toolsManager'
+  setMode: (mode: 'edit' | 'git' | 'mcp' | 'toolsManager') => void
   isPanelVisible: boolean
   togglePanel: () => void
   className?: string
 }
 
 export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, className }: SidebarProps) {
-  const handleModeClick = (newMode: 'edit' | 'git' | 'mcp') => {
+  const handleModeClick = (newMode: 'edit' | 'git' | 'mcp' | 'toolsManager') => {
     if (mode === newMode) {
       togglePanel();
     } else {
@@ -46,6 +46,15 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, cl
       >
         <Server className="h-6 w-6" />
         <span className="sr-only">MCP Management</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handleModeClick('toolsManager')}
+        className={`w-12 h-12 ${mode === 'toolsManager' ? 'text-white' : 'text-gray-400'}`}
+      >
+        <Wrench className="h-6 w-6" />
+        <span className="sr-only">Tools Manager</span>
       </Button>
     </div>
   )
