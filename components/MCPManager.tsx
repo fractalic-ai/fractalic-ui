@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Play, Square, RefreshCw, AlertCircle, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { Play, Square, RefreshCw, AlertCircle, RotateCcw, CheckCircle, XCircle, Power, PowerOff, Settings, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -21,6 +21,14 @@ interface MCPServer {
   stdout: any[];
   stderr: any[];
   last_output_renewal: number | null;
+  tool_count?: number;
+  token_count?: number;
+}
+
+interface MCPServerListItem {
+  name: string;
+  state: string;
+  healthy: boolean;
   tool_count?: number;
   token_count?: number;
 }
@@ -72,7 +80,7 @@ interface ServerDetailsPanelProps {
   setScrollPos: (pos: number) => void;
 }
 
-const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
+const ServerDetailsPanel = function ServerDetailsPanel({
   server,
   tools,
   toolsLoading,
@@ -89,6 +97,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   scrollPos,
   setScrollPos,
 }: ServerDetailsPanelProps) {
+  console.log('🔵 ServerDetailsPanel render', server?.name, server?.uptime);
   React.useEffect(() => {
     const id = ++mountCounter;
     console.log("🔵 ServerDetailsPanel mount", id, server?.name);
@@ -250,39 +259,41 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
 
           <div className="mb-2">
             <div className="font-semibold mb-3 text-lg">Available Tools</div>
-            {toolsLoading ? (
-              <div className="text-gray-400">Loading tools...</div>
-            ) : tools && tools.tools.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {tools.tools.map((tool: any, idx: number) => (
-                  <ToolCard
-                    key={tool.name + idx}
-                    tool={tool}
-                    expanded={!!toolCardState[tool.name]?.expanded}
-                    onExpand={(expanded: boolean) => onToolExpand(tool.name, expanded)}
-                    paramValues={toolCardState[tool.name]?.paramValues || {}}
-                    onParamChange={(param: string, value: any) => onParamChange(tool.name, param, value)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-gray-400">No tools found.</div>
-            )}
-            {tools && tools.error && (
-              <div className="text-xs text-red-500 mt-1">{tools.error}</div>
-            )}
+            <div style={{ minHeight: 200 }} className="relative w-full">
+              {toolsLoading ? (
+                <div className="flex items-center justify-center h-full min-h-[200px]">
+                  <svg className="animate-spin h-6 w-6 text-gray-400 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                  </svg>
+                  <span className="text-gray-400">Loading tools...</span>
+                </div>
+              ) : tools && tools.tools.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {tools.tools.map((tool: any, idx: number) => (
+                    <ToolCard
+                      key={tool.name + idx}
+                      tool={tool}
+                      expanded={!!toolCardState[tool.name]?.expanded}
+                      onExpand={(expanded: boolean) => onToolExpand(tool.name, expanded)}
+                      paramValues={toolCardState[tool.name]?.paramValues || {}}
+                      onParamChange={(param: string, value: any) => onParamChange(tool.name, param, value)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-400">No tools found.</div>
+              )}
+              {tools && tools.error && (
+                <div className="text-xs text-red-500 mt-1">{tools.error}</div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
     </div>
   );
-}, (prev, next) => {
-  if (prev.toolCardState !== next.toolCardState) return false;      // expanded / params changed
-  if (prev.server?.name !== next.server?.name) return false;        // server switched
-  const p = prev.tools?.tools ?? [], n = next.tools?.tools ?? [];
-  if (p.length !== n.length) return false;
-  return p.every((t, i) => t.name === n[i]?.name);
-});
+};
 
 const ToolCard = React.memo(function ToolCard({ tool, expanded, onExpand, paramValues, onParamChange }: {
   tool: any;
@@ -416,8 +427,181 @@ const ToolCard = React.memo(function ToolCard({ tool, expanded, onExpand, paramV
   );
 });
 
+// Add new type for selection
+type MCPSelection = 'manager' | 'server' | 'tool';
+
+// Memoized Navigation Panel
+interface NavigationPanelProps {
+  servers: Record<string, MCPServerListItem>;
+  selectedItem: { type: MCPSelection; id: string | null };
+  setSelectedItem: React.Dispatch<React.SetStateAction<{ type: MCPSelection; id: string | null }>>;
+  loading: boolean;
+  error: string | null;
+  getStateColor: (state: string) => string;
+  scrollPos: number;
+  setScrollPos: (pos: number) => void;
+}
+
+const NavigationPanel = React.memo(function NavigationPanel({ servers, selectedItem, setSelectedItem, loading, error, getStateColor, scrollPos, setScrollPos }: NavigationPanelProps) {
+  console.log('🟢 NavigationPanel render', Object.keys(servers));
+  const handleManagerClick = useCallback(() => setSelectedItem({ type: 'manager', id: null }), [setSelectedItem]);
+  const handleToolClick = useCallback(() => setSelectedItem({ type: 'tool', id: null }), [setSelectedItem]);
+  const handleServerClick = useCallback((name: string) => setSelectedItem({ type: 'server', id: name }), [setSelectedItem]);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Restore scroll position after render
+  React.useLayoutEffect(() => {
+    if (scrollRef.current && typeof scrollPos === 'number') {
+      scrollRef.current.scrollTop = scrollPos;
+    }
+  }, [scrollPos, servers]);
+
+  return (
+    <div className="h-full bg-[#181818] flex flex-col">
+      <div className="p-4 font-bold text-lg border-b">MCP Control</div>
+      <div className="flex-1 overflow-y-auto" ref={scrollRef} onScroll={() => {
+        if (scrollRef.current) setScrollPos(scrollRef.current.scrollTop);
+      }}>
+        {/* MCP Manager Section */}
+        <div className="border-b border-[#23232b]">
+          <button
+            onClick={handleManagerClick}
+            className={`w-full flex items-center gap-2 px-4 py-3 hover:bg-[#232323] ${
+              selectedItem.type === 'manager' ? 'bg-[#232323] font-semibold' : ''
+            }`}
+          >
+            <span className="inline-block w-2 h-2 rounded-full mr-3 bg-green-500"></span>
+            <Settings className="h-4 w-4" />
+            <span>MCP Manager</span>
+            <Badge variant="secondary" className="ml-auto">
+              {Object.keys(servers).length}
+            </Badge>
+          </button>
+          <div className="pl-8">
+            {loading ? (
+              <div className="px-4 py-2 text-gray-400">Loading servers...</div>
+            ) : error ? (
+              <div className="px-4 py-2 text-red-500 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                {error}
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-800">
+                {Object.keys(servers).sort().map(name => {
+                  const server = servers[name];
+                  return (
+                    <li
+                      key={name}
+                      className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${
+                        selectedItem.type === 'server' && selectedItem.id === name ? 'bg-[#232323] font-semibold' : ''
+                      }`}
+                      onClick={() => handleServerClick(name)}
+                    >
+                      <div className="flex items-center">
+                        <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
+                        <span className="flex-1">{name}</span>
+                        <span className="text-xs text-gray-400 ml-2">{server.state}</span>
+                        {server.healthy ? (
+                          <CheckCircle className="h-4 w-4 text-green-400 ml-2" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-400 ml-2" />
+                        )}
+                      </div>
+                      {(server.tool_count !== undefined || server.token_count !== undefined) && (
+                        <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
+                          {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
+                          {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+        {/* Tools Section */}
+        <div>
+          <button
+            onClick={handleToolClick}
+            className={`w-full flex items-center gap-2 px-4 py-3 hover:bg-[#232323] ${
+              selectedItem.type === 'tool' ? 'bg-[#232323] font-semibold' : ''
+            }`}
+          >
+            <span className="inline-block w-2 h-2 rounded-full mr-3 bg-blue-500"></span>
+            <Wrench className="h-4 w-4" />
+            <span>Tools</span>
+          </button>
+          <div className="pl-8 px-4 py-2 text-gray-400">
+            Tools section coming soon...
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render if servers or selectedItem changed
+  const prevServers = prevProps.servers;
+  const nextServers = nextProps.servers;
+  const prevKeys = Object.keys(prevServers);
+  const nextKeys = Object.keys(nextServers);
+  if (prevKeys.length !== nextKeys.length) return false;
+  for (let i = 0; i < prevKeys.length; i++) {
+    const key = prevKeys[i];
+    if (key !== nextKeys[i]) return false;
+    const prevServer = prevServers[key];
+    const nextServer = nextServers[key];
+    // Compare relevant fields
+    if (
+      prevServer.state !== nextServer.state ||
+      prevServer.healthy !== nextServer.healthy ||
+      prevServer.tool_count !== nextServer.tool_count ||
+      prevServer.token_count !== nextServer.token_count
+    ) {
+      return false;
+    }
+  }
+  // Compare selectedItem
+  if (
+    prevProps.selectedItem.type !== nextProps.selectedItem.type ||
+    prevProps.selectedItem.id !== nextProps.selectedItem.id
+  ) {
+    return false;
+  }
+  // Compare loading and error
+  if (prevProps.loading !== nextProps.loading) return false;
+  if (prevProps.error !== nextProps.error) return false;
+  return true;
+});
+
+// Utility for shallow compare of list fields
+function isListItemEqual(a: MCPServerListItem | undefined, b: MCPServerListItem | undefined) {
+  return (
+    a &&
+    b &&
+    a.name === b.name &&
+    a.state === b.state &&
+    a.healthy === b.healthy &&
+    a.tool_count === b.tool_count &&
+    a.token_count === b.token_count
+  );
+}
+
+// Utility for deep compare of full server object
+function isServerEqual(a: MCPServer | undefined, b: MCPServer | undefined) {
+  if (!a || !b) return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (a[key as keyof MCPServer] !== b[key as keyof MCPServer]) return false;
+  }
+  return true;
+}
+
 export default function MCPManager({ className }: MCPManagerProps) {
-  const [servers, setServers] = useState<Record<string, MCPServer>>({});
+  const [serversList, setServersList] = useState<Record<string, MCPServerListItem>>({});
+  const [serversFull, setServersFull] = useState<Record<string, MCPServer>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedServer, setSelectedServer] = useState<string | null>(null);
@@ -427,84 +611,90 @@ export default function MCPManager({ className }: MCPManagerProps) {
   const [toolCardState, setToolCardState] = useState<Record<string, { expanded: boolean; paramValues: Record<string, any> }>>({});
   const scrollPositions = useRef<Record<string, number>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [mcpActionLoading, setMcpActionLoading] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ type: MCPSelection; id: string | null }>({ type: 'manager', id: null });
 
-  // Ref to always have the latest selectedServer value
-  const selectedServerRef = useRef<string | null>(selectedServer);
+  // Remove the old selectedServerRef since we're using selectedItem now
+  const selectedItemRef = useRef<{ type: MCPSelection; id: string | null }>({ type: 'manager', id: null });
   useEffect(() => {
-    selectedServerRef.current = selectedServer;
-  }, [selectedServer]);
+    selectedItemRef.current = selectedItem;
+  }, [selectedItem]);
 
   // Store previous servers/tools for comparison
   const prevServersRef = useRef<Record<string, MCPServer>>({});
   const prevToolsRef = useRef<any>({});
 
-  const updateServers = useCallback((newServers: Record<string, MCPServer>) => {
-    setServers(prevServers => {
-      // Only update fields that changed
-      const updated: Record<string, MCPServer> = { ...prevServers };
+  // Helper to extract list fields
+  const extractListFields = (server: MCPServer): MCPServerListItem => ({
+    name: server.name,
+    state: server.state,
+    healthy: server.healthy,
+    tool_count: server.tool_count,
+    token_count: server.token_count,
+  });
+
+  // Update serversList only if list fields change
+  const updateServersList = useCallback((newServers: Record<string, MCPServer>) => {
+    setServersList(prevServers => {
+      let changed = false;
+      const result: Record<string, MCPServerListItem> = {};
       for (const key of Object.keys(newServers)) {
-        if (!prevServers[key]) {
-          updated[key] = newServers[key];
+        const prev = prevServers[key];
+        const next = extractListFields(newServers[key]);
+        if (!isListItemEqual(prev, next)) {
+          changed = true;
+          result[key] = next;
         } else {
-          // Only update changed fields
-          const prev = prevServers[key];
-          const next = newServers[key];
-          if (
-            prev.state !== next.state ||
-            prev.uptime !== next.uptime ||
-            prev.healthy !== next.healthy ||
-            prev.retries !== next.retries ||
-            prev.restarts !== next.restarts ||
-            prev.last_error !== next.last_error ||
-            prev.pid !== next.pid
-          ) {
-            updated[key] = { ...prev, ...next };
-          }
+          result[key] = prev;
         }
       }
-      // Remove servers that no longer exist
-      for (const key of Object.keys(updated)) {
-        if (!newServers[key]) delete updated[key];
+      if (!changed && Object.keys(prevServers).length === Object.keys(newServers).length) {
+        console.log('[updateServersList] No change, preserving reference');
+        return prevServers;
       }
-      prevServersRef.current = updated;
-      return updated;
+      console.log('[updateServersList] List changed');
+      return result;
+    });
+  }, [extractListFields]);
+
+  // Always update serversFull, but preserve references for unchanged servers
+  const updateServersFull = useCallback((newServers: Record<string, MCPServer>) => {
+    setServersFull(prevServers => {
+      let changed = false;
+      const result: Record<string, MCPServer> = {};
+      for (const key of Object.keys(newServers)) {
+        const prev = prevServers[key];
+        const next = newServers[key];
+        if (!isServerEqual(prev, next)) {
+          changed = true;
+          result[key] = next;
+        } else {
+          result[key] = prev;
+        }
+      }
+      if (!changed && Object.keys(prevServers).length === Object.keys(newServers).length) {
+        console.log('[updateServersFull] No change, preserving reference');
+        return prevServers;
+      }
+      console.log('[updateServersFull] Details changed');
+      return result;
     });
   }, []);
 
-  const updateTools = useCallback((newTools: any, serverName: string) => {
-    setTools(prevTools => {
-      if (!newTools || !newTools[serverName]) return { tools: [], error: `No tools found for server: ${serverName}` };
-      // Only update if tool list changed (by name/length)
-      const prevList = prevTools?.tools || [];
-      const nextList = newTools[serverName].tools || [];
-      if (
-        prevList.length !== nextList.length ||
-        prevList.some((t: any, i: number) => t.name !== nextList[i]?.name)
-      ) {
-        prevToolsRef.current = newTools[serverName];
-        return newTools[serverName];
-      }
-      // Otherwise, keep previous
-      return prevTools;
-    });
-  }, []);
-
+  // Update fetchStatus to update both
   const fetchStatus = async () => {
     setLoading(true);
     try {
       const response = await fetch('http://127.0.0.1:5859/status');
       if (!response.ok) throw new Error('Failed to fetch MCP status');
       const data = await response.json();
-      updateServers(data);
+      updateServersList(data);
+      updateServersFull(data);
       setError(null);
-      // Only update selectedServer if it is not set or no longer exists
-      if (
-        typeof selectedServerRef.current === 'undefined' ||
-        selectedServerRef.current === null ||
-        !(selectedServerRef.current in data)
-      ) {
+      // Only update selectedItem if it doesn't exist in the new data
+      if (selectedItem.type === 'server' && selectedItem.id && !(selectedItem.id in data)) {
         const keys = Object.keys(data);
-        setSelectedServer(keys.length > 0 ? keys[0] : null);
+        setSelectedItem({ type: 'server', id: keys.length > 0 ? keys[0] : null });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch MCP status');
@@ -520,7 +710,7 @@ export default function MCPManager({ className }: MCPManagerProps) {
       if (!response.ok) throw new Error('Failed to fetch tools');
       const data = await response.json();
       console.log('Fetched tools:', data);
-      updateTools(data, serverName);
+      setTools(data[serverName]);
     } catch (err) {
       setTools({ tools: [], error: err instanceof Error ? err.message : 'Failed to fetch tools' });
     } finally {
@@ -536,7 +726,7 @@ export default function MCPManager({ className }: MCPManagerProps) {
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
       await fetchStatus();
-      if (selectedServer) fetchTools(selectedServer);
+      if (selectedItem.type === 'server' && selectedItem.id) fetchTools(selectedItem.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} server`);
     } finally {
@@ -558,20 +748,20 @@ export default function MCPManager({ className }: MCPManagerProps) {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
-    // eslint-disable-next-line
   }, []);
 
+  // Update tools fetching effect to use selectedItem
   useEffect(() => {
-    if (selectedServer && servers[selectedServer]) {
-      fetchTools(selectedServer);
+    if (selectedItem.type === 'server' && selectedItem.id && serversFull[selectedItem.id]) {
+      fetchTools(selectedItem.id);
     }
-  }, [selectedServer, servers]);
+  }, [selectedItem.id, serversFull]); // Only depend on selectedItem.id and serversFull
 
   useEffect(() => {
     if (!tools || !tools.tools) return;
     setToolCardState(prev => {
       const prevKeys = new Set(Object.keys(prev));
-      const toolNames = new Set(tools.tools.map(t => t.name));
+      const toolNames = new Set(tools.tools.map((t: any) => t.name));
       // Only update if the set of tool names has changed
       if (
         prevKeys.size === toolNames.size &&
@@ -587,84 +777,174 @@ export default function MCPManager({ className }: MCPManagerProps) {
     });
   }, [tools]);
 
+  // Add new handlers for MCP system actions
+  const handleMcpLaunch = async () => {
+    setMcpActionLoading('launch');
+    try {
+      const response = await fetch('http://127.0.0.1:5859/launch', {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to launch MCP');
+      await fetchStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to launch MCP');
+    } finally {
+      setMcpActionLoading(null);
+    }
+  };
+
+  const handleMcpShutdown = async () => {
+    setMcpActionLoading('shutdown');
+    try {
+      const response = await fetch('http://127.0.0.1:5859/shutdown', {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to shutdown MCP');
+      await fetchStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to shutdown MCP');
+    } finally {
+      setMcpActionLoading(null);
+    }
+  };
+
+  const handleMcpRestart = async () => {
+    setMcpActionLoading('restart');
+    try {
+      await handleMcpShutdown();
+      await handleMcpLaunch();
+    } finally {
+      setMcpActionLoading(null);
+    }
+  };
+
+  const handleMcpSettings = () => {
+    // TODO: Implement settings modal
+    console.log('Opening MCP settings');
+  };
+
   return (
     <div className={`h-full ${className || ''}`}>
       <ResizablePanelGroup direction="horizontal">
-        {/* Left: Server List */}
+        {/* Left: Navigation Panel */}
         <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-          <div className="h-full bg-[#181818] flex flex-col overflow-y-auto">
-            <div className="p-4 font-bold text-lg border-b">MCP Servers</div>
-            {loading ? (
-              <div className="p-4">Loading servers...</div>
-            ) : error ? (
-              <div className="p-4 text-red-500 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                {error}
-              </div>
-            ) : (
-              <ul className="flex-1 divide-y divide-gray-800">
-                {Object.entries(servers).map(([name, server]) => (
-                  <li
-                    key={name}
-                    className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${selectedServer === name ? 'bg-[#232323] font-semibold' : ''}`}
-                    onClick={() => setSelectedServer(name)}
-                  >
-                    <div className="flex items-center">
-                      <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
-                      <span className="flex-1">{name}</span>
-                      <span className="text-xs text-gray-400 ml-2">{server.state}</span>
-                      {server.healthy ? <CheckCircle className="h-4 w-4 text-green-400 ml-2" /> : <XCircle className="h-4 w-4 text-red-400 ml-2" />}
-                    </div>
-                    {(server.tool_count !== undefined || server.token_count !== undefined) && (
-                      <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
-                        {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
-                        {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <NavigationPanel
+            servers={serversList}
+            selectedItem={selectedItem}
+            setSelectedItem={setSelectedItem}
+            loading={loading}
+            error={error}
+            getStateColor={getStateColor}
+            scrollPos={scrollPositions.current['nav'] ?? 0}
+            setScrollPos={pos => { scrollPositions.current['nav'] = pos; }}
+          />
         </ResizablePanel>
         <ResizableHandle withHandle className="bg-[#23232b]" />
-        {/* Right: Server Details */}
+        {/* Right: Details Panel */}
         <ResizablePanel defaultSize={75} minSize={60}>
           <div className="h-full p-0 bg-gradient-to-br from-[#18181b] to-[#23232b]">
-            <ServerDetailsPanel
-              server={selectedServer ? servers[selectedServer] : null}
-              tools={tools}
-              toolsLoading={toolsLoading}
-              toolCardState={toolCardState}
-              onToolExpand={(tool: string, expanded: boolean) => setToolCardState(prev => ({
-                ...prev,
-                [tool]: {
-                  ...prev[tool],
-                  expanded,
-                },
-              }))}
-              onParamChange={(tool: string, param: string, value: any) => setToolCardState(prev => ({
-                ...prev,
-                [tool]: {
-                  ...prev[tool],
-                  paramValues: {
-                    ...((prev[tool] && prev[tool].paramValues) || {}),
-                    [param]: value,
+            {selectedItem.type === 'manager' ? (
+              <div className="h-full w-full flex flex-col justify-center items-center p-0 overflow-y-auto">
+                <Card className="w-full h-full shadow-xl rounded-xl bg-[#20212b] border-0 flex flex-col">
+                  <CardHeader className="flex flex-row items-start justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
+                    <div className="flex flex-col gap-4">
+                      <CardTitle className="text-2xl font-extrabold tracking-tight">
+                        MCP System Control
+                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="text-base px-3 py-1 rounded-full">
+                          System
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleMcpLaunch}
+                        disabled={!!mcpActionLoading}
+                      >
+                        <Power className="h-4 w-4 mr-1" /> Launch MCP
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleMcpShutdown}
+                        disabled={!!mcpActionLoading}
+                      >
+                        <PowerOff className="h-4 w-4 mr-1" /> Shutdown
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleMcpRestart}
+                        disabled={!!mcpActionLoading}
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" /> Restart
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleMcpSettings}
+                      >
+                        <Settings className="h-4 w-4 mr-1" /> Settings
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-8 flex flex-col gap-8 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-6 text-base">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-gray-400 font-medium">Active Servers</span>
+                        <span className="font-mono text-lg">{Object.keys(serversFull).length}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-gray-400 font-medium">Total Tools</span>
+                        <span className="font-mono text-lg">
+                          {Object.values(serversFull).reduce((sum, server) => sum + (server.tool_count || 0), 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <ServerDetailsPanel
+                server={selectedItem.type === 'server' && selectedItem.id ? serversFull[selectedItem.id] : null}
+                tools={tools}
+                toolsLoading={toolsLoading}
+                toolCardState={toolCardState}
+                onToolExpand={(tool: string, expanded: boolean) => setToolCardState(prev => ({
+                  ...prev,
+                  [tool]: {
+                    ...prev[tool],
+                    expanded,
                   },
-                },
-              }))}
-              getStateColor={getStateColor}
-              onAction={handleAction}
-              onRestart={handleRestart}
-              fetchStatus={fetchStatus}
-              loading={loading}
-              actionLoading={actionLoading}
-              scrollRef={scrollRef}
-              scrollPos={selectedServer ? scrollPositions.current[selectedServer] ?? 0 : 0}
-              setScrollPos={(pos: number) => {
-                if (selectedServer) scrollPositions.current[selectedServer] = pos;
-              }}
-            />
+                }))}
+                onParamChange={(tool: string, param: string, value: any) => setToolCardState(prev => ({
+                  ...prev,
+                  [tool]: {
+                    ...prev[tool],
+                    paramValues: {
+                      ...((prev[tool] && prev[tool].paramValues) || {}),
+                      [param]: value,
+                    },
+                  },
+                }))}
+                getStateColor={getStateColor}
+                onAction={handleAction}
+                onRestart={handleRestart}
+                fetchStatus={fetchStatus}
+                loading={loading}
+                actionLoading={actionLoading}
+                scrollRef={scrollRef}
+                scrollPos={selectedItem.type === 'server' && selectedItem.id ? scrollPositions.current[selectedItem.id] ?? 0 : 0}
+                setScrollPos={(pos: number) => {
+                  if (selectedItem.type === 'server' && selectedItem.id) {
+                    scrollPositions.current[selectedItem.id] = pos;
+                  }
+                }}
+              />
+            )}
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
