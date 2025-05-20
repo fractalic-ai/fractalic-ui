@@ -733,12 +733,35 @@ export default function MCPManager({ className }: MCPManagerProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Update tools fetching effect to use selectedItem
+  // Add a new effect that only fetches tools when selected server changes, or tool_count, restarts, or uptime decrease
+  const prevServerRef = useRef<MCPServer | null>(null);
   useEffect(() => {
-    if (selectedItem.type === 'server' && selectedItem.id && serversFull[selectedItem.id]) {
-      fetchTools(selectedItem.id);
+    if (selectedItem.type === 'server' && typeof selectedItem.id === 'string' && selectedItem.id) {
+      const server = serversFull[selectedItem.id];
+      const prevServer = prevServerRef.current;
+      let shouldFetch = false;
+      if (!server) return;
+      if (!prevServer || prevServer.name !== server.name) {
+        shouldFetch = true;
+      } else {
+        // Check tool_count, restarts, uptime decrease, or PID change
+        if (
+          prevServer.tool_count !== server.tool_count ||
+          prevServer.restarts !== server.restarts ||
+          prevServer.pid !== server.pid ||
+          (typeof prevServer.uptime === 'number' && typeof server.uptime === 'number' && server.uptime < prevServer.uptime)
+        ) {
+          shouldFetch = true;
+        }
+      }
+      if (shouldFetch) {
+        fetchTools(selectedItem.id);
+      }
+      prevServerRef.current = server;
+    } else {
+      prevServerRef.current = null;
     }
-  }, [selectedItem.id, serversFull]); // Only depend on selectedItem.id and serversFull
+  }, [selectedItem.type, selectedItem.id, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.tool_count : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.restarts : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.pid : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.uptime : undefined]);
 
   useEffect(() => {
     if (!tools || !tools.tools) return;
