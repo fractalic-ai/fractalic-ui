@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Wrench } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 interface ToolsManagerProps {
   currentEditPath: string;
@@ -57,7 +58,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
       {/* Left: Tool List */}
       <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-2 bg-[#181820] h-full">
+          <div className="p-4 space-y-2 bg-[#181818] h-full">
             <div className="flex items-center gap-2 mb-4">
               <Wrench className="h-6 w-6 text-gray-300" />
               <span className="font-bold text-lg text-gray-100">Tools Manager</span>
@@ -65,16 +66,20 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
             {loading && <div className="text-gray-400">Loading tools...</div>}
             {error && <div className="text-red-400">{error}</div>}
             {!loading && !error && tools.length === 0 && <div className="text-gray-400">No tools found.</div>}
-            <ul className="space-y-1">
+            <ul className="divide-y divide-gray-800">
               {tools.map((tool, idx) => (
-                <li key={tool.function.name}>
-                  <button
-                    className={`w-full text-left px-3 py-2 rounded hover:bg-[#23232b] ${selectedToolIdx === idx ? 'bg-[#23232b] text-white' : 'text-gray-300'}`}
-                    onClick={() => setSelectedToolIdx(idx)}
-                  >
-                    <span className="font-mono font-semibold">{tool.function.name}</span>
-                    <div className="text-xs text-gray-400 truncate">{tool.function.description}</div>
-                  </button>
+                <li
+                  key={tool.function.name}
+                  className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${
+                    selectedToolIdx === idx ? 'bg-[#232323] font-semibold' : ''
+                  }`}
+                  onClick={() => setSelectedToolIdx(idx)}
+                >
+                  <div className="flex items-center">
+                    <Wrench className="h-4 w-4 text-gray-400 mr-3" />
+                    <span className="flex-1 font-mono">{tool.function.name}</span>
+                  </div>
+                  <div className="ml-7 text-xs text-gray-500 truncate mt-1">{tool.function.description}</div>
                 </li>
               ))}
             </ul>
