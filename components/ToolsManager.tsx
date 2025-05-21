@@ -90,40 +90,36 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
       {/* Right: Tool Details */}
       <ResizablePanel defaultSize={75} minSize={40}>
         <ScrollArea className="h-full">
-          <div className="p-8 h-full">
+          <div className="h-full">
             {selectedTool ? (
-              <Card className="w-full max-w-2xl mx-auto bg-[#20212b] border-0 shadow-xl">
-                <CardHeader>
-                  <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                    <Wrench className="h-5 w-5 text-gray-400" />
-                    <span>{selectedTool.function.name}</span>
-                  </CardTitle>
-                  <div className="text-gray-400 mt-2">{selectedTool.function.description}</div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="mb-2 font-semibold text-gray-300">Parameters:</div>
-                  {Object.keys(selectedTool.function.parameters.properties).length === 0 ? (
-                    <div className="text-gray-400">No parameters.</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {Object.entries(selectedTool.function.parameters.properties).map(([param, info]) => (
-                        <div key={param} className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-base text-gray-200">{param}</span>
-                            {selectedTool.function.parameters.required?.includes(param) && (
-                              <Badge className="bg-blue-600 text-white ml-2">required</Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400">{info.description || ''}</div>
-                          <Input disabled value={info.type} className="w-32 text-xs bg-[#23232b] border-0 text-gray-400" />
+              <div className="h-full w-full flex flex-col bg-[#20212b] p-8">
+                <div className="flex items-center gap-3 mb-2">
+                  <Wrench className="h-8 w-8 text-gray-400" />
+                  <span className="text-3xl font-extrabold">{selectedTool.function.name}</span>
+                </div>
+                <div className="text-xl text-gray-300 mb-6">{selectedTool.function.description}</div>
+                <div className="text-lg font-semibold text-gray-200 mb-3">Parameters:</div>
+                {Object.keys(selectedTool.function.parameters.properties).length === 0 ? (
+                  <div className="text-gray-400 text-base">No parameters.</div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.entries(selectedTool.function.parameters.properties).map(([param, info]) => (
+                      <div key={param} className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-mono text-gray-100">{param}</span>
+                          {selectedTool.function.parameters.required?.includes(param) && (
+                            <Badge className="bg-blue-600 text-white ml-2 text-base px-2 py-1">required</Badge>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                        <div className="text-base text-gray-400">{info.description || ''}</div>
+                        <Input disabled value={info.type} className="w-40 text-base bg-[#23232b] border-0 text-gray-400" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="text-gray-400 text-lg flex items-center justify-center h-full">Select a tool to view details.</div>
+              <div className="text-gray-400 text-2xl flex items-center justify-center h-full font-semibold">Select a tool to view details.</div>
             )}
           </div>
         </ScrollArea>
