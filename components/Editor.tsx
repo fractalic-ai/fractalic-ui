@@ -199,6 +199,7 @@ function EditorComponent(props: EditorProps) {
   };
 
   const handleRunWithStateReset = () => {
+    console.log('[Editor] Run button clicked');
     handleRun();
     setIsButtonClicked(false);
   };
@@ -354,6 +355,10 @@ function EditorComponent(props: EditorProps) {
     
     processInspectorTrace();
   }, [props.selectedView, props.selectedCommit, props.repoPath, traceData]);
+
+  useEffect(() => {
+    console.log('[Editor] branchNotification changed:', branchNotification);
+  }, [branchNotification]);
 
   const renderEditorSettings = () => (
     <div className="flex items-center space-x-4 p-2 border-b border-border bg-card text-card-foreground">
@@ -738,6 +743,7 @@ function EditorComponent(props: EditorProps) {
         </div>
         <div className="flex items-center space-x-2">
           {branchNotification && (
+            console.log('[Editor] Rendering View Changes button, branchNotification:', branchNotification),
             <Button
               variant="outline"
               size="sm"

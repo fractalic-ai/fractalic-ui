@@ -7,21 +7,23 @@ import 'xterm/css/xterm.css';
 
 interface DynamicTerminalProps {
   onSendCommand: (command: string, onData: (chunk: string | null) => void) => void;
+  onExecuteFile: (onData: (chunk: string | null) => void) => void;
   currentPath: string;
   currentFilePath: string;
-  initialCommand?: string;
   onSpecialOutput: (branchId: string, fileHash: string, filePath: string) => void;
   initializedRef: React.MutableRefObject<boolean>;
+  triggerCommand?: string;
 }
 
 function DynamicTerminal(props: DynamicTerminalProps) {
   const {
     onSendCommand,
+    onExecuteFile,
     currentPath,
     currentFilePath,
-    initialCommand,
     onSpecialOutput,
     initializedRef,
+    triggerCommand,
   } = props;
 
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -29,21 +31,32 @@ function DynamicTerminal(props: DynamicTerminalProps) {
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputBufferRef = useRef<string>('');
   const currentWorkingDirRef = useRef<string>(currentPath);
+  const lastTriggerCommandRef = useRef<string | undefined>(undefined);
 
   const updatePrompt = useCallback(() => {
     if (terminalInstanceRef.current) {
       terminalInstanceRef.current.write(`${currentWorkingDirRef.current}$ `);
     }
   }, []);
-
   const handleTerminalData = useCallback(
     (data: string) => {
+      console.log('[DynamicTerminal] handleTerminalData received:', JSON.stringify(data));
+      // Run the regex on the raw data
       const regex = /\[EventMessage: Root-Context-Saved\] ID: ([\w-]+), (\w+)/;
       const match = data.match(regex);
       if (match) {
+        console.log('[DynamicTerminal] EventMessage matched:', match);
         const [, branchId, fileHash] = match;
+        console.log('[DynamicTerminal] Calling onSpecialOutput with:', { branchId, fileHash, currentFilePath });
         onSpecialOutput(branchId, fileHash, currentFilePath);
+      } else {
+        // Check if data contains the EventMessage pattern but doesn't match
+        if (data.includes('[EventMessage: Root-Context-Saved]')) {
+          console.log('[DynamicTerminal] EventMessage found but regex failed to match. Data:', JSON.stringify(data));
+          console.log('[DynamicTerminal] Regex used:', regex.toString());
+        }
       }
+      // Write the raw data to the terminal (no cleaning for event parsing)
       terminalInstanceRef.current?.write(data);
     },
     [onSpecialOutput, currentFilePath]
@@ -54,83 +67,64 @@ function DynamicTerminal(props: DynamicTerminalProps) {
       const newWorkingDir = path.dirname(currentFilePath);
       if (newWorkingDir !== currentWorkingDirRef.current) {
         currentWorkingDirRef.current = newWorkingDir;
-        terminalInstanceRef.current?.writeln(`\r\nChanging directory to: ${newWorkingDir}`);
+        terminalInstanceRef.current?.writeln(`Changing directory to: ${newWorkingDir}`);
       }
     }
-  }, [currentFilePath]);
+  }, [currentFilePath]);  // Handle triggerCommand changes
+  useEffect(() => {
+    if (triggerCommand && triggerCommand !== lastTriggerCommandRef.current) {
+      console.log('[DynamicTerminal] Trigger command changed from', lastTriggerCommandRef.current, 'to', triggerCommand);
+      lastTriggerCommandRef.current = triggerCommand;
+      if (currentFilePath) {
+        console.log('[DynamicTerminal] onExecuteFile called from triggerCommand effect');
+        // Clear the terminal before executing
+        terminalInstanceRef.current?.clear();
+        // Execute the file regardless of the command value
+        onExecuteFile((chunk) => {
+          console.log('[DynamicTerminal] onExecuteFile received chunk:', chunk);
+          if (chunk === null) {
+            // End of stream
+            updatePrompt();
+            return;
+          }
+          // Use handleTerminalData instead of writing directly to ensure regex matching
+          handleTerminalData(chunk);
+        });
+      } else {
+        console.log('[DynamicTerminal] No currentFilePath, cannot execute');
+      }
+    }
+  }, [triggerCommand, currentFilePath, onExecuteFile, updatePrompt, handleTerminalData]);
 
   const initializeTerminal = useCallback(() => {
     if (!terminalRef.current || terminalInstanceRef.current) return;
 
-    console.log('Initializing terminal');
     const newTerminal = new Terminal({
       cursorBlink: true,
-      theme: {
-        background: '#1e1e1e',
-        cursor: '#d4d4d4',
-        black: '#000000',
-        red: '#cd3131',
-        green: '#0dbc79',
-        yellow: '#e5e510',
-        blue: '#2472c8',
-        magenta: '#bc3fbc',
-        cyan: '#11a8cd',
-        white: '#e5e5e5',
-        brightBlack: '#666666',
-        brightRed: '#f14c4c',
-        brightGreen: '#23d18b',
-        brightYellow: '#f5f543',
-        brightBlue: '#3b8eea',
-        brightMagenta: '#d670d6',
-        brightCyan: '#29b8db',
-        brightWhite: '#ffffff'
-        
-       /*
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-        // Add full ANSI color palette
-        black: '#000000',
-        red: '#cd3131',
-        green: '#0dbc79',
-        yellow: '#e5e510',
-        blue: '#2472c8',
-        magenta: '#bc3fbc',
-        cyan: '#11a8cd',
-        white: '#e5e5e5',
-        brightBlack: '#666666',
-        brightRed: '#f14c4c',
-        brightGreen: '#23d18b',
-        brightYellow: '#f5f543',
-        brightBlue: '#3b8eea',
-        brightMagenta: '#d670d6',
-        brightCyan: '#29b8db',
-        brightWhite: '#ffffff'
-        */
-      },
-      allowProposedApi: true,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 14,
-      scrollback: 1000,
-      convertEol: true,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      theme: {
+        background: '#1a1a1a',
+        foreground: '#ffffff',
+      },
+      convertEol: true, // Convert line endings to \n
+      cols: 80, // Set a reasonable default width
     });
 
     const fitAddon = new FitAddon();
     newTerminal.loadAddon(fitAddon);
-
     newTerminal.open(terminalRef.current);
     fitAddon.fit();
 
     terminalInstanceRef.current = newTerminal;
     fitAddonRef.current = fitAddon;
 
-    newTerminal.writeln('Terminal initialized. Ready for commands.');
-
-    // If there's an initial command and not yet initialized
-    if (!initializedRef.current && initialCommand) {
-      if (initialCommand === '__INITIAL__') {
+    // Only execute initial command if not already initialized
+    if (!initializedRef.current && currentFilePath) {
+      const isEditMode = window.location.pathname.includes('/edit');
+      if (isEditMode) {
         handleFileExecution();
-        onSendCommand(initialCommand, (chunk) => {
+        onExecuteFile((chunk) => {
           if (chunk === null) {
             updatePrompt();
             initializedRef.current = true;
@@ -141,6 +135,7 @@ function DynamicTerminal(props: DynamicTerminalProps) {
       }
     } else {
       updatePrompt();
+      initializedRef.current = true;
     }
 
     newTerminal.onData((data) => {
@@ -171,12 +166,13 @@ function DynamicTerminal(props: DynamicTerminalProps) {
       }
     });
   }, [
-    initialCommand,
     handleFileExecution,
     onSendCommand,
+    onExecuteFile,
     handleTerminalData,
     updatePrompt,
     initializedRef,
+    currentFilePath,
   ]);
 
   useEffect(() => {

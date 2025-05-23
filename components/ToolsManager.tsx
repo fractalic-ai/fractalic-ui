@@ -29,6 +29,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
   const [selectedToolIdx, setSelectedToolIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 
   useEffect(() => {
     const fetchTools = async () => {
@@ -51,7 +52,21 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
     fetchTools();
   }, [currentEditPath]);
 
+  useEffect(() => {
+    setSelectedVariantIndex(0);
+  }, [selectedToolIdx]);
+
   const selectedTool = selectedToolIdx !== null ? tools[selectedToolIdx] : null;
+
+  let paramSchema: any = selectedTool?.function?.parameters;
+  let variants: any[] = paramSchema?.oneOf || [];
+  let hasVariants = variants.length > 0;
+  let flatProperties: Record<string, { type: string; description?: string }> = {};
+  let flatRequired: string[] = [];
+  if (!hasVariants && paramSchema?.properties) {
+    flatProperties = paramSchema.properties;
+    flatRequired = paramSchema.required || [];
+  }
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full w-full">
@@ -99,23 +114,63 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
                 </div>
                 <div className="text-xl text-gray-300 mb-6">{selectedTool.function.description}</div>
                 <div className="text-lg font-semibold text-gray-200 mb-3">Parameters:</div>
-                {Object.keys(selectedTool.function.parameters.properties).length === 0 ? (
-                  <div className="text-gray-400 text-base">No parameters.</div>
-                ) : (
-                  <div className="space-y-6">
-                    {Object.entries(selectedTool.function.parameters.properties).map(([param, info]) => (
-                      <div key={param} className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-mono text-gray-100">{param}</span>
-                          {selectedTool.function.parameters.required?.includes(param) && (
-                            <Badge className="bg-blue-600 text-white ml-2 text-base px-2 py-1">required</Badge>
+                {/* Show all variants if present, otherwise flat schema */}
+                {hasVariants ? (
+                  <div className="space-y-10">
+                    {variants.map((variant, idx) => {
+                      const properties = variant.properties || {};
+                      const required = variant.required || [];
+                      const opName = properties.op?.const || `Operation ${idx + 1}`;
+                      return (
+                        <div key={idx} className="border border-gray-700 rounded-lg p-4 bg-[#23232b]">
+                          <div className="text-base font-bold text-blue-300 mb-3">{opName}</div>
+                          {Object.keys(properties).length === 0 ? (
+                            <div className="text-gray-400 text-base">No parameters.</div>
+                          ) : (
+                            <div className="space-y-6">
+                              {Object.entries(properties).map(([param, info]) => {
+                                const paramInfo = info as { type: string; description?: string };
+                                return (
+                                  <div key={param} className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg font-mono text-gray-100">{param}</span>
+                                      {required.includes(param) && (
+                                        <Badge className="bg-blue-600 text-white ml-2 text-base px-2 py-1">required</Badge>
+                                      )}
+                                    </div>
+                                    <div className="text-base text-gray-400">{paramInfo.description || ''}</div>
+                                    <Input disabled value={paramInfo.type} className="w-40 text-base bg-[#23232b] border-0 text-gray-400" />
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                        <div className="text-base text-gray-400">{info.description || ''}</div>
-                        <Input disabled value={info.type} className="w-40 text-base bg-[#23232b] border-0 text-gray-400" />
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                ) : (
+                  Object.keys(flatProperties).length === 0 ? (
+                    <div className="text-gray-400 text-base">No parameters.</div>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(flatProperties).map(([param, info]) => {
+                        const paramInfo = info as { type: string; description?: string };
+                        return (
+                          <div key={param} className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-mono text-gray-100">{param}</span>
+                              {flatRequired.includes(param) && (
+                                <Badge className="bg-blue-600 text-white ml-2 text-base px-2 py-1">required</Badge>
+                              )}
+                            </div>
+                            <div className="text-base text-gray-400">{paramInfo.description || ''}</div>
+                            <Input disabled value={paramInfo.type} className="w-40 text-base bg-[#23232b] border-0 text-gray-400" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
                 )}
               </div>
             ) : (

@@ -153,12 +153,13 @@ const getIconClass = (fileName: string, isDir: boolean): string => {
 };
 
 interface ConsoleProps {
-  // We keep the same props as before but no longer need "ref".
   setShowConsole: (show: boolean) => void;
   onResize: () => void;
   currentPath: string;
   currentFilePath: string;
   onSpecialOutput: (branchId: string, fileHash: string, filePath: string) => void;
+  shouldRunFile?: boolean;
+  triggerCommand?: string;
 }
 
 // Dynamically imported Console with no forwardRef
@@ -196,6 +197,7 @@ export default function GitDiffViewer() {
     branchId: string;
     fileHash: string;
     filePath: string;
+    _ts?: number;
   } | null>(null);
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   const [previousPanelSize, setPreviousPanelSize] = useState(25);
@@ -204,6 +206,8 @@ export default function GitDiffViewer() {
   const [isEditing, setIsEditing] = useState<'file' | 'folder' | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const { updateTraceEntry } = useTrace();
+  const [shouldRunFile, setShouldRunFile] = useState(false);
+  const [triggerCommand, setTriggerCommand] = useState<string | undefined>(undefined);
 
   // Ref to track initial mount completion
   const isMountedRef = useRef(false);
@@ -589,11 +593,24 @@ export default function GitDiffViewer() {
   );
 
   const handleSpecialOutput = useCallback((branchId: string, fileHash: string, filePath: string) => {
-    setBranchNotification({ branchId, fileHash, filePath });
+    const notification = { branchId: String(branchId), fileHash: String(fileHash), filePath: String(filePath), _ts: Date.now() };
+    console.log('[GitDiffViewer] handleSpecialOutput called with:', { branchId, fileHash, filePath });
+    console.log('[GitDiffViewer] handleSpecialOutput set branchNotification:', notification);
+    setBranchNotification(notification);
   }, []);
 
   const handleRun = useCallback(() => {
+    // Always show console when run is clicked
     setShowConsole(true);
+    // Use a unique identifier to ensure the effect in DynamicTerminal will always trigger
+    const uniqueCommand = `run-${Date.now()}`;
+    console.log('[GitDiffViewer] handleRun setting triggerCommand to:', uniqueCommand);
+    setTriggerCommand(uniqueCommand);
+  }, []);
+
+  const handleConsoleClose = useCallback(() => {
+    setShowConsole(false);
+    setTriggerCommand(undefined);
   }, []);
 
   const handleBranchHashClick = useCallback(
@@ -973,6 +990,10 @@ export default function GitDiffViewer() {
     }
   };
 
+  useEffect(() => {
+    console.log('[GitDiffViewer] branchNotification changed:', branchNotification);
+  }, [branchNotification]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#141414] text-foreground">
       <Header
@@ -1101,17 +1122,17 @@ export default function GitDiffViewer() {
           {/* Right Panel */}
           <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 2 : 1}>
             <div className="flex flex-col h-full bg-[#141414]">
-              {mode === 'toolsManager' ? (
-                <ToolsManager currentEditPath={currentEditPath} />
-              ) : (
-                <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
-                  <ResizablePanel
-                    defaultSize={showConsole ? 70 : 100}
-                    minSize={30}
-                    id="editor-panel"
-                    order={1}
-                  >
-                    <div className="relative h-full">
+              <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
+                <ResizablePanel
+                  defaultSize={showConsole ? 70 : 100}
+                  minSize={30}
+                  id="editor-panel"
+                  order={1}
+                >
+                  <div className="relative h-full">
+                    {mode === 'toolsManager' ? (
+                      <ToolsManager currentEditPath={currentEditPath} />
+                    ) : (
                       <Editor
                         mode={mode}
                         selectedView={selectedView}
@@ -1136,27 +1157,29 @@ export default function GitDiffViewer() {
                         handleBranchSelect={handleBranchSelect}
                         onSave={() => Promise.resolve()}
                       />
-                    </div>
-                  </ResizablePanel>
-                  {/* Console Panel */}
-                  {showConsole && (
-                    <>
-                      <ResizableHandle />
-                      <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
-                        <div className="h-full w-full overflow-hidden bg-[#141414]">
-                          <DynamicConsole
-                            setShowConsole={setShowConsole}
-                            onResize={handlePanelResize}
-                            currentPath={mode === 'git' ? currentGitPath : currentEditPath}
-                            currentFilePath={currentFilePath}
-                            onSpecialOutput={handleSpecialOutput}
-                          />
-                        </div>
-                      </ResizablePanel>
-                    </>
-                  )}
-                </ResizablePanelGroup>
-              )}
+                    )}
+                  </div>
+                </ResizablePanel>
+                {/* Console Panel */}
+                {showConsole && (
+                  <>
+                    <ResizableHandle />
+                    <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
+                      <div className="h-full w-full overflow-hidden bg-[#141414]">
+                        <DynamicConsole
+                          setShowConsole={handleConsoleClose}
+                          onResize={handlePanelResize}
+                          currentPath={mode === 'git' ? currentGitPath : currentEditPath}
+                          currentFilePath={currentFilePath}
+                          onSpecialOutput={handleSpecialOutput}
+                          shouldRunFile={shouldRunFile}
+                          triggerCommand={triggerCommand}
+                        />
+                      </div>
+                    </ResizablePanel>
+                  </>
+                )}
+              </ResizablePanelGroup>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
