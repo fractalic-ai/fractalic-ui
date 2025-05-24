@@ -374,11 +374,278 @@ const ToolCard = React.memo(function ToolCard({
   );
 });
 
+
+// Server List Component - Memoized
+const ServerList = React.memo(function ServerList({
+  servers,
+  selectedServerName,
+  onSelect
+}: {
+  servers: MCPServer[];
+  selectedServerName: string | null;
+  onSelect: (serverName: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {servers.map((server) => (
+        <ServerCard
+          key={server.name}
+          server={server}
+          isSelected={selectedServerName === server.name}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+});
+
+// Server Details Panel Component - Memoized
+const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
+  server,
+  tools,
+  toolsLoading,
+  actionLoading,
+  toolCardState,
+  onAction,
+  onRestart,
+  onToolExpand,
+  onParamChange,
+  initialLoading,
+  fetchStatus
+}: {
+  server: MCPServer;
+  tools: MCPTool[];
+  toolsLoading: boolean;
+  actionLoading: string | null;
+  toolCardState: Record<string, { expanded: boolean; paramValues: Record<string, any> }>;
+  onAction: (action: 'start' | 'stop', serverName: string) => void;
+  onRestart: (serverName: string) => void;
+  onToolExpand: (toolName: string, expanded: boolean) => void;
+  onParamChange: (toolName: string, paramName: string, value: any) => void;
+  initialLoading: boolean;
+  fetchStatus: () => void;
+}) {
+  if (!server) return null;
+
+  return (
+    <div className="h-full w-full bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
+      {/* Header Section */}
+      <div className="border-b border-gray-800 bg-[#141414]/80 backdrop-blur-sm">
+        <div className="p-8">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+              <Server className="h-8 w-8 text-white" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-white mb-2">{server.name}</h1>
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  {getStateIcon(server.state)}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    server.state === 'running' ? 'bg-green-500/20 text-green-400' :
+                    server.state === 'stopped' ? 'bg-gray-500/20 text-gray-400' :
+                    server.state === 'errored' ? 'bg-red-500/20 text-red-400' :
+                    'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {server.state.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Clock className="h-4 w-4" />
+                  <span>Uptime: <Uptime value={server.uptime} /></span>
+                </div>
+                {server.tool_count !== undefined && (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Wrench className="h-4 w-4" />
+                    <span>{server.tool_count} tools</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => onAction(server.state === 'running' ? 'stop' : 'start', server.name)}
+                disabled={actionLoading === (server.state === 'running' ? 'stop' : 'start') + server.name}
+                size="sm"
+                variant={server.state === 'running' ? 'destructive' : 'default'}
+                className="min-w-[80px]"
+              >
+                {actionLoading === (server.state === 'running' ? 'stop' : 'start') + server.name ? (
+                  <RotateCw className="h-4 w-4 animate-spin" />
+                ) : server.state === 'running' ? (
+                  <>
+                    <Square className="h-4 w-4 mr-2" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Start
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => onRestart(server.name)}
+                disabled={actionLoading === 'restart' + server.name}
+                size="sm"
+                variant="outline"
+                className="min-w-[80px]"
+              >
+                {actionLoading === 'restart' + server.name ? (
+                  <RotateCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RotateCw className="h-4 w-4 mr-2" />
+                    Restart
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={fetchStatus}
+                disabled={initialLoading}
+                size="sm"
+                variant="outline"
+              >
+                {initialLoading ? (
+                  <RotateCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCw className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Server Details */}
+      <div className="p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-white flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-400" />
+                Server Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Process ID</span>
+                <span className="font-mono text-white">{server.pid || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Transport</span>
+                <span className="font-mono text-white">{server.transport}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Healthy</span>
+                <span className={`font-medium ${server.healthy ? 'text-green-400' : 'text-red-400'}`}>
+                  {server.healthy ? 'Yes' : 'No'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Retries</span>
+                <span className="font-mono text-white">{server.retries}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Restarts</span>
+                <span className="font-mono text-white">{server.restarts}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-white flex items-center gap-2">
+                <Wrench className="h-5 w-5 text-purple-400" />
+                Tool Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Tool Count</span>
+                <span className="font-mono text-white">{server.tool_count ?? 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Token Count</span>
+                <span className="font-mono text-white">{server.token_count ?? 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Last Output Renewal</span>
+                <span className="font-mono text-white">
+                  {server.last_output_renewal ? new Date(server.last_output_renewal * 1000).toLocaleTimeString() : 'N/A'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Error Display */}
+        {server.last_error && (
+          <Card className="border-0 bg-red-500/10 border-red-500/20 shadow-xl mb-8">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Last Error
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-sm text-red-300 whitespace-pre-wrap overflow-auto max-h-32">
+                {server.last_error}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tools Section */}
+        <div className="flex items-center gap-3 mb-6">
+          <Wrench className="h-6 w-6 text-blue-400" />
+          <h2 className="text-2xl font-bold text-white">Available Tools</h2>
+          {toolsLoading && (
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+          )}
+        </div>
+
+        {toolsLoading ? (
+          <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+            <CardContent className="p-8 text-center">
+              <div className="flex items-center justify-center gap-3 text-gray-400">
+                <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                <span>Loading tools...</span>
+              </div>
+            </CardContent>
+          </Card>
+        ) : !tools || tools.length === 0 ? (
+          <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+            <CardContent className="p-8 text-center">
+              <div className="flex flex-col items-center justify-center text-gray-400">
+                <Code className="h-12 w-12 mb-3 opacity-50" />
+                <p>No tools available</p>
+                <p className="text-sm mt-1">This server doesn't expose any tools</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {tools.map((tool, index) => (
+              <ToolCard
+                key={tool.name}
+                tool={tool}
+                expanded={toolCardState[tool.name]?.expanded || false}
+                onExpand={(expanded) => onToolExpand(tool.name, expanded)}
+                paramValues={toolCardState[tool.name]?.paramValues || {}}
+                onParamChange={(param, value) => onParamChange(tool.name, param, value)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
 const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [servers, setServers] = useState<Record<string, MCPServer>>({});
   const [selectedServerName, setSelectedServerName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [tools, setTools] = useState<MCPTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -397,7 +664,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     return selectedServerName ? servers[selectedServerName] : null;
   }, [selectedServerName, servers]);
 
-  // Filter servers based on search - memoized to prevent unnecessary recalculations
+  // Memoize filteredServers only (not the rendered JSX)
   const filteredServers = useMemo(() => {
     const serversArray = Object.values(servers);
     if (!searchFilter.trim()) {
@@ -410,25 +677,28 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     );
   }, [servers, searchFilter]);
 
+  // Use refs for periodic loading/error to avoid re-renders
+  const loadingRef = useRef(false);
+  const errorRef = useRef<string | null>(null);
+  // State for initial load/fatal error
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [fatalError, setFatalError] = useState<string | null>(null);
+
   // Optimized fetchStatus with change detection
-  const fetchStatus = useCallback(async () => {
-    // console.log('fetchStatus called at:', new Date().toISOString());
-    setLoading(true);
-    setError(null);
+  const fetchStatus = useCallback(async (isInitial = false) => {
+    if (isInitial) setInitialLoading(true);
+    loadingRef.current = true;
+    errorRef.current = null;
     try {
       const response = await fetch('http://127.0.0.1:5859/status');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      
-      // Ensure server objects have the name property set
       const serversWithNames = Object.fromEntries(
         Object.entries(data).map(([name, server]: [string, any]) => [
           name,
           { ...server, name }
         ])
       );
-      
-      // Use functional update to prevent unnecessary re-renders
       setServers(prevServers => {
         // Quick check: if server count differs, update
         const prevKeys = Object.keys(prevServers);
@@ -439,7 +709,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         
         // Deep equality check to prevent unnecessary updates
         let hasChanged = false;
-        const updatedServers: Record<string, MCPServer> = {};
         
         for (const key of newKeys) {
           const prev = prevServers[key];
@@ -447,7 +716,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           
           if (!prev) {
             hasChanged = true;
-            updatedServers[key] = current;
+            break; // Early exit if we found a change
           } else {
             // Compare only the fields that matter for UI rendering
             const fieldsChanged = 
@@ -462,16 +731,46 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
             
             if (fieldsChanged) {
               hasChanged = true;
-              updatedServers[key] = current;
-            } else {
-              // Reuse the exact same object reference to prevent React re-renders
-              updatedServers[key] = prev;
+              break; // Early exit if we found a change
             }
           }
         }
         
         // If nothing changed, return the exact same reference
-        return hasChanged ? updatedServers : prevServers;
+        if (!hasChanged) {
+          return prevServers;
+        }
+        
+        // Only create new objects if something actually changed
+        const updatedServers: Record<string, MCPServer> = {};
+        for (const key of newKeys) {
+          const prev = prevServers[key];
+          const current = serversWithNames[key];
+
+          if (!prev) {
+            // Only add new server if it did not exist before
+            updatedServers[key] = current;
+          } else {
+            // Compare again to decide whether to reuse or update
+            const fieldsChanged = 
+              prev.state !== current.state ||
+              prev.pid !== current.pid ||
+              prev.healthy !== current.healthy ||
+              prev.uptime !== current.uptime ||
+              prev.tool_count !== current.tool_count ||
+              prev.retries !== current.retries ||
+              prev.restarts !== current.restarts ||
+              prev.last_error !== current.last_error;
+
+            if (fieldsChanged) {
+              updatedServers[key] = { ...prev, ...current };
+            } else {
+              updatedServers[key] = prev;
+            }
+          }
+        }
+        
+        return updatedServers;
       });
         
       // Auto-select first server if none selected OR if current selection no longer exists
@@ -491,10 +790,16 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         // If current selection no longer exists, select first available or null
         return availableServers.length > 0 ? availableServers[0] : null;
       });
+      loadingRef.current = false;
+      errorRef.current = null;
     } catch (e: any) {
-      setError(e.message || 'Failed to fetch server status');
+      if (isInitial) {
+        setFatalError(e.message || 'Failed to fetch server status');
+      }
+      loadingRef.current = false;
+      errorRef.current = e.message || 'Failed to fetch server status';
     } finally {
-      setLoading(false);
+      if (isInitial) setInitialLoading(false);
     }
   }, []);
 
@@ -520,11 +825,11 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         method: 'POST',
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
-      await fetchStatus();
+      await fetchStatusRef.current();
       // Refetch tools for currently selected server
       setSelectedServerName(current => {
         if (current) {
-          fetchTools(current);
+          fetchToolsRef.current(current);
         }
         return current;
       });
@@ -533,7 +838,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools]);
+  }, []);
 
   const handleRestart = useCallback(async (serverName: string) => {
     setActionLoading('restart' + serverName);
@@ -542,11 +847,11 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to restart server');
-      await fetchStatus();
+      await fetchStatusRef.current();
       // Refetch tools for currently selected server
       setSelectedServerName(current => {
         if (current) {
-          fetchTools(current);
+          fetchToolsRef.current(current);
         }
         return current;
       });
@@ -555,7 +860,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools]);
+  }, []);
 
   const handleToolExpand = useCallback((toolName: string, expanded: boolean) => {
     setToolCardState(prev => ({
@@ -590,82 +895,28 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     setSearchFilter(e.target.value);
   }, []);
 
-  // Memoize the server list component to prevent unnecessary re-renders
-  const ServerList = useMemo(() => {
-    return (
-      <div className="space-y-2">
-        {filteredServers.map((server) => (
-          <ServerCard
-            key={server.name}
-            server={server}
-            isSelected={selectedServerName === server.name}
-            onSelect={handleServerSelect}
-          />
-        ))}
-      </div>
-    );
-  }, [filteredServers, selectedServerName, handleServerSelect]);
-
-  // Use ref-based approach to avoid closure issues with interval
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const fetchStatusRef = useRef(fetchStatus);
-  fetchStatusRef.current = fetchStatus;
-
+  // Initial fetch on mount
   useEffect(() => {
-    fetchStatus();
-    
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    
-    // Set up new interval
-    intervalRef.current = setInterval(() => {
-      fetchStatusRef.current();
-    }, 5000);
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []); // Remove fetchStatus dependency to prevent interval recreation
+    fetchStatus(true);
+    // Optionally, set up polling here if desired
+  }, [fetchStatus]);
 
+  // Fetch tools when selectedServerName changes
   useEffect(() => {
     if (selectedServerName) {
       fetchTools(selectedServerName);
     } else {
       setTools([]);
-      // Clear tool card state when no server is selected
-      setToolCardState({});
     }
   }, [selectedServerName, fetchTools]);
 
+  // Poll server status every 5 seconds to update uptime and status
   useEffect(() => {
-    if (!tools || tools.length === 0) return;
-    
-    // Preserve existing tool card state while adding new tools
-    setToolCardState(prev => {
-      const next: typeof prev = { ...prev }; // Start with existing state
-      
-      // Add default state for new tools only
-      for (const tool of tools) {
-        if (!next[tool.name]) {
-          next[tool.name] = { expanded: false, paramValues: {} };
-        }
-      }
-      
-      // Remove state for tools that no longer exist
-      const currentToolNames = new Set(tools.map(t => t.name));
-      Object.keys(next).forEach(toolName => {
-        if (!currentToolNames.has(toolName)) {
-          delete next[toolName];
-        }
-      });
-      
-      return next;
-    });
-  }, [tools]);
+    const interval = setInterval(() => {
+      fetchStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
 
   return (
     <div className={`h-full w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] ${className || ''}`}>
@@ -683,7 +934,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
                 </div>
               </div>
-              
               {/* Search Filter */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -695,10 +945,9 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                 />
               </div>
             </div>
-
             <ScrollArea className="h-[calc(100%-140px)]">
               <div className="p-4">
-                {loading && (
+                {initialLoading && (
                   <div className="flex items-center justify-center py-8">
                     <div className="flex items-center gap-3 text-gray-400">
                       <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -706,31 +955,32 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                     </div>
                   </div>
                 )}
-                
-                {error && (
+                {fatalError && (
                   <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
                     <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <span className="text-sm">{error}</span>
+                    <span className="text-sm">{fatalError}</span>
                   </div>
                 )}
-                
-                {!loading && !error && filteredServers.length === 0 && searchFilter && (
+                {!initialLoading && !fatalError && filteredServers.length === 0 && searchFilter && (
                   <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                     <Filter className="h-12 w-12 mb-3 opacity-50" />
                     <p className="text-center">No servers match your search</p>
                     <p className="text-xs text-center mt-1">Try a different search term</p>
                   </div>
                 )}
-
-                {!loading && !error && Object.keys(servers).length === 0 && !searchFilter && (
+                {!initialLoading && !fatalError && Object.keys(servers).length === 0 && !searchFilter && (
                   <div className="flex flex-col items-center justify-center py-8 text-gray-400">
                     <Server className="h-12 w-12 mb-3 opacity-50" />
                     <p className="text-center">No servers found</p>
                     <p className="text-xs text-center mt-1">Start some MCP servers to get started</p>
                   </div>
                 )}
-
-                {ServerList}
+                {/* Render ServerList here */}
+                <ServerList
+                  servers={filteredServers}
+                  selectedServerName={selectedServerName}
+                  onSelect={handleServerSelect}
+                />
               </div>
             </ScrollArea>
           </div>
@@ -743,218 +993,19 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           <ScrollArea className="h-full">
             <div className="h-full">
               {selectedServer ? (
-                <div className="h-full w-full bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
-                  {/* Header Section */}
-                  <div className="border-b border-gray-800 bg-[#141414]/80 backdrop-blur-sm">
-                    <div className="p-8">
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                          <Server className="h-8 w-8 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h1 className="text-3xl font-bold text-white mb-2">{selectedServer.name}</h1>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              {getStateIcon(selectedServer.state)}
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                selectedServer.state === 'running' ? 'bg-green-500/20 text-green-400' :
-                                selectedServer.state === 'stopped' ? 'bg-gray-500/20 text-gray-400' :
-                                selectedServer.state === 'errored' ? 'bg-red-500/20 text-red-400' :
-                                'bg-yellow-500/20 text-yellow-400'
-                              }`}>
-                                {selectedServer.state.toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-400">
-                              <Clock className="h-4 w-4" />
-                              <span>Uptime: <Uptime value={selectedServer.uptime} /></span>
-                            </div>
-                            {selectedServer.tool_count !== undefined && (
-                              <div className="flex items-center gap-2 text-gray-400">
-                                <Wrench className="h-4 w-4" />
-                                <span>{selectedServer.tool_count} tools</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleAction(selectedServer.state === 'running' ? 'stop' : 'start', selectedServer.name)}
-                            disabled={actionLoading === (selectedServer.state === 'running' ? 'stop' : 'start') + selectedServer.name}
-                            size="sm"
-                            variant={selectedServer.state === 'running' ? 'destructive' : 'default'}
-                            className="min-w-[80px]"
-                          >
-                            {actionLoading === (selectedServer.state === 'running' ? 'stop' : 'start') + selectedServer.name ? (
-                              <RotateCw className="h-4 w-4 animate-spin" />
-                            ) : selectedServer.state === 'running' ? (
-                              <>
-                                <Square className="h-4 w-4 mr-2" />
-                                Stop
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4 mr-2" />
-                                Start
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={() => handleRestart(selectedServer.name)}
-                            disabled={actionLoading === 'restart' + selectedServer.name}
-                            size="sm"
-                            variant="outline"
-                            className="min-w-[80px]"
-                          >
-                            {actionLoading === 'restart' + selectedServer.name ? (
-                              <RotateCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RotateCw className="h-4 w-4 mr-2" />
-                                Restart
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={fetchStatus}
-                            disabled={loading}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {loading ? (
-                              <RotateCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <RotateCw className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Server Details */}
-                  <div className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-white flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-blue-400" />
-                            Server Status
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Process ID</span>
-                            <span className="font-mono text-white">{selectedServer.pid || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Transport</span>
-                            <span className="font-mono text-white">{selectedServer.transport}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Healthy</span>
-                            <span className={`font-medium ${selectedServer.healthy ? 'text-green-400' : 'text-red-400'}`}>
-                              {selectedServer.healthy ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Retries</span>
-                            <span className="font-mono text-white">{selectedServer.retries}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Restarts</span>
-                            <span className="font-mono text-white">{selectedServer.restarts}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-white flex items-center gap-2">
-                            <Wrench className="h-5 w-5 text-purple-400" />
-                            Tool Information
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Tool Count</span>
-                            <span className="font-mono text-white">{selectedServer.tool_count ?? 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Token Count</span>
-                            <span className="font-mono text-white">{selectedServer.token_count ?? 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Last Output Renewal</span>
-                            <span className="font-mono text-white">
-                              {selectedServer.last_output_renewal ? new Date(selectedServer.last_output_renewal * 1000).toLocaleTimeString() : 'N/A'}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Error Display */}
-                    {selectedServer.last_error && (
-                      <Card className="border-0 bg-red-500/10 border-red-500/20 shadow-xl mb-8">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg text-red-400 flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5" />
-                            Last Error
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <pre className="text-sm text-red-300 whitespace-pre-wrap overflow-auto max-h-32">
-                            {selectedServer.last_error}
-                          </pre>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Tools Section */}
-                    <div className="flex items-center gap-3 mb-6">
-                      <Wrench className="h-6 w-6 text-blue-400" />
-                      <h2 className="text-2xl font-bold text-white">Available Tools</h2>
-                      {toolsLoading && (
-                        <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                    </div>
-
-                    {toolsLoading ? (
-                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                        <CardContent className="p-8 text-center">
-                          <div className="flex items-center justify-center gap-3 text-gray-400">
-                            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                            <span>Loading tools...</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : !tools || tools.length === 0 ? (
-                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                        <CardContent className="p-8 text-center">
-                          <div className="flex flex-col items-center justify-center text-gray-400">
-                            <Code className="h-12 w-12 mb-3 opacity-50" />
-                            <p>No tools available</p>
-                            <p className="text-sm mt-1">This server doesn't expose any tools</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">
-                        {tools.map((tool, index) => (
-                          <ToolCard
-                            key={tool.name}
-                            tool={tool}
-                            expanded={toolCardState[tool.name]?.expanded || false}
-                            onExpand={(expanded) => handleToolExpand(tool.name, expanded)}
-                            paramValues={toolCardState[tool.name]?.paramValues || {}}
-                            onParamChange={(param, value) => handleParamChange(tool.name, param, value)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ServerDetailsPanel
+                  server={selectedServer}
+                  tools={tools}
+                  toolsLoading={toolsLoading}
+                  actionLoading={actionLoading}
+                  toolCardState={toolCardState}
+                  onAction={handleAction}
+                  onRestart={handleRestart}
+                  onToolExpand={handleToolExpand}
+                  onParamChange={handleParamChange}
+                  initialLoading={initialLoading}
+                  fetchStatus={fetchStatus}
+                />
               ) : (
                 <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
                   <div className="text-center space-y-4">
