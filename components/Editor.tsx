@@ -90,7 +90,8 @@ function debounce<Func extends (...args: any[]) => void>(func: Func, wait: numbe
   };
 }
 
-function EditorComponent(props: EditorProps) {
+// Memoized Editor component to prevent unnecessary re-renders
+const EditorComponent = React.memo(function EditorComponent(props: EditorProps) {
   const {
     mode,
     selectedView,
@@ -291,17 +292,15 @@ function EditorComponent(props: EditorProps) {
     }
   };
 
-  useEffect(() => {
-    console.log('[EditorComponent] Props received:', {
-      editedContentLength: editedContent?.length,
-      currentFilePath,
-      mode,
-      editMode,
-      selectedView,
-      diffContentOriginalLength: diffContent?.original?.length,
-      diffContentModifiedLength: diffContent?.modified?.length
-    });
-  }, [editedContent, currentFilePath, mode, editMode, selectedView, diffContent]);
+  // Debug logging - only log when component re-renders (can be removed in production)
+  // console.log('[EditorComponent] Re-render triggered:', {
+  //   editedContentLength: editedContent?.length,
+  //   currentFilePath,
+  //   mode,
+  //   editMode,
+  //   selectedView,
+  //   timestamp: new Date().toISOString()
+  // });
 
   useEffect(() => {
     return () => {
@@ -798,6 +797,33 @@ function EditorComponent(props: EditorProps) {
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for React.memo to prevent unnecessary re-renders
+  return (
+    prevProps.mode === nextProps.mode &&
+    prevProps.selectedView === nextProps.selectedView &&
+    prevProps.editMode === nextProps.editMode &&
+    prevProps.theme === nextProps.theme &&
+    prevProps.currentFilePath === nextProps.currentFilePath &&
+    prevProps.editedContent === nextProps.editedContent &&
+    prevProps.branchHash === nextProps.branchHash &&
+    prevProps.lastCommitHash === nextProps.lastCommitHash &&
+    prevProps.repoPath === nextProps.repoPath &&
+    JSON.stringify(prevProps.selectedCommit) === JSON.stringify(nextProps.selectedCommit) &&
+    JSON.stringify(prevProps.branchNotification) === JSON.stringify(nextProps.branchNotification) &&
+    prevProps.diffContent?.original === nextProps.diffContent?.original &&
+    prevProps.diffContent?.modified === nextProps.diffContent?.modified &&
+    prevProps.setSelectedView === nextProps.setSelectedView &&
+    prevProps.setEditMode === nextProps.setEditMode &&
+    prevProps.setLastCommitHash === nextProps.setLastCommitHash &&
+    prevProps.handleRun === nextProps.handleRun &&
+    prevProps.handleContentChange === nextProps.handleContentChange &&
+    prevProps.handleBreadcrumbClick === nextProps.handleBreadcrumbClick &&
+    prevProps.onBranchHashClick === nextProps.onBranchHashClick &&
+    prevProps.handleBranchSelect === nextProps.handleBranchSelect &&
+    prevProps.onSave === nextProps.onSave &&
+    prevProps.editorContainerRef === nextProps.editorContainerRef
+  );
+});
 
 export default EditorComponent;

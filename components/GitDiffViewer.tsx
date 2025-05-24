@@ -281,7 +281,7 @@ export default function GitDiffViewer() {
     // Handle any logic needed when the panel resizes
   }, []);
 
-  const fetchDirectoryContents = async (pathStr: string, isGitMode: boolean) => {
+  const fetchDirectoryContents = useCallback(async (pathStr: string, isGitMode: boolean) => {
     try {
       console.log('Fetching directory contents for path:', pathStr, 'isGitMode:', isGitMode);
       const response = await fetch(`/list_directory/?path=${encodeURIComponent(pathStr)}`);
@@ -300,7 +300,7 @@ export default function GitDiffViewer() {
     } catch (error) {
       console.error('Error fetching directory contents:', error);
     }
-  };
+  }, []); // Empty dependencies since it only uses props and doesn't depend on changing state
 
   const fetchBranchesAndCommits = useCallback(async (pathStr: string) => {
     // Log entry into this function
@@ -921,6 +921,7 @@ export default function GitDiffViewer() {
   }, [branchesData, restoredCommitHashes, mode, repoPath, fetchDiffContent]);
 
   // Update localStorage whenever relevant state changes, BUT skip the very first run after mount
+  // Use a debounced approach to prevent excessive saves
   useEffect(() => {
     // Prevent saving state during the very first render cycle after mount
     if (!isMountedRef.current) {
@@ -929,29 +930,33 @@ export default function GitDiffViewer() {
       return; // Don't save yet
     }
 
-    // Proceed with saving state on subsequent updates
-    const stateToSave = {
-      currentGitPath,
-      currentEditPath,
-      selectedItem,
-      mode,
-      selectedFolder: selectedFolder ? {
-        path: selectedFolder.path,
-        is_git_repo: selectedFolder.is_git_repo
-      } : null,
-      repoPath,
-      selectedFile: selectedFile ? {
-        path: selectedFile.path,
-        name: selectedFile.name,
-        is_dir: selectedFile.is_dir
-      } : null,
-      // Save commit breadcrumb hashes (if any)
-      selectedCommitHashes: selectedCommit ? selectedCommit.map(c => c.ctx_commit_hash).filter(Boolean) : [],
-    };
-    console.log('Saving state:', stateToSave);
-    localStorage.setItem('fileTreeState', JSON.stringify(stateToSave));
-  // Dependencies: Ensure all relevant state pieces are included
-  }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder, repoPath, selectedFile, selectedCommit]); // Dependencies remain the same
+    // Debounce state saving to prevent excessive localStorage writes
+    const saveTimeout = setTimeout(() => {
+      const stateToSave = {
+        currentGitPath,
+        currentEditPath,
+        selectedItem,
+        mode,
+        selectedFolder: selectedFolder ? {
+          path: selectedFolder.path,
+          is_git_repo: selectedFolder.is_git_repo
+        } : null,
+        repoPath,
+        selectedFile: selectedFile ? {
+          path: selectedFile.path,
+          name: selectedFile.name,
+          is_dir: selectedFile.is_dir
+        } : null,
+        // Save commit breadcrumb hashes (if any)
+        selectedCommitHashes: selectedCommit ? selectedCommit.map(c => c.ctx_commit_hash).filter(Boolean) : [],
+      };
+      console.log('Saving state:', stateToSave);
+      localStorage.setItem('fileTreeState', JSON.stringify(stateToSave));
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(saveTimeout);
+  // Reduced dependencies - only essential state changes that should trigger saves
+  }, [currentGitPath, currentEditPath, selectedItem, mode, selectedFolder?.path, selectedFolder?.is_git_repo, repoPath, selectedFile?.path, selectedCommit.length > 0 ? selectedCommit[selectedCommit.length - 1]?.ctx_commit_hash : null]);
 
   // Add an effect to trigger file load when switching to edit mode if a file is already selected
   useEffect(() => {

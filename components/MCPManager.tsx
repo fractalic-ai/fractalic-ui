@@ -1,12 +1,31 @@
-import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
-import { Button } from "@/components/ui/button";
-import { Play, Square, RefreshCw, AlertCircle, RotateCcw, CheckCircle, XCircle, Power, PowerOff, Settings, Server, Wrench, ChevronRight, ChevronDown } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Uptime from "./Uptime";
+import { 
+  Server, 
+  Search, 
+  Play, 
+  Square, 
+  RotateCw, 
+  Settings, 
+  Activity, 
+  Clock, 
+  AlertCircle, 
+  CheckCircle, 
+  Wrench,
+  Filter,
+  Code,
+  ChevronRight,
+  Power,
+  PowerOff,
+  Info
+} from 'lucide-react';
 
 interface MCPServer {
   name: string;
@@ -25,27 +44,17 @@ interface MCPServer {
   token_count?: number;
 }
 
-interface MCPServerListItem {
+interface MCPTool {
   name: string;
-  state: string;
-  healthy: boolean;
-  tool_count?: number;
-  token_count?: number;
+  description?: string;
+  inputSchema?: any;
 }
 
 interface MCPManagerProps {
   className?: string;
 }
 
-interface ServerTools {
-  tools: { name: string; description?: string }[];
-  error?: string;
-}
-
-/* instrumentation — keep only while debugging */
-let mountCounter = 0;
-
-// Hoisted getStateColor
+// Helper functions
 const getStateColor = (state: string) => {
   switch (state) {
     case 'running': return 'bg-green-500';
@@ -56,247 +65,122 @@ const getStateColor = (state: string) => {
   }
 };
 
-// Hoisted Uptime
-const Uptime = React.memo(function Uptime({ value }: { value: number | null }) {
-  return <span className="font-mono text-lg">{value ? `${Math.round(value)}s` : 'N/A'}</span>;
-});
-
-// Explicit props interface for ServerDetailsPanel
-interface ServerDetailsPanelProps {
-  server: MCPServer | null;
-  tools: ServerTools | null;
-  toolsLoading: boolean;
-  toolCardState: Record<string, any>;
-  onToolExpand: (tool: string, expanded: boolean) => void;
-  onParamChange: (tool: string, param: string, value: any) => void;
-  getStateColor: (s: string) => string;
-  onAction: (action: 'start' | 'stop', name: string) => void;
-  onRestart: (name: string) => void;
-  fetchStatus: () => void;
-  loading: boolean;
-  actionLoading: string | null;
-  scrollRef: React.RefObject<HTMLDivElement>;
-  scrollPos: number;
-  setScrollPos: (pos: number) => void;
-}
-
-const ServerDetailsPanel = function ServerDetailsPanel({
-  server,
-  tools,
-  toolsLoading,
-  toolCardState,
-  onToolExpand,
-  onParamChange,
-  getStateColor,
-  onAction,
-  onRestart,
-  fetchStatus,
-  loading,
-  actionLoading,
-  scrollRef,
-  scrollPos,
-  setScrollPos,
-}: ServerDetailsPanelProps) {
-  console.log('🔵 ServerDetailsPanel render', server?.name, server?.uptime);
-  React.useEffect(() => {
-    const id = ++mountCounter;
-    console.log("🔵 ServerDetailsPanel mount", id, server?.name);
-    return () => console.log("🔴 ServerDetailsPanel UNMOUNT", id, server?.name);
-  }, []); // empty deps → runs exactly once per mount
-  React.useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el && typeof scrollPos === 'number') {
-      el.scrollTop = scrollPos;
-    }
-  }, [server?.name, scrollRef, scrollPos]);
-  if (!server) {
-    return <div className="text-gray-400 p-8 text-lg">Select a server to view details.</div>;
+const getStateIcon = (state: string) => {
+  switch (state) {
+    case 'running': return <CheckCircle className="h-4 w-4" />;
+    case 'stopped': return <Square className="h-4 w-4" />;
+    case 'errored': return <AlertCircle className="h-4 w-4" />;
+    case 'retrying': return <RotateCw className="h-4 w-4 animate-spin" />;
+    default: return <Activity className="h-4 w-4" />;
   }
-  return (
-    <div ref={scrollRef} onScroll={() => {
-      const el = scrollRef.current;
-      if (el) setScrollPos(el.scrollTop);
-    }} className="h-full w-full flex flex-col justify-center items-center p-0 overflow-y-auto">
-      <Card className="w-full h-full shadow-xl rounded-xl bg-[#20212b] border-0 flex flex-col">
-        <CardHeader className="flex flex-row items-start justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
-          <div className="flex flex-col gap-4">
-            <CardTitle className="text-2xl font-extrabold tracking-tight">
-              {server.name}
-            </CardTitle>
-            <div className="flex items-center gap-3">
-              <Badge className={getStateColor(server.state) + ' text-base px-3 py-1 rounded-full capitalize'}>
-                {server.state}
-              </Badge>
-              {server.healthy ? (
-                <span className="flex items-center gap-2 text-green-400 font-medium"><CheckCircle className="h-5 w-5" /> Healthy</span>
-              ) : (
-                <span className="flex items-center gap-2 text-red-400 font-medium"><XCircle className="h-5 w-5" /> Unhealthy</span>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAction('start', server.name)}
-              disabled={server.state === 'running' || !!actionLoading}
-            >
-              <Play className="h-4 w-4 mr-1" /> Start
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAction('stop', server.name)}
-              disabled={server.state === 'stopped' || !!actionLoading}
-            >
-              <Square className="h-4 w-4 mr-1" /> Stop
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onRestart(server.name)}
-              disabled={!!actionLoading}
-            >
-              <RotateCcw className="h-4 w-4 mr-1" /> Restart
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchStatus}
-              disabled={loading}
-            >
-              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-8 flex flex-col gap-8 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-6 text-base">
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 font-medium">Transport</span>
-              <span className="font-mono text-lg">{server.transport}</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 font-medium">PID</span>
-              <span className="font-mono text-lg">{server.pid || 'N/A'}</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 font-medium">Uptime</span>
-              <Uptime value={server.uptime} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 font-medium">Retries</span>
-              <span className="font-mono text-lg">{server.retries}</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-gray-400 font-medium">Restarts</span>
-              <span className="font-mono text-lg">{server.restarts}</span>
-            </div>
-          </div>
-          {server.last_error && (
-            <div className="text-sm text-red-500 mt-2 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {server.last_error}
-            </div>
-          )}
-
-          {/* Terminal Output Section (Collapsible) */}
-          <Accordion type="single" collapsible className="mb-4">
-            <AccordionItem value="terminal-output">
-              <AccordionTrigger className="font-semibold text-lg">Terminal Output</AccordionTrigger>
-              <AccordionContent>
-                <div className="flex flex-col gap-2">
-                  <div className="bg-black rounded p-2 max-h-40 overflow-auto border border-gray-700">
-                    {(() => {
-                      // Combine stdout and stderr, sort by timestamp (descending)
-                      const lines: { timestamp: string, line: string, source: string }[] = [];
-                      if (Array.isArray(server.stdout)) {
-                        for (const entry of server.stdout) {
-                          if (typeof entry === 'string') {
-                            lines.push({ timestamp: '', line: entry, source: 'stdout' });
-                          } else if (entry && entry.timestamp && entry.line) {
-                            lines.push({ ...entry, source: 'stdout' });
-                          }
-                        }
-                      }
-                      if (Array.isArray(server.stderr)) {
-                        for (const entry of server.stderr) {
-                          if (typeof entry === 'string') {
-                            lines.push({ timestamp: '', line: entry, source: 'stderr' });
-                          } else if (entry && entry.timestamp && entry.line) {
-                            lines.push({ ...entry, source: 'stderr' });
-                          }
-                        }
-                      }
-                      lines.sort((a, b) => {
-                        if (!a.timestamp && !b.timestamp) return 0;
-                        if (!a.timestamp) return 1;
-                        if (!b.timestamp) return -1;
-                        return b.timestamp.localeCompare(a.timestamp); // most recent first
-                      });
-                      return lines.length > 0 ? (
-                        lines.map((entry, idx) => (
-                          <div key={idx} className={entry.source === 'stderr' ? 'text-red-300' : 'text-gray-200'}>
-                            {entry.timestamp && (
-                              <span className="text-xs text-gray-500 mr-2">[{entry.timestamp}]</span>
-                            )}
-                            <span>{entry.line}</span>
-                            {entry.source === 'stderr' && <span className="ml-2 text-xs text-red-400">(stderr)</span>}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-gray-500 italic">No terminal output</div>
-                      );
-                    })()}
-                  </div>
-                  <div className="mt-2 text-xs text-gray-400">
-                    <span className="font-semibold">Last Output Update:</span>{' '}
-                    {server.last_output_renewal ? new Date(server.last_output_renewal).toLocaleString() : 'N/A'}
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <div className="mb-2">
-            <div className="font-semibold mb-3 text-lg">Available Tools</div>
-            <div style={{ minHeight: 200 }} className="relative w-full">
-              {toolsLoading ? (
-                <div className="flex items-center justify-center h-full min-h-[200px]">
-                  <svg className="animate-spin h-6 w-6 text-gray-400 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                  </svg>
-                  <span className="text-gray-400">Loading tools...</span>
-                </div>
-              ) : tools && tools.tools.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {tools.tools.map((tool: any, idx: number) => (
-                    <ToolCard
-                      key={tool.name + idx}
-                      tool={tool}
-                      expanded={!!toolCardState[tool.name]?.expanded}
-                      onExpand={(expanded: boolean) => onToolExpand(tool.name, expanded)}
-                      paramValues={toolCardState[tool.name]?.paramValues || {}}
-                      onParamChange={(param: string, value: any) => onParamChange(tool.name, param, value)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-400">No tools found.</div>
-              )}
-              {tools && tools.error && (
-                <div className="text-xs text-red-500 mt-1">{tools.error}</div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
 };
 
-const ToolCard = React.memo(function ToolCard({ tool, expanded, onExpand, paramValues, onParamChange }: {
-  tool: any;
+// Server Card Component - Memoized to prevent unnecessary re-renders
+const ServerCard = React.memo(function ServerCard({ 
+  server, 
+  isSelected, 
+  onSelect 
+}: {
+  server: MCPServer;
+  isSelected: boolean;
+  onSelect: (serverName: string) => void;
+}) {
+  // Debug logging to track re-renders (can be removed in production)
+  // console.log('ServerCard render:', server.name, {
+  //   state: server.state,
+  //   pid: server.pid,
+  //   healthy: server.healthy,
+  //   uptime: server.uptime,
+  //   tool_count: server.tool_count,
+  //   isSelected,
+  //   timestamp: new Date().toISOString()
+  // });
+
+  const handleClick = useCallback(() => {
+    onSelect(server.name);
+  }, [onSelect, server.name]);
+
+  return (
+    <Card
+      className={`cursor-pointer border-0 ${
+        isSelected 
+          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-l-4 border-l-blue-500 shadow-lg' 
+          : 'bg-[#1e1e1e] hover:bg-[#252525] hover:shadow-md'
+      }`}
+      onClick={handleClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-3">
+            {getStateIcon(server.state)}
+            <div>
+              <h3 className="font-semibold text-white">{server.name}</h3>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  server.state === 'running' ? 'bg-green-500/20 text-green-400' :
+                  server.state === 'stopped' ? 'bg-gray-500/20 text-gray-400' :
+                  server.state === 'errored' ? 'bg-red-500/20 text-red-400' :
+                  'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {server.state.toUpperCase()}
+                </span>
+                {server.healthy ? (
+                  <span className="text-xs text-green-400">Healthy</span>
+                ) : (
+                  <span className="text-xs text-red-400">Unhealthy</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-xs text-gray-400 space-y-1">
+          <div className="flex justify-between">
+            <span>PID:</span>
+            <span className="font-mono">{server.pid || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Uptime:</span>
+            <Uptime value={server.uptime} />
+          </div>
+          {server.tool_count !== undefined && (
+            <div className="flex justify-between">
+              <span>Tools:</span>
+              <span className="font-mono">{server.tool_count}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  const prevServer = prevProps.server;
+  const nextServer = nextProps.server;
+  
+  return (
+    prevServer.name === nextServer.name &&
+    prevServer.state === nextServer.state &&
+    prevServer.pid === nextServer.pid &&
+    prevServer.healthy === nextServer.healthy &&
+    prevServer.uptime === nextServer.uptime &&
+    prevServer.tool_count === nextServer.tool_count &&
+    prevServer.retries === nextServer.retries &&
+    prevServer.restarts === nextServer.restarts &&
+    prevServer.last_error === nextServer.last_error &&
+    prevProps.isSelected === nextProps.isSelected
+  );
+});
+
+// Tool Card Component
+const ToolCard = React.memo(function ToolCard({ 
+  tool, 
+  expanded, 
+  onExpand, 
+  paramValues, 
+  onParamChange 
+}: {
+  tool: MCPTool;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
   paramValues: Record<string, any>;
@@ -314,9 +198,6 @@ const ToolCard = React.memo(function ToolCard({ tool, expanded, onExpand, paramV
       description: prop.description || '',
     }));
   }
-  const preview = tool.description
-    ? tool.description.split('. ')[0].slice(0, 100) + (tool.description.length > 100 ? '...' : '')
-    : 'No description available.';
 
   const handleTest = async () => {
     setTesting(true);
@@ -336,372 +217,303 @@ const ToolCard = React.memo(function ToolCard({ tool, expanded, onExpand, paramV
     }
   };
 
-  const renderInput = (param: any) => {
-    const value = paramValues[param.name] ?? '';
-    if (param.type === 'boolean') {
-      return (
-        <input
-          type="checkbox"
-          checked={!!value}
-          onChange={e => onParamChange(param.name, e.target.checked)}
-          className="ml-2"
-        />
-      );
+  const renderParamInput = (param: any, value: any) => {
+    const onChange = (newValue: any) => onParamChange(param.name, newValue);
+    
+    switch (param.type) {
+      case 'boolean':
+        return (
+          <input
+            type="checkbox"
+            checked={!!value}
+            onChange={(e) => onChange(e.target.checked)}
+            className="rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+          />
+        );
+      case 'number':
+      case 'integer':
+        return (
+          <Input
+            type="number"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
+            className="bg-gray-800 border-gray-600 text-white"
+            placeholder="Enter number..."
+          />
+        );
+      case 'array':
+        return (
+          <Textarea
+            value={Array.isArray(value) ? value.join('\n') : value || ''}
+            onChange={(e) => onChange(e.target.value.split('\n').filter(v => v.trim()))}
+            className="bg-gray-800 border-gray-600 text-white min-h-[80px]"
+            placeholder="Enter one item per line..."
+          />
+        );
+      case 'object':
+        return (
+          <Textarea
+            value={typeof value === 'object' ? JSON.stringify(value, null, 2) : value || ''}
+            onChange={(e) => {
+              try {
+                onChange(JSON.parse(e.target.value));
+              } catch {
+                onChange(e.target.value);
+              }
+            }}
+            className="bg-gray-800 border-gray-600 text-white min-h-[100px] font-mono text-sm"
+            placeholder='Enter JSON object, e.g., {"key": "value"}'
+          />
+        );
+      default:
+        return (
+          <Input
+            type="text"
+            value={value || ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="bg-gray-800 border-gray-600 text-white"
+            placeholder="Enter text..."
+          />
+        );
     }
-    if (param.type === 'number' || param.type === 'integer') {
-      return (
-        <input
-          type="number"
-          value={value}
-          onChange={e => onParamChange(param.name, e.target.valueAsNumber)}
-          className="ml-2 px-2 py-1 rounded bg-[#23232b] border border-gray-700 text-white w-full max-w-xs"
-        />
-      );
-    }
-    return (
-      <input
-        type="text"
-        value={value}
-        onChange={e => onParamChange(param.name, e.target.value)}
-        className="ml-2 px-2 py-1 rounded bg-[#23232b] border border-gray-700 text-white w-full max-w-xs"
-      />
-    );
   };
 
   return (
-    <div
-      className={`rounded-2xl shadow-lg bg-[#23232b] border border-[#23232b] p-6 flex flex-col transition-all duration-200 mb-4 hover:shadow-xl ${expanded ? 'ring-2 ring-primary scale-[1.01] z-10' : ''}`}
-      style={{ minHeight: 180 }}
+    <Card
+      className={`cursor-pointer border-0 ${
+        expanded 
+          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-l-4 border-l-blue-500 shadow-lg' 
+          : 'bg-[#1e1e1e] hover:bg-[#252525] hover:shadow-md'
+      }`}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="font-mono text-xl font-bold text-primary tracking-tight">{tool.name}</div>
-        <Button variant="ghost" size="sm" onClick={() => onExpand(!expanded)} className="text-xs font-semibold">
-          {expanded ? 'Hide Details' : 'Show Details'}
-        </Button>
-      </div>
-      <div className="text-gray-300 text-base mb-3 min-h-[32px]">{preview}</div>
-      {expanded && (
-        <>
-          <div className="mb-4">
-            <div className="mb-1 font-semibold text-gray-200">Description</div>
-            <div className="mb-2 whitespace-pre-line text-gray-400 text-sm">{tool.description || 'No description available.'}</div>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-blue-400" />
+              {tool.name}
+            </h3>
+            <p className="text-sm text-gray-400 mt-1">
+              {tool.description || 'No description available.'}
+            </p>
           </div>
-          <div className="mb-4">
-            <div className="mb-1 font-semibold text-gray-200">Parameters</div>
-            {params.length > 0 ? (
-              <ul className="flex flex-col gap-4">
-                {params.map((p) => (
-                  <li key={p.name} className="flex flex-col gap-1 bg-[#23232b] rounded p-2 border border-[#29293a]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-primary font-bold">{p.name}</span>
-                      <span className="text-xs text-gray-400">({p.type})</span>
-                    </div>
-                    {p.description && <div className="text-xs text-gray-400 mb-1">{p.description}</div>}
-                    <div className="w-full flex items-center">{renderInput(p)}</div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <span className="text-xs text-gray-500">No parameters</span>
-            )}
-          </div>
-          {params.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2 self-start"
-              onClick={handleTest}
-              disabled={testing}
-            >
-              {testing ? 'Testing...' : 'Test'}
-            </Button>
-          )}
-          {testResult && (
-            <div className="mt-3 p-2 bg-[#18181b] rounded text-xs text-gray-200 max-h-40 overflow-auto w-full">
-              <pre className="whitespace-pre-wrap break-all">{JSON.stringify(testResult, null, 2)}</pre>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-});
-
-// Add new type for selection
-type MCPSelection = 'manager' | 'server' | 'tool';
-
-// Memoized Navigation Panel
-interface NavigationPanelProps {
-  servers: Record<string, MCPServerListItem>;
-  selectedItem: { type: MCPSelection; id: string | null };
-  setSelectedItem: React.Dispatch<React.SetStateAction<{ type: MCPSelection; id: string | null }>>;
-  loading: boolean;
-  error: string | null;
-  getStateColor: (state: string) => string;
-  scrollPos: number;
-  setScrollPos: (pos: number) => void;
-}
-
-const NavigationPanel = React.memo(function NavigationPanel({ servers, selectedItem, setSelectedItem, loading, error, getStateColor, scrollPos, setScrollPos }: NavigationPanelProps) {
-  console.log('🟢 NavigationPanel render', Object.keys(servers));
-  const handleManagerClick = useCallback(() => setSelectedItem({ type: 'manager', id: null }), [setSelectedItem]);
-  const handleToolClick = useCallback(() => setSelectedItem({ type: 'tool', id: null }), [setSelectedItem]);
-  const handleServerClick = useCallback((name: string) => setSelectedItem({ type: 'server', id: name }), [setSelectedItem]);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  // Restore scroll position after render
-  React.useLayoutEffect(() => {
-    if (scrollRef.current && typeof scrollPos === 'number') {
-      scrollRef.current.scrollTop = scrollPos;
-    }
-  }, [scrollPos, servers]);
-
-  return (
-    <div className="h-full bg-[#181818] flex flex-col">
-      <div className="flex-1 overflow-y-auto" ref={scrollRef} onScroll={() => {
-        if (scrollRef.current) setScrollPos(scrollRef.current.scrollTop);
-      }}>
-        {/* MCP Manager Section */}
-        <div className="border-b border-[#23232b]">
-          <button
-            onClick={handleManagerClick}
-            className={`w-full flex items-center gap-2 px-4 py-3 hover:bg-[#232323] ${
-              selectedItem.type === 'manager' ? 'bg-[#232323] font-semibold' : ''
-            }`}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onExpand(!expanded)}
+            className="text-blue-400 hover:text-blue-300"
           >
-            <span className="inline-block w-2 h-2 rounded-full mr-3 bg-green-500"></span>
-            <Settings className="h-4 w-4" />
-            <span>MCP Manager</span>
-            <Badge variant="secondary" className="ml-auto">
-              {Object.keys(servers).length}
-            </Badge>
-          </button>
-          <div className="pl-8">
-            {loading ? (
-              <div className="px-4 py-2 text-gray-400">Loading servers...</div>
-            ) : error ? (
-              <div className="px-4 py-2 text-red-500 flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
-                {error}
-              </div>
-            ) : (
-              <ul className="divide-y divide-gray-800">
-                {Object.keys(servers).sort().map(name => {
-                  const server = servers[name];
-                  return (
-                    <li
-                      key={name}
-                      className={`flex flex-col px-4 py-3 cursor-pointer hover:bg-[#232323] ${
-                        selectedItem.type === 'server' && selectedItem.id === name ? 'bg-[#232323] font-semibold' : ''
-                      }`}
-                      onClick={() => handleServerClick(name)}
-                    >
-                      <div className="flex items-center">
-                        <span className={`inline-block w-2 h-2 rounded-full mr-3 ${getStateColor(server.state)}`}></span>
-                        <span className="flex-1">{name}</span>
-                        <span className="text-xs text-gray-400 ml-2">{server.state}</span>
-                        {server.healthy ? (
-                          <CheckCircle className="h-4 w-4 text-green-400 ml-2" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-400 ml-2" />
-                        )}
+            {expanded ? 'Hide Details' : 'Show Details'}
+          </Button>
+        </div>
+
+        {expanded && (
+          <div className="space-y-4">
+            {/* Parameters */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-300 mb-3">Parameters</h4>
+              {params.length > 0 ? (
+                <div className="space-y-3">
+                  {params.map((param) => (
+                    <div key={param.name} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-blue-400">{param.name}</span>
+                        <span className="text-xs text-gray-500">({param.type})</span>
                       </div>
-                      {(server.tool_count !== undefined || server.token_count !== undefined) && (
-                        <div className="flex gap-3 mt-1 ml-5 text-xs text-gray-500">
-                          {server.tool_count !== undefined && <span>Tools: {server.tool_count}</span>}
-                          {server.token_count !== undefined && <span>Tokens: {server.token_count.toLocaleString()}</span>}
-                        </div>
+                      {param.description && (
+                        <p className="text-xs text-gray-400">{param.description}</p>
                       )}
-                    </li>
-                  );
-                })}
-              </ul>
+                      {renderParamInput(param, paramValues[param.name])}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No parameters required</p>
+              )}
+            </div>
+
+            {/* Test Button */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleTest}
+                disabled={testing}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {testing ? (
+                  <>
+                    <RotateCw className="h-4 w-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Test Tool
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Test Results */}
+            {testResult && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Test Results</h4>
+                <Card className="border-0 bg-[#0f0f0f] shadow-xl">
+                  <CardContent className="p-4">
+                    <pre className="text-sm text-gray-300 whitespace-pre-wrap overflow-auto max-h-60">
+                      {JSON.stringify(testResult, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
-}, (prevProps, nextProps) => {
-  // Only re-render if servers or selectedItem changed
-  const prevServers = prevProps.servers;
-  const nextServers = nextProps.servers;
-  const prevKeys = Object.keys(prevServers);
-  const nextKeys = Object.keys(nextServers);
-  if (prevKeys.length !== nextKeys.length) return false;
-  for (let i = 0; i < prevKeys.length; i++) {
-    const key = prevKeys[i];
-    if (key !== nextKeys[i]) return false;
-    const prevServer = prevServers[key];
-    const nextServer = nextServers[key];
-    // Compare relevant fields
-    if (
-      prevServer.state !== nextServer.state ||
-      prevServer.healthy !== nextServer.healthy ||
-      prevServer.tool_count !== nextServer.tool_count ||
-      prevServer.token_count !== nextServer.token_count
-    ) {
-      return false;
-    }
-  }
-  // Compare selectedItem
-  if (
-    prevProps.selectedItem.type !== nextProps.selectedItem.type ||
-    prevProps.selectedItem.id !== nextProps.selectedItem.id
-  ) {
-    return false;
-  }
-  // Compare loading and error
-  if (prevProps.loading !== nextProps.loading) return false;
-  if (prevProps.error !== nextProps.error) return false;
-  return true;
 });
 
-// Utility for shallow compare of list fields
-function isListItemEqual(a: MCPServerListItem | undefined, b: MCPServerListItem | undefined) {
-  return (
-    a &&
-    b &&
-    a.name === b.name &&
-    a.state === b.state &&
-    a.healthy === b.healthy &&
-    a.tool_count === b.tool_count &&
-    a.token_count === b.token_count
-  );
-}
-
-// Utility for deep compare of full server object
-function isServerEqual(a: MCPServer | undefined, b: MCPServer | undefined) {
-  if (!a || !b) return false;
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (a[key as keyof MCPServer] !== b[key as keyof MCPServer]) return false;
-  }
-  return true;
-}
-
-export default function MCPManager({ className }: MCPManagerProps) {
-  const [serversList, setServersList] = useState<Record<string, MCPServerListItem>>({});
-  const [serversFull, setServersFull] = useState<Record<string, MCPServer>>({});
-  const [loading, setLoading] = useState(true);
+const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
+  const [servers, setServers] = useState<Record<string, MCPServer>>({});
+  const [selectedServerName, setSelectedServerName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedServer, setSelectedServer] = useState<string | null>(null);
-  const [tools, setTools] = useState<ServerTools | null>(null);
+  const [tools, setTools] = useState<MCPTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState('');
   const [toolCardState, setToolCardState] = useState<Record<string, { expanded: boolean; paramValues: Record<string, any> }>>({});
-  const scrollPositions = useRef<Record<string, number>>({});
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [mcpActionLoading, setMcpActionLoading] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<{ type: MCPSelection; id: string | null }>({ type: 'manager', id: null });
 
-  // Remove the old selectedServerRef since we're using selectedItem now
-  const selectedItemRef = useRef<{ type: MCPSelection; id: string | null }>({ type: 'manager', id: null });
-  useEffect(() => {
-    selectedItemRef.current = selectedItem;
-  }, [selectedItem]);
+  // Debug logging to track re-renders (can be removed in production)
+  // console.log('MCPManager render:', {
+  //   serverCount: Object.keys(servers).length,
+  //   selectedServer: selectedServerName,
+  //   loading,
+  //   timestamp: new Date().toISOString()
+  // });
 
-  // Store previous servers/tools for comparison
-  const prevServersRef = useRef<Record<string, MCPServer>>({});
-  const prevToolsRef = useRef<any>({});
+  const selectedServer = useMemo(() => {
+    return selectedServerName ? servers[selectedServerName] : null;
+  }, [selectedServerName, servers]);
 
-  // Helper to extract list fields
-  const extractListFields = (server: MCPServer): MCPServerListItem => ({
-    name: server.name,
-    state: server.state,
-    healthy: server.healthy,
-    tool_count: server.tool_count,
-    token_count: server.token_count,
-  });
+  // Filter servers based on search - memoized to prevent unnecessary recalculations
+  const filteredServers = useMemo(() => {
+    const serversArray = Object.values(servers);
+    if (!searchFilter.trim()) {
+      return serversArray;
+    }
+    const filterLower = searchFilter.toLowerCase();
+    return serversArray.filter(server => 
+      server.name?.toLowerCase().includes(filterLower) ||
+      server.state?.toLowerCase().includes(filterLower)
+    );
+  }, [servers, searchFilter]);
 
-  // Update serversList only if list fields change
-  const updateServersList = useCallback((newServers: Record<string, MCPServer>) => {
-    setServersList(prevServers => {
-      let changed = false;
-      const result: Record<string, MCPServerListItem> = {};
-      for (const key of Object.keys(newServers)) {
-        const prev = prevServers[key];
-        const next = extractListFields(newServers[key]);
-        if (!isListItemEqual(prev, next)) {
-          changed = true;
-          result[key] = next;
-        } else {
-          result[key] = prev;
-        }
-      }
-      if (!changed && Object.keys(prevServers).length === Object.keys(newServers).length) {
-        console.log('[updateServersList] No change, preserving reference');
-        return prevServers;
-      }
-      console.log('[updateServersList] List changed');
-      return result;
-    });
-  }, [extractListFields]);
-
-  // Always update serversFull, but preserve references for unchanged servers
-  const updateServersFull = useCallback((newServers: Record<string, MCPServer>) => {
-    setServersFull(prevServers => {
-      let changed = false;
-      const result: Record<string, MCPServer> = {};
-      for (const key of Object.keys(newServers)) {
-        const prev = prevServers[key];
-        const next = newServers[key];
-        if (!isServerEqual(prev, next)) {
-          changed = true;
-          result[key] = next;
-        } else {
-          result[key] = prev;
-        }
-      }
-      if (!changed && Object.keys(prevServers).length === Object.keys(newServers).length) {
-        console.log('[updateServersFull] No change, preserving reference');
-        return prevServers;
-      }
-      console.log('[updateServersFull] Details changed');
-      return result;
-    });
-  }, []);
-
-  // Update fetchStatus to update both
-  const fetchStatus = async () => {
+  // Optimized fetchStatus with change detection
+  const fetchStatus = useCallback(async () => {
+    // console.log('fetchStatus called at:', new Date().toISOString());
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('http://127.0.0.1:5859/status');
-      if (!response.ok) throw new Error('Failed to fetch MCP status');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      updateServersList(data);
-      updateServersFull(data);
-      setError(null);
-      // Only update selectedItem if it doesn't exist in the new data
-      if (selectedItem.type === 'server' && selectedItem.id && !(selectedItem.id in data)) {
-        const keys = Object.keys(data);
-        setSelectedItem({ type: 'server', id: keys.length > 0 ? keys[0] : null });
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch MCP status');
+      
+      // Ensure server objects have the name property set
+      const serversWithNames = Object.fromEntries(
+        Object.entries(data).map(([name, server]: [string, any]) => [
+          name,
+          { ...server, name }
+        ])
+      );
+      
+      // Use functional update to prevent unnecessary re-renders
+      setServers(prevServers => {
+        // Quick check: if server count differs, update
+        const prevKeys = Object.keys(prevServers);
+        const newKeys = Object.keys(serversWithNames);
+        if (prevKeys.length !== newKeys.length) {
+          return serversWithNames;
+        }
+        
+        // Deep equality check to prevent unnecessary updates
+        let hasChanged = false;
+        const updatedServers: Record<string, MCPServer> = {};
+        
+        for (const key of newKeys) {
+          const prev = prevServers[key];
+          const current = serversWithNames[key];
+          
+          if (!prev) {
+            hasChanged = true;
+            updatedServers[key] = current;
+          } else {
+            // Compare only the fields that matter for UI rendering
+            const fieldsChanged = 
+              prev.state !== current.state ||
+              prev.pid !== current.pid ||
+              prev.healthy !== current.healthy ||
+              prev.uptime !== current.uptime ||
+              prev.tool_count !== current.tool_count ||
+              prev.retries !== current.retries ||
+              prev.restarts !== current.restarts ||
+              prev.last_error !== current.last_error;
+            
+            if (fieldsChanged) {
+              hasChanged = true;
+              updatedServers[key] = current;
+            } else {
+              // Reuse the exact same object reference to prevent React re-renders
+              updatedServers[key] = prev;
+            }
+          }
+        }
+        
+        // If nothing changed, return the exact same reference
+        return hasChanged ? updatedServers : prevServers;
+      });
+        
+      // Auto-select first server if none selected OR if current selection no longer exists
+      setSelectedServerName(prevSelected => {
+        const availableServers = Object.keys(data);
+        
+        // If no server is selected and servers are available, select the first one
+        if (!prevSelected && availableServers.length > 0) {
+          return availableServers[0];
+        }
+        
+        // If current selection still exists, keep it
+        if (prevSelected && availableServers.includes(prevSelected)) {
+          return prevSelected;
+        }
+        
+        // If current selection no longer exists, select first available or null
+        return availableServers.length > 0 ? availableServers[0] : null;
+      });
+    } catch (e: any) {
+      setError(e.message || 'Failed to fetch server status');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchTools = async (serverName: string) => {
+  const fetchTools = useCallback(async (serverName: string) => {
     setToolsLoading(true);
     try {
       const response = await fetch('http://127.0.0.1:5859/tools');
       if (!response.ok) throw new Error('Failed to fetch tools');
       const data = await response.json();
-      console.log('Fetched tools:', data);
-      setTools(data[serverName]);
+      setTools(data[serverName]?.tools || []);
     } catch (err) {
-      setTools({ tools: [], error: err instanceof Error ? err.message : 'Failed to fetch tools' });
+      setTools([]);
+      console.error('Failed to fetch tools:', err);
     } finally {
       setToolsLoading(false);
     }
-  };
+  }, []);
 
-  const handleAction = async (action: 'start' | 'stop', serverName: string) => {
+  const handleAction = useCallback(async (action: 'start' | 'stop', serverName: string) => {
     setActionLoading(action + serverName);
     try {
       const response = await fetch(`http://127.0.0.1:5859/${action}/${serverName}`, {
@@ -709,252 +521,459 @@ export default function MCPManager({ className }: MCPManagerProps) {
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
       await fetchStatus();
-      if (selectedItem.type === 'server' && selectedItem.id) fetchTools(selectedItem.id);
+      // Refetch tools for currently selected server
+      setSelectedServerName(current => {
+        if (current) {
+          fetchTools(current);
+        }
+        return current;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} server`);
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [fetchStatus, fetchTools]);
 
-  const handleRestart = async (serverName: string) => {
+  const handleRestart = useCallback(async (serverName: string) => {
     setActionLoading('restart' + serverName);
     try {
-      await handleAction('stop', serverName);
-      await handleAction('start', serverName);
+      const response = await fetch(`http://127.0.0.1:5859/restart/${serverName}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to restart server');
+      await fetchStatus();
+      // Refetch tools for currently selected server
+      setSelectedServerName(current => {
+        if (current) {
+          fetchTools(current);
+        }
+        return current;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restart server');
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [fetchStatus, fetchTools]);
+
+  const handleToolExpand = useCallback((toolName: string, expanded: boolean) => {
+    setToolCardState(prev => ({
+      ...prev,
+      [toolName]: {
+        ...prev[toolName],
+        expanded,
+      },
+    }));
+  }, []);
+
+  const handleParamChange = useCallback((toolName: string, paramName: string, value: any) => {
+    setToolCardState(prev => ({
+      ...prev,
+      [toolName]: {
+        ...prev[toolName],
+        paramValues: {
+          ...((prev[toolName] && prev[toolName].paramValues) || {}),
+          [paramName]: value,
+        },
+      },
+    }));
+  }, []);
+
+  // Memoize the server selection handler to prevent unnecessary re-renders
+  const handleServerSelect = useCallback((serverName: string) => {
+    setSelectedServerName(serverName);
+  }, []);
+
+  // Memoize the search filter handler
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchFilter(e.target.value);
+  }, []);
+
+  // Memoize the server list component to prevent unnecessary re-renders
+  const ServerList = useMemo(() => {
+    return (
+      <div className="space-y-2">
+        {filteredServers.map((server) => (
+          <ServerCard
+            key={server.name}
+            server={server}
+            isSelected={selectedServerName === server.name}
+            onSelect={handleServerSelect}
+          />
+        ))}
+      </div>
+    );
+  }, [filteredServers, selectedServerName, handleServerSelect]);
+
+  // Use ref-based approach to avoid closure issues with interval
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchStatusRef = useRef(fetchStatus);
+  fetchStatusRef.current = fetchStatus;
 
   useEffect(() => {
     fetchStatus();
-    // Use a single declaration for interval
-    const interval = setInterval(fetchStatus, 20000); // Refresh every 20 seconds
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    // Set up new interval
+    intervalRef.current = setInterval(() => {
+      fetchStatusRef.current();
+    }, 5000);
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []); // Remove fetchStatus dependency to prevent interval recreation
 
-  // Add a new effect that only fetches tools when selected server changes, or tool_count, restarts, or uptime decrease
-  const prevServerRef = useRef<MCPServer | null>(null);
   useEffect(() => {
-    if (selectedItem.type === 'server' && typeof selectedItem.id === 'string' && selectedItem.id) {
-      const server = serversFull[selectedItem.id];
-      const prevServer = prevServerRef.current;
-      let shouldFetch = false;
-      if (!server) return;
-      if (!prevServer || prevServer.name !== server.name) {
-        shouldFetch = true;
-      } else {
-        // Check tool_count, restarts, uptime decrease, or PID change
-        if (
-          prevServer.tool_count !== server.tool_count ||
-          prevServer.restarts !== server.restarts ||
-          prevServer.pid !== server.pid ||
-          (typeof prevServer.uptime === 'number' && typeof server.uptime === 'number' && server.uptime < prevServer.uptime)
-        ) {
-          shouldFetch = true;
+    if (selectedServerName) {
+      fetchTools(selectedServerName);
+    } else {
+      setTools([]);
+      // Clear tool card state when no server is selected
+      setToolCardState({});
+    }
+  }, [selectedServerName, fetchTools]);
+
+  useEffect(() => {
+    if (!tools || tools.length === 0) return;
+    
+    // Preserve existing tool card state while adding new tools
+    setToolCardState(prev => {
+      const next: typeof prev = { ...prev }; // Start with existing state
+      
+      // Add default state for new tools only
+      for (const tool of tools) {
+        if (!next[tool.name]) {
+          next[tool.name] = { expanded: false, paramValues: {} };
         }
       }
-      if (shouldFetch) {
-        fetchTools(selectedItem.id);
-      }
-      prevServerRef.current = server;
-    } else {
-      prevServerRef.current = null;
-    }
-  }, [selectedItem.type, selectedItem.id, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.tool_count : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.restarts : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.pid : undefined, typeof selectedItem.id === 'string' && selectedItem.id ? serversFull[selectedItem.id]?.uptime : undefined]);
-
-  useEffect(() => {
-    if (!tools || !tools.tools) return;
-    setToolCardState(prev => {
-      const prevKeys = new Set(Object.keys(prev));
-      const toolNames = new Set(tools.tools.map((t: any) => t.name));
-      // Only update if the set of tool names has changed
-      if (
-        prevKeys.size === toolNames.size &&
-        Array.from(prevKeys).every(k => toolNames.has(k))
-      ) {
-        return prev; // No change
-      }
-      const next: typeof prev = {};
-      for (const tool of tools.tools) {
-        next[tool.name] = prev[tool.name] || { expanded: false, paramValues: {} };
-      }
+      
+      // Remove state for tools that no longer exist
+      const currentToolNames = new Set(tools.map(t => t.name));
+      Object.keys(next).forEach(toolName => {
+        if (!currentToolNames.has(toolName)) {
+          delete next[toolName];
+        }
+      });
+      
       return next;
     });
   }, [tools]);
 
-  // Add new handlers for MCP system actions
-  const handleMcpLaunch = async () => {
-    setMcpActionLoading('launch');
-    try {
-      const response = await fetch('http://127.0.0.1:5859/launch', {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to launch MCP');
-      await fetchStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to launch MCP');
-    } finally {
-      setMcpActionLoading(null);
-    }
-  };
-
-  const handleMcpShutdown = async () => {
-    setMcpActionLoading('shutdown');
-    try {
-      const response = await fetch('http://127.0.0.1:5859/shutdown', {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to shutdown MCP');
-      await fetchStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to shutdown MCP');
-    } finally {
-      setMcpActionLoading(null);
-    }
-  };
-
-  const handleMcpRestart = async () => {
-    setMcpActionLoading('restart');
-    try {
-      await handleMcpShutdown();
-      await handleMcpLaunch();
-    } finally {
-      setMcpActionLoading(null);
-    }
-  };
-
-  const handleMcpSettings = () => {
-    // TODO: Implement settings modal
-    console.log('Opening MCP settings');
-  };
-
   return (
-    <div className={`h-full ${className || ''}`}>
-      <ResizablePanelGroup direction="horizontal">
-        {/* Left: Navigation Panel */}
-        <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
-          <NavigationPanel
-            servers={serversList}
-            selectedItem={selectedItem}
-            setSelectedItem={setSelectedItem}
-            loading={loading}
-            error={error}
-            getStateColor={getStateColor}
-            scrollPos={scrollPositions.current['nav'] ?? 0}
-            setScrollPos={pos => { scrollPositions.current['nav'] = pos; }}
-          />
-        </ResizablePanel>
-        <ResizableHandle withHandle className="bg-[#23232b]" />
-        {/* Right: Details Panel */}
-        <ResizablePanel defaultSize={75} minSize={60}>
-          <div className="h-full p-0 bg-gradient-to-br from-[#18181b] to-[#23232b]">
-            {selectedItem.type === 'manager' ? (
-              <div className="h-full w-full flex flex-col justify-center items-center p-0 overflow-y-auto">
-                <Card className="w-full h-full shadow-xl rounded-xl bg-[#20212b] border-0 flex flex-col">
-                  <CardHeader className="flex flex-row items-start justify-between gap-4 p-8 pb-4 border-b border-[#23232b]">
-                    <div className="flex flex-col gap-4">
-                      <CardTitle className="text-2xl font-extrabold tracking-tight">
-                        MCP System Control
-                      </CardTitle>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-base px-3 py-1 rounded-full">
-                          System
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleMcpLaunch}
-                        disabled={!!mcpActionLoading}
-                      >
-                        <Power className="h-4 w-4 mr-1" /> Launch MCP
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleMcpShutdown}
-                        disabled={!!mcpActionLoading}
-                      >
-                        <PowerOff className="h-4 w-4 mr-1" /> Shutdown
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleMcpRestart}
-                        disabled={!!mcpActionLoading}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-1" /> Restart
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleMcpSettings}
-                      >
-                        <Settings className="h-4 w-4 mr-1" /> Settings
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 p-8 flex flex-col gap-8 overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-6 text-base">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-gray-400 font-medium">Active Servers</span>
-                        <span className="font-mono text-lg">{Object.keys(serversFull).length}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-gray-400 font-medium">Total Tools</span>
-                        <span className="font-mono text-lg">
-                          {Object.values(serversFull).reduce((sum, server) => sum + (server.tool_count || 0), 0)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+    <div className={`h-full w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] ${className || ''}`}>
+      <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+        {/* Left: Server List */}
+        <ResizablePanel defaultSize={30} minSize={25} maxSize={45}>
+          <div className="h-full bg-[#141414] border-r border-gray-800">
+            <div className="p-6 border-b border-gray-800">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                  <Server className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="font-bold text-xl text-white">MCP Manager</h1>
+                  <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
+                </div>
               </div>
-            ) : (
-              <ServerDetailsPanel
-                server={selectedItem.type === 'server' && selectedItem.id ? serversFull[selectedItem.id] : null}
-                tools={tools}
-                toolsLoading={toolsLoading}
-                toolCardState={toolCardState}
-                onToolExpand={(tool: string, expanded: boolean) => setToolCardState(prev => ({
-                  ...prev,
-                  [tool]: {
-                    ...prev[tool],
-                    expanded,
-                  },
-                }))}
-                onParamChange={(tool: string, param: string, value: any) => setToolCardState(prev => ({
-                  ...prev,
-                  [tool]: {
-                    ...prev[tool],
-                    paramValues: {
-                      ...((prev[tool] && prev[tool].paramValues) || {}),
-                      [param]: value,
-                    },
-                  },
-                }))}
-                getStateColor={getStateColor}
-                onAction={handleAction}
-                onRestart={handleRestart}
-                fetchStatus={fetchStatus}
-                loading={loading}
-                actionLoading={actionLoading}
-                scrollRef={scrollRef}
-                scrollPos={selectedItem.type === 'server' && selectedItem.id ? scrollPositions.current[selectedItem.id] ?? 0 : 0}
-                setScrollPos={(pos: number) => {
-                  if (selectedItem.type === 'server' && selectedItem.id) {
-                    scrollPositions.current[selectedItem.id] = pos;
-                  }
-                }}
-              />
-            )}
+              
+              {/* Search Filter */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search servers..."
+                  value={searchFilter}
+                  onChange={handleSearchChange}
+                  className="pl-10 bg-gray-800/50 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <ScrollArea className="h-[calc(100%-140px)]">
+              <div className="p-4">
+                {loading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex items-center gap-3 text-gray-400">
+                      <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading servers...</span>
+                    </div>
+                  </div>
+                )}
+                
+                {error && (
+                  <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <span className="text-sm">{error}</span>
+                  </div>
+                )}
+                
+                {!loading && !error && filteredServers.length === 0 && searchFilter && (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                    <Filter className="h-12 w-12 mb-3 opacity-50" />
+                    <p className="text-center">No servers match your search</p>
+                    <p className="text-xs text-center mt-1">Try a different search term</p>
+                  </div>
+                )}
+
+                {!loading && !error && Object.keys(servers).length === 0 && !searchFilter && (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                    <Server className="h-12 w-12 mb-3 opacity-50" />
+                    <p className="text-center">No servers found</p>
+                    <p className="text-xs text-center mt-1">Start some MCP servers to get started</p>
+                  </div>
+                )}
+
+                {ServerList}
+              </div>
+            </ScrollArea>
           </div>
+        </ResizablePanel>
+        
+        <ResizableHandle withHandle className="bg-gray-800 hover:bg-gray-700 transition-colors" />
+        
+        {/* Right: Server Details */}
+        <ResizablePanel defaultSize={70} minSize={55}>
+          <ScrollArea className="h-full">
+            <div className="h-full">
+              {selectedServer ? (
+                <div className="h-full w-full bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
+                  {/* Header Section */}
+                  <div className="border-b border-gray-800 bg-[#141414]/80 backdrop-blur-sm">
+                    <div className="p-8">
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                          <Server className="h-8 w-8 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h1 className="text-3xl font-bold text-white mb-2">{selectedServer.name}</h1>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              {getStateIcon(selectedServer.state)}
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                selectedServer.state === 'running' ? 'bg-green-500/20 text-green-400' :
+                                selectedServer.state === 'stopped' ? 'bg-gray-500/20 text-gray-400' :
+                                selectedServer.state === 'errored' ? 'bg-red-500/20 text-red-400' :
+                                'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {selectedServer.state.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <Clock className="h-4 w-4" />
+                              <span>Uptime: <Uptime value={selectedServer.uptime} /></span>
+                            </div>
+                            {selectedServer.tool_count !== undefined && (
+                              <div className="flex items-center gap-2 text-gray-400">
+                                <Wrench className="h-4 w-4" />
+                                <span>{selectedServer.tool_count} tools</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleAction(selectedServer.state === 'running' ? 'stop' : 'start', selectedServer.name)}
+                            disabled={actionLoading === (selectedServer.state === 'running' ? 'stop' : 'start') + selectedServer.name}
+                            size="sm"
+                            variant={selectedServer.state === 'running' ? 'destructive' : 'default'}
+                            className="min-w-[80px]"
+                          >
+                            {actionLoading === (selectedServer.state === 'running' ? 'stop' : 'start') + selectedServer.name ? (
+                              <RotateCw className="h-4 w-4 animate-spin" />
+                            ) : selectedServer.state === 'running' ? (
+                              <>
+                                <Square className="h-4 w-4 mr-2" />
+                                Stop
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4 mr-2" />
+                                Start
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => handleRestart(selectedServer.name)}
+                            disabled={actionLoading === 'restart' + selectedServer.name}
+                            size="sm"
+                            variant="outline"
+                            className="min-w-[80px]"
+                          >
+                            {actionLoading === 'restart' + selectedServer.name ? (
+                              <RotateCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RotateCw className="h-4 w-4 mr-2" />
+                                Restart
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={fetchStatus}
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            {loading ? (
+                              <RotateCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RotateCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Server Details */}
+                  <div className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg text-white flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-blue-400" />
+                            Server Status
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Process ID</span>
+                            <span className="font-mono text-white">{selectedServer.pid || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Transport</span>
+                            <span className="font-mono text-white">{selectedServer.transport}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Healthy</span>
+                            <span className={`font-medium ${selectedServer.healthy ? 'text-green-400' : 'text-red-400'}`}>
+                              {selectedServer.healthy ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Retries</span>
+                            <span className="font-mono text-white">{selectedServer.retries}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Restarts</span>
+                            <span className="font-mono text-white">{selectedServer.restarts}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg text-white flex items-center gap-2">
+                            <Wrench className="h-5 w-5 text-purple-400" />
+                            Tool Information
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Tool Count</span>
+                            <span className="font-mono text-white">{selectedServer.tool_count ?? 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Token Count</span>
+                            <span className="font-mono text-white">{selectedServer.token_count ?? 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Last Output Renewal</span>
+                            <span className="font-mono text-white">
+                              {selectedServer.last_output_renewal ? new Date(selectedServer.last_output_renewal * 1000).toLocaleTimeString() : 'N/A'}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Error Display */}
+                    {selectedServer.last_error && (
+                      <Card className="border-0 bg-red-500/10 border-red-500/20 shadow-xl mb-8">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg text-red-400 flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5" />
+                            Last Error
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <pre className="text-sm text-red-300 whitespace-pre-wrap overflow-auto max-h-32">
+                            {selectedServer.last_error}
+                          </pre>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Tools Section */}
+                    <div className="flex items-center gap-3 mb-6">
+                      <Wrench className="h-6 w-6 text-blue-400" />
+                      <h2 className="text-2xl font-bold text-white">Available Tools</h2>
+                      {toolsLoading && (
+                        <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                    </div>
+
+                    {toolsLoading ? (
+                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+                        <CardContent className="p-8 text-center">
+                          <div className="flex items-center justify-center gap-3 text-gray-400">
+                            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Loading tools...</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : !tools || tools.length === 0 ? (
+                      <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+                        <CardContent className="p-8 text-center">
+                          <div className="flex flex-col items-center justify-center text-gray-400">
+                            <Code className="h-12 w-12 mb-3 opacity-50" />
+                            <p>No tools available</p>
+                            <p className="text-sm mt-1">This server doesn't expose any tools</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4">
+                        {tools.map((tool, index) => (
+                          <ToolCard
+                            key={tool.name}
+                            tool={tool}
+                            expanded={toolCardState[tool.name]?.expanded || false}
+                            onExpand={(expanded) => handleToolExpand(tool.name, expanded)}
+                            paramValues={toolCardState[tool.name]?.paramValues || {}}
+                            onParamChange={(param, value) => handleParamChange(tool.name, param, value)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
+                  <div className="text-center space-y-4">
+                    <div className="p-6 bg-gray-800/30 rounded-full mx-auto w-fit">
+                      <Server className="h-16 w-16 text-gray-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-semibold text-gray-300 mb-2">Select a Server</h3>
+                      <p className="text-gray-500">Choose a server from the left panel to view its details and tools</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
   );
-} 
+};
+
+export default MCPManager;
