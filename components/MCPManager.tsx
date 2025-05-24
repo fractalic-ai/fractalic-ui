@@ -287,24 +287,24 @@ const ToolCard = React.memo(function ToolCard({
       }`}
     >
       <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-blue-400" />
-              {tool.name}
-            </h3>
-            <p className="text-sm text-gray-400 mt-1">
-              {tool.description || 'No description available.'}
-            </p>
+        <div>
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Wrench className="h-5 w-5 text-blue-400" />
+            {tool.name}
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">
+            {tool.description || 'No description available.'}
+          </p>
+          <div className="flex justify-start mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onExpand(!expanded)}
+              className="text-blue-400 hover:text-blue-300"
+            >
+              {expanded ? 'Hide Details' : 'Show Details'}
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onExpand(!expanded)}
-            className="text-blue-400 hover:text-blue-300"
-          >
-            {expanded ? 'Hide Details' : 'Show Details'}
-          </Button>
         </div>
 
         {expanded && (
@@ -425,6 +425,8 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   initialLoading: boolean;
   fetchStatus: () => void;
 }) {
+  const [showOutput, setShowOutput] = useState(false);
+
   if (!server) return null;
 
   return (
@@ -572,11 +574,67 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Last Output Renewal</span>
                 <span className="font-mono text-white">
-                  {server.last_output_renewal ? new Date(server.last_output_renewal * 1000).toLocaleTimeString() : 'N/A'}
+                  {server.last_output_renewal && !isNaN(server.last_output_renewal) && server.last_output_renewal > 0
+                    ? new Date(server.last_output_renewal * 1000).toLocaleTimeString()
+                    : 'N/A'}
                 </span>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Terminal Output Section (in details panel) */}
+        <div className="mb-8">
+          <Button
+            variant={showOutput ? "default" : "outline"}
+            size="sm"
+            className={`mb-2 flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow transition-colors border-0 ${
+              showOutput
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-800 text-blue-400 hover:bg-blue-700 hover:text-white'
+            }`}
+            onClick={() => setShowOutput((v: boolean) => !v)}
+            aria-pressed={showOutput}
+          >
+            {showOutput ? (
+              <>
+                <Code className="h-4 w-4 mr-1" />
+                Hide Terminal Output
+              </>
+            ) : (
+              <>
+                <Code className="h-4 w-4 mr-1" />
+                Show Terminal Output
+              </>
+            )}
+          </Button>
+          {showOutput && (
+            <Card className="border-0 bg-[#181818] shadow-inner mt-2">
+              <CardContent className="p-4">
+                <pre className="text-xs text-gray-300 whitespace-pre-wrap overflow-auto max-h-60">
+                  {(() => {
+                    const stdout = Array.isArray(server.stdout) ? server.stdout : [];
+                    const stderr = Array.isArray(server.stderr) ? server.stderr : [];
+                    // Defensive: filter for entries with line or text and timestamp
+                    const combined = [
+                      ...stdout.map(e => ({...e, _stream: 'stdout'})),
+                      ...stderr.map(e => ({...e, _stream: 'stderr'})),
+                    ].filter(e => (typeof e.line === 'string' || typeof e.text === 'string') && e.timestamp !== undefined);
+                    // Sort by timestamp (number or string)
+                    combined.sort((a, b) => {
+                      if (typeof a.timestamp === 'number' && typeof b.timestamp === 'number') {
+                        return a.timestamp - b.timestamp;
+                      } else {
+                        return String(a.timestamp).localeCompare(String(b.timestamp));
+                      }
+                    });
+                    const output = combined.map(e => e.line ?? e.text ?? '').join('\n');
+                    return output || 'No output available.';
+                  })()}
+                </pre>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Error Display */}
