@@ -12,6 +12,22 @@ interface ToolsManagerProps {
   currentEditPath: string;
 }
 
+interface ParameterSchema {
+  type: string;
+  description?: string;
+  enum?: string[];
+  minimum?: number;
+  maximum?: number;
+  items?: {
+    type: string;
+  };
+  default?: any;
+  format?: string;
+  pattern?: string;
+  minLength?: number;
+  maxLength?: number;
+}
+
 interface ToolSchema {
   type: string;
   function: {
@@ -19,7 +35,7 @@ interface ToolSchema {
     description: string;
     parameters: {
       type: string;
-      properties: Record<string, { type: string; description?: string }>;
+      properties: Record<string, ParameterSchema>;
       required?: string[];
     };
   };
@@ -72,7 +88,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
   let paramSchema: any = selectedTool?.function?.parameters;
   let variants: any[] = paramSchema?.oneOf || [];
   let hasVariants = variants.length > 0;
-  let flatProperties: Record<string, { type: string; description?: string }> = {};
+  let flatProperties: Record<string, ParameterSchema> = {};
   let flatRequired: string[] = [];
   if (!hasVariants && paramSchema?.properties) {
     flatProperties = paramSchema.properties;
@@ -128,38 +144,92 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
   };
 
   // Render input based on parameter type
-  const renderParamInput = (toolName: string, param: any, value: any) => {
+  const renderParamInput = (toolName: string, param: any, value: any, schema?: ParameterSchema) => {
     const onChange = (newValue: any) => handleParamChange(toolName, param.name, newValue);
+    
+    // Generate appropriate placeholder based on parameter name and type
+    const getPlaceholder = () => {
+      const paramName = param.name.toLowerCase();
+      if (paramName.includes('file') || paramName.includes('path')) return 'Enter file path...';
+      if (paramName.includes('url')) return 'Enter URL...';
+      if (paramName.includes('model')) return 'Enter model name...';
+      if (paramName.includes('provider')) return 'Enter provider...';
+      if (paramName.includes('prompt')) return 'Enter prompt text...';
+      if (paramName.includes('block')) return 'Enter block path...';
+      if (paramName.includes('header')) return 'Enter header text...';
+      if (paramName.includes('tool')) return 'Enter tool names...';
+      if (paramName.includes('media')) return 'Enter media file paths...';
+      if (paramName.includes('sequence')) return 'Enter stop sequences...';
+      return 'Enter value...';
+    };
+    
+    // Handle enum types (dropdown)
+    if (schema?.enum && schema.enum.length > 0) {
+      return (
+        <select
+          value={value || schema.default || ''}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">Select option...</option>
+          {schema.enum.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
     
     switch (param.type) {
       case 'boolean':
         return (
-          <input
-            type="checkbox"
-            checked={!!value}
-            onChange={(e) => onChange(e.target.checked)}
-            className="rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
-          />
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={!!value}
+              onChange={(e) => onChange(e.target.checked)}
+              className="rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-400">
+              {value ? 'true' : 'false'}
+            </span>
+          </div>
         );
       case 'number':
       case 'integer':
         return (
-          <Input
-            type="number"
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter number..."
-          />
+          <div className="space-y-2">
+            <Input
+              type="number"
+              value={value || schema?.default || ''}
+              onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
+              className="bg-gray-800 border-gray-600 text-white"
+              placeholder="Enter number..."
+              min={schema?.minimum}
+              max={schema?.maximum}
+              step={param.type === 'number' ? 0.1 : 1}
+            />
+            {(schema?.minimum !== undefined || schema?.maximum !== undefined) && (
+              <div className="text-xs text-gray-500">
+                Range: {schema?.minimum ?? '∞'} to {schema?.maximum ?? '∞'}
+              </div>
+            )}
+          </div>
         );
       case 'array':
         return (
-          <Textarea
-            value={Array.isArray(value) ? value.join('\n') : value || ''}
-            onChange={(e) => onChange(e.target.value.split('\n').filter(v => v.trim()))}
-            className="bg-gray-800 border-gray-600 text-white min-h-[80px]"
-            placeholder="Enter one item per line..."
-          />
+          <div className="space-y-2">
+            <Textarea
+              value={Array.isArray(value) ? value.join('\n') : value || ''}
+              onChange={(e) => onChange(e.target.value.split('\n').filter(v => v.trim()))}
+              className="bg-gray-800 border-gray-600 text-white min-h-[80px]"
+              placeholder="Enter one item per line..."
+            />
+            <div className="text-xs text-gray-500">
+              Array of {schema?.items?.type || 'items'} - one per line
+            </div>
+          </div>
         );
       case 'object':
         return (
@@ -178,13 +248,23 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
         );
       default:
         return (
-          <Input
-            type="text"
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            className="bg-gray-800 border-gray-600 text-white"
-            placeholder="Enter text..."
-          />
+          <div className="space-y-2">
+            <Input
+              type="text"
+              value={value || schema?.default || ''}
+              onChange={(e) => onChange(e.target.value)}
+              className="bg-gray-800 border-gray-600 text-white"
+              placeholder={getPlaceholder()}
+              minLength={schema?.minLength}
+              maxLength={schema?.maxLength}
+              pattern={schema?.pattern}
+            />
+            {(schema?.minLength !== undefined || schema?.maxLength !== undefined) && (
+              <div className="text-xs text-gray-500">
+                Length: {schema?.minLength ?? '0'} - {schema?.maxLength ?? '∞'} characters
+              </div>
+            )}
+          </div>
         );
     }
   };
@@ -410,16 +490,44 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
                                                 <Badge variant="outline" className="text-xs font-mono bg-gray-800/50 border-gray-600 text-gray-300">
                                                   {paramInfo.type}
                                                 </Badge>
+                                                {paramInfo.enum && (
+                                                  <Badge variant="outline" className="text-xs bg-purple-500/20 border-purple-500/30 text-purple-300">
+                                                    enum: {paramInfo.enum.length} options
+                                                  </Badge>
+                                                )}
+                                                {(paramInfo.minimum !== undefined || paramInfo.maximum !== undefined) && (
+                                                  <Badge variant="outline" className="text-xs bg-blue-500/20 border-blue-500/30 text-blue-300">
+                                                    range: {paramInfo.minimum ?? '∞'} - {paramInfo.maximum ?? '∞'}
+                                                  </Badge>
+                                                )}
+                                                {paramInfo.default !== undefined && (
+                                                  <Badge variant="outline" className="text-xs bg-green-500/20 border-green-500/30 text-green-300">
+                                                    default: {String(paramInfo.default)}
+                                                  </Badge>
+                                                )}
+                                                {paramInfo.format && (
+                                                  <Badge variant="outline" className="text-xs bg-yellow-500/20 border-yellow-500/30 text-yellow-300">
+                                                    format: {paramInfo.format}
+                                                  </Badge>
+                                                )}
+                                                {(paramInfo.minLength !== undefined || paramInfo.maxLength !== undefined) && (
+                                                  <Badge variant="outline" className="text-xs bg-cyan-500/20 border-cyan-500/30 text-cyan-300">
+                                                    length: {paramInfo.minLength ?? '0'} - {paramInfo.maxLength ?? '∞'}
+                                                  </Badge>
+                                                )}
                                               </div>
                                               {paramInfo.description && (
-                                                <p className="text-gray-400 leading-relaxed text-sm" title={paramInfo.description}>
-                                                  {paramInfo.description.length > 100 
-                                                    ? `${paramInfo.description.substring(0, 100)}...` 
-                                                    : paramInfo.description}
+                                                <p className="text-gray-400 leading-relaxed text-sm">
+                                                  {paramInfo.description}
                                                 </p>
                                               )}
+                                              {paramInfo.enum && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                  <span className="font-semibold">Options:</span> {paramInfo.enum.join(', ')}
+                                                </div>
+                                              )}
                                               <div className="w-full">
-                                                {renderParamInput(selectedTool.function.name, { name: param, type: paramInfo.type }, currentValue)}
+                                                {renderParamInput(selectedTool.function.name, { name: param, type: paramInfo.type }, currentValue, paramInfo)}
                                               </div>
                                             </div>
                                           </div>
@@ -472,16 +580,44 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
                                           <Badge variant="outline" className="text-xs font-mono bg-gray-800/50 border-gray-600 text-gray-300">
                                             {paramInfo.type}
                                           </Badge>
+                                          {paramInfo.enum && (
+                                            <Badge variant="outline" className="text-xs bg-purple-500/20 border-purple-500/30 text-purple-300">
+                                              enum: {paramInfo.enum.length} options
+                                            </Badge>
+                                          )}
+                                          {(paramInfo.minimum !== undefined || paramInfo.maximum !== undefined) && (
+                                            <Badge variant="outline" className="text-xs bg-blue-500/20 border-blue-500/30 text-blue-300">
+                                              range: {paramInfo.minimum ?? '∞'} - {paramInfo.maximum ?? '∞'}
+                                            </Badge>
+                                          )}
+                                          {paramInfo.default !== undefined && (
+                                            <Badge variant="outline" className="text-xs bg-green-500/20 border-green-500/30 text-green-300">
+                                              default: {String(paramInfo.default)}
+                                            </Badge>
+                                          )}
+                                          {paramInfo.format && (
+                                            <Badge variant="outline" className="text-xs bg-yellow-500/20 border-yellow-500/30 text-yellow-300">
+                                              format: {paramInfo.format}
+                                            </Badge>
+                                          )}
+                                          {(paramInfo.minLength !== undefined || paramInfo.maxLength !== undefined) && (
+                                            <Badge variant="outline" className="text-xs bg-cyan-500/20 border-cyan-500/30 text-cyan-300">
+                                              length: {paramInfo.minLength ?? '0'} - {paramInfo.maxLength ?? '∞'}
+                                            </Badge>
+                                          )}
                                         </div>
                                         {paramInfo.description && (
-                                          <p className="text-gray-400 leading-relaxed text-sm" title={paramInfo.description}>
-                                            {paramInfo.description.length > 100 
-                                              ? `${paramInfo.description.substring(0, 100)}...` 
-                                              : paramInfo.description}
+                                          <p className="text-gray-400 leading-relaxed text-sm">
+                                            {paramInfo.description}
                                           </p>
                                         )}
+                                        {paramInfo.enum && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            <span className="font-semibold">Options:</span> {paramInfo.enum.join(', ')}
+                                          </div>
+                                        )}
                                         <div className="w-full">
-                                          {renderParamInput(selectedTool.function.name, { name: param, type: paramInfo.type }, currentValue)}
+                                          {renderParamInput(selectedTool.function.name, { name: param, type: paramInfo.type }, currentValue, paramInfo)}
                                         </div>
                                       </div>
                                     </div>
