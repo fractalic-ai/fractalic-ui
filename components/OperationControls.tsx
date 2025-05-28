@@ -20,9 +20,25 @@ interface FieldArrayValue {
   onChange: (values: any[]) => void;
 }
 
-const isArrayField = (fieldSchema: any) => {
-  return Array.isArray(fieldSchema.type) && fieldSchema.type.includes('array') || 
-         fieldSchema.type === 'array';
+const isArrayField = (fieldSchema: any, fieldName: string, currentValue: any) => {
+  // For union types like ['string', 'array'], check the actual value to determine rendering
+  if (Array.isArray(fieldSchema.type) && fieldSchema.type.includes('array')) {
+    // Special handling for tools field - it can be either scalar ("all", "none", single tool) or array
+    if (fieldName === 'tools') {
+      // If value is already an array, render as array
+      if (Array.isArray(currentValue)) {
+        return true;
+      }
+      // If value is "all", "none", or a single string, render as text field
+      if (typeof currentValue === 'string' || currentValue === undefined || currentValue === '') {
+        return false;
+      }
+    }
+    // For other union types, default to array if type includes 'array'
+    return true;
+  }
+  
+  return fieldSchema.type === 'array';
 };
 
 // Move isMultilineField outside components so it's accessible everywhere
@@ -209,7 +225,76 @@ const OperationControls: React.FC<OperationControlsProps> = ({
       );
     }
 
-    if (isArrayField(fieldSchema)) {
+    // Special handling for tools field with union type ['string', 'array']
+    if (fieldName === 'tools' && Array.isArray(fieldSchema.type) && fieldSchema.type.includes('string') && fieldSchema.type.includes('array')) {
+      const currentValue = values[fieldName];
+      const isCurrentlyArray = Array.isArray(currentValue);
+      
+      return (
+        <div className="flex items-center gap-2">
+          {isCurrentlyArray ? (
+            // Array mode - show array input with switch button
+            <div className="flex items-center gap-2 flex-1">
+              <ArrayField
+                fieldName={fieldName}
+                values={currentValue || []}
+                onChange={(newValues) => handleFieldChange(fieldName, newValues)}
+                fieldSchema={fieldSchema}
+                showLineNumbers={showLineNumbers}
+                wordWrap={wordWrap}
+                operationType={operationType}
+              />
+              <button
+                onClick={() => handleFieldChange(fieldName, 'all')}
+                className="px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 text-gray-300"
+                title="Switch to single value mode"
+              >
+                Single
+              </button>
+            </div>
+          ) : (
+            // Single value mode - show dropdown/text input with switch button  
+            <div className="flex items-center gap-2">
+              <select
+                value={currentValue || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'custom') {
+                    // Don't change the value, let user type
+                    return;
+                  }
+                  handleFieldChange(fieldName, value);
+                }}
+                className="w-32 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm h-8"
+              >
+                <option value="">Select...</option>
+                <option value="none">none</option>
+                <option value="all">all</option>
+                <option value="custom">Custom...</option>
+              </select>
+              {currentValue && !['none', 'all'].includes(currentValue) && (
+                <input
+                  type="text"
+                  value={currentValue}
+                  onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+                  placeholder="Tool name"
+                  className="w-32 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-gray-200 text-sm h-8"
+                />
+              )}
+              <button
+                onClick={() => handleFieldChange(fieldName, [''])}
+                className="px-2 py-1 text-xs bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 text-gray-300"
+                title="Switch to multiple tools mode"
+              >
+                Multiple
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (isArrayField(fieldSchema, fieldName, values[fieldName])) {
       return (
         <ArrayField
           fieldName={fieldName}

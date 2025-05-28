@@ -116,6 +116,15 @@ export const operationSchema = {
         },
         description: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter)."
       },
+      "tools": {
+        type: ['string', 'array'],
+        description: "Tools to use: 'none' (default), 'all', single tool name, or array of tool names"
+      },
+      "tools-turns-max": {
+        type: 'number',
+        minimum: 1,
+        description: "Maximum number of tool calls allowed for this operation"
+      },
       "run-once": {
         type: "enum",
         enum: ['false', 'true'],

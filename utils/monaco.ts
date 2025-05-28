@@ -2,6 +2,7 @@
  * Monaco editor configuration for Fractalic
  */
 import * as monaco from 'monaco-editor';
+import { setupFractalicValidation } from './monacoValidation';
 
 // Function to register Fractalic language with Monaco editor
 export function registerFractalicLanguage(monaco: any) {
@@ -19,7 +20,7 @@ export function registerFractalicLanguage(monaco: any) {
         [/^@(llm|shell|import|run|return|goto)\b/, "operation-keyword"],
 
         // Field names - Capture name and colon together
-        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to|stop-sequences)(:)/,
+        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to|stop-sequences|tools|tools-turns-max|run-once)(:)/,
           ["white", "field-name", "punctuation.colon"]],
 
         // String values (double and single quoted)
@@ -227,17 +228,20 @@ export function registerFractalicHoverProvider(monaco: any) {
             title: "LLM Operation",
             description: "Sends prompts to language models and captures responses.",
             fields: [
-              { name: "prompt", required: "Yes*", description: "Direct text string for input prompt" },
-              { name: "block", required: "Yes*", description: "Reference(s) to blocks for prompt content" },
-              { name: "media", required: "No", description: "File paths for additional media context" },
-              { name: "save-to-file", required: "No", description: "File path to save raw response" },
-              { name: "use-header", required: "No", description: "Header for LLM response" },
+              { name: "prompt", required: "Yes*", description: "Literal text for input prompt" },
+              { name: "block", required: "Yes*", description: "Block reference(s) for prompt content. Can be single or array. Stacks with prompt if both provided." },
+              { name: "media", required: "No", description: "Array of file paths for media context (images, etc.)" },
+              { name: "save-to-file", required: "No", description: "File path to save raw response (header not included)" },
+              { name: "use-header", required: "No", description: "Header for LLM response. Use {id=X} for specific block ID, 'none' to omit header" },
               { name: "mode", required: "No", description: "Merge mode (append, prepend, replace)" },
               { name: "to", required: "No", description: "Target block reference" },
               { name: "provider", required: "No", description: "Override for language model provider" },
               { name: "model", required: "No", description: "Override for specific model" },
               { name: "temperature", required: "No", description: "Controls randomness (0.0-1.0)" },
-              { name: "stop-sequences", required: "No", description: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter)." }
+              { name: "stop-sequences", required: "No", description: "Array of strings where the model should stop generation" },
+              { name: "tools", required: "No", description: "Tools to use: 'none' (default), 'all', single tool name, or array of tool names" },
+              { name: "tools-turns-max", required: "No", description: "Maximum number of tool calls allowed for this operation" },
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
             ],
             note: "* Either prompt or block must be provided"
           },
@@ -245,32 +249,35 @@ export function registerFractalicHoverProvider(monaco: any) {
             title: "Shell Operation",
             description: "Executes shell commands and captures output.",
             fields: [
-              { name: "prompt", required: "Yes", description: "Shell command to execute" },
-              { name: "use-header", required: "No", description: "Header for command output" },
+              { name: "prompt", required: "Yes", description: "Shell command to execute (single line or multiline)" },
+              { name: "use-header", required: "No", description: "Header for command output. Use 'none' to omit header. Default: '# OS Shell Tool response block'" },
               { name: "mode", required: "No", description: "Merge mode (append, prepend, replace)" },
-              { name: "to", required: "No", description: "Target block reference" }
+              { name: "to", required: "No", description: "Target block reference" },
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
             ]
           },
           import: {
             title: "Import Operation",
             description: "Imports content from another file or specific section.",
             fields: [
-              { name: "file", required: "Yes", description: "File path to import from" },
-              { name: "block", required: "No", description: "Reference to specific section within source file" },
+              { name: "file", required: "Yes", description: "Source file path (folder/file.md)" },
+              { name: "block", required: "No", description: "Source block path with optional nested flag (block/subblock/*)" },
               { name: "mode", required: "No", description: "How content is merged (append, prepend, replace)" },
-              { name: "to", required: "No", description: "Target block reference in current document" }
+              { name: "to", required: "No", description: "Target block reference in current document" },
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
             ]
           },
           run: {
             title: "Run Operation",
             description: "Executes another markdown file as a workflow.",
             fields: [
-              { name: "file", required: "Yes", description: "Path to markdown file to execute" },
-              { name: "prompt", required: "No", description: "Literal text input for workflow" },
-              { name: "block", required: "No", description: "Reference(s) to blocks for input" },
-              { name: "use-header", required: "No", description: "Header for workflow output" },
+              { name: "file", required: "Yes", description: "Path to markdown file to execute (folder/file.md)" },
+              { name: "prompt", required: "No", description: "Optional input text to pass to the executed file" },
+              { name: "block", required: "No", description: "Block reference(s) for input. Can be single or array. Stacks with prompt if both provided." },
+              { name: "use-header", required: "No", description: "Header for workflow output. If provided with prompt, header is appended to target file before execution" },
               { name: "mode", required: "No", description: "Merge mode (append, prepend, replace)" },
-              { name: "to", required: "No", description: "Target block reference" }
+              { name: "to", required: "No", description: "Target block reference" },
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
             ]
           },
           return: {
@@ -278,8 +285,8 @@ export function registerFractalicHoverProvider(monaco: any) {
             description: "Produces final output and ends current workflow.",
             fields: [
               { name: "prompt", required: "Yes*", description: "Literal text to return" },
-              { name: "block", required: "Yes*", description: "Reference(s) to blocks to return" },
-              { name: "use-header", required: "No", description: "Header for returned content" }
+              { name: "block", required: "Yes*", description: "Block reference(s) to return. Can be single or array. Stacks with prompt if both provided." },
+              { name: "use-header", required: "No", description: "Header for returned content. Use 'none' to omit header" }
             ],
             note: "* Either prompt or block must be provided"
           },
@@ -287,7 +294,8 @@ export function registerFractalicHoverProvider(monaco: any) {
             title: "Goto Operation",
             description: "Navigates to different document sections.",
             fields: [
-              { name: "block", required: "Yes", description: "Target block to navigate to" }
+              { name: "block", required: "Yes", description: "Target block to navigate to (no nested flags allowed)" },
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
             ]
           }
         };
@@ -362,6 +370,9 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
       { label: "model", kind: monaco.languages.CompletionItemKind.Field, documentation: "Override for specific model", insertText: "model: ", range: paramRange },
       { label: "temperature", kind: monaco.languages.CompletionItemKind.Field, documentation: "Controls randomness (0.0-1.0)", insertText: "temperature: ", range: paramRange },
       { label: "stop-sequences", kind: monaco.languages.CompletionItemKind.Field, documentation: "List of strings where the model should stop generation (for Anthropic models it maps to stop_sequences parameter).", insertText: "stop-sequences: ", range: paramRange },
+      { label: "tools", kind: monaco.languages.CompletionItemKind.Field, documentation: "Enable/disable tool usage", insertText: "tools: ", range: paramRange },
+      { label: "tools-turns-max", kind: monaco.languages.CompletionItemKind.Field, documentation: "Maximum tool usage turns", insertText: "tools-turns-max: ", range: paramRange },
+      { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
       // Snippets (adjust insertText and potentially range if triggeredBySpace)
       {
         label: "full-llm-operation (prompt)",
@@ -387,6 +398,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
         { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for command output", insertText: "use-header: ", range: paramRange },
         { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
         { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
+        { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
         // Snippets
         {
           label: "full-shell-operation",
@@ -404,6 +416,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
         { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Reference to specific section within source file", insertText: "block: ", range: paramRange },
         { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "How content is merged (append, prepend, replace)", insertText: "mode: ", range: paramRange },
         { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference in current document", insertText: "to: ", range: paramRange },
+        { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
         // Snippets
         {
           label: "full-import-operation",
@@ -423,6 +436,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
         { label: "use-header", kind: monaco.languages.CompletionItemKind.Field, documentation: "Header for workflow output", insertText: "use-header: ", range: paramRange },
         { label: "mode", kind: monaco.languages.CompletionItemKind.Field, documentation: "Merge mode (append, prepend, replace)", insertText: "mode: ", range: paramRange },
         { label: "to", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block reference", insertText: "to: ", range: paramRange },
+        { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
         // Snippets
         {
           label: "full-run-operation",
@@ -469,6 +483,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
      suggestions = [
         // Fields
         { label: "block", kind: monaco.languages.CompletionItemKind.Field, documentation: "Target block to navigate to", insertText: "block: ", range: paramRange },
+        { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
         // Snippets
         {
           label: "full-goto-operation",
@@ -707,6 +722,7 @@ export function setupFractalicLanguage(monaco: any) {
     registerFractalicHoverProvider(monaco);
     registerFractalicCompletionProvider(monaco);
     setDefaultLanguageForMarkdown(monaco); // Ensure .md uses fractalic
+    setupFractalicValidation(monaco); // Add validation provider
 
     // Force theme application
     monaco.editor.setTheme('fractalicDarkTheme');
