@@ -60,17 +60,20 @@ function Console(props: ConsoleProps) {
           }
           const reader = response.body!.getReader();
           const decoder = new TextDecoder('utf-8');
+          let partial = '';
 
           function read() {
             reader
               .read()
               .then(({ done, value }) => {
                 if (done) {
+                  if (partial) onData(partial);
                   onData(null); // Indicate end
                   return;
                 }
-                const chunk = decoder.decode(value);
-                onData(chunk);
+                partial += decoder.decode(value, { stream: true });
+                onData(partial);
+                partial = '';
                 read();
               })
               .catch((error) => {
@@ -107,17 +110,20 @@ function Console(props: ConsoleProps) {
             }
             const reader = response.body!.getReader();
             const decoder = new TextDecoder('utf-8');
+            let partial = '';
 
             function read() {
               reader
                 .read()
                 .then(({ done, value }) => {
                   if (done) {
+                    if (partial) onData(partial);
                     onData(null); // Indicate end
                     return;
                   }
-                  const chunk = decoder.decode(value);
-                  onData(chunk);
+                  partial += decoder.decode(value, { stream: true });
+                  onData(partial);
+                  partial = '';
                   read();
                 })
                 .catch((error) => {
