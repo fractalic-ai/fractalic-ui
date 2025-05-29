@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
 import Uptime from "./Uptime";
 import { 
   Server, 
@@ -24,7 +27,9 @@ import {
   ChevronRight,
   Power,
   PowerOff,
-  Info
+  Info,
+  ChevronDown,
+  X
 } from 'lucide-react';
 
 interface MCPServer {
@@ -48,6 +53,23 @@ interface MCPTool {
   name: string;
   description?: string;
   inputSchema?: any;
+}
+
+interface MCPLibrary {
+  name: string;
+  id: string;
+  description: string;
+  category: string;
+  install: string;
+  docs: string;
+  icon?: string;
+  author?: string;
+  repository?: string;
+  config?: any;
+  tags?: string[];
+  version?: string;
+  license?: string;
+  lastUpdated?: string;
 }
 
 interface MCPManagerProps {
@@ -701,6 +723,1022 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   );
 });
 
+// --- MCP Marketplace Section ---
+
+// Function to fetch MCP libraries from our API endpoint
+const fetchMCPLibrariesFromAPI = async (): Promise<MCPLibrary[]> => {
+  try {
+    console.log('🌐 Fetching MCP libraries from API...');
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch('/api/mcp-libraries', {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'API returned error status');
+    }
+    
+    console.log(`✅ Successfully fetched ${data.count} libraries from API`);
+    return data.libraries;
+    
+  } catch (error) {
+    console.error('❌ Failed to fetch from API:', error);
+    throw error;
+  }
+};
+
+// Function to fetch markdown content from awesome-mcp-servers with multiple fallbacks
+const fetchAwesomeMCPServers = async (): Promise<string> => {
+  const urls = [
+    'https://raw.githubusercontent.com/punkpeye/awesome-mcp-servers/main/README.md',
+    'https://api.github.com/repos/punkpeye/awesome-mcp-servers/contents/README.md'
+  ];
+  
+  let lastError: Error | null = null;
+  
+  for (const url of urls) {
+    try {
+      console.log(`🌐 Attempting to fetch from: ${url}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout
+      
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': url.includes('api.github.com') ? 'application/vnd.github.v3.raw' : 'text/plain',
+          'User-Agent': 'MCPMarketplace/1.0',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`📡 Response from ${url}:`, response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const text = await response.text();
+      
+      if (!text || text.length < 100) {
+        throw new Error('Received empty or invalid content');
+      }
+      
+      console.log(`✅ Successfully fetched ${text.length} characters from ${url}`);
+      return text;
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`❌ Failed to fetch from ${url}:`, lastError.message);
+      
+      if (lastError.name === 'AbortError') {
+        console.warn('⏱️ Request timed out');
+      }
+      // Continue to next URL
+    }
+  }
+  
+  throw lastError || new Error('All fetch attempts failed');
+};
+
+// Function to parse markdown and extract MCP server information
+const parseMarkdownToMCPLibraries = (markdown: string): MCPLibrary[] => {
+  const libraries: MCPLibrary[] = [];
+  const lines = markdown.split('\n');
+  
+  console.log('Starting to parse markdown, total lines:', lines.length);
+  
+  let currentCategory = 'General';
+  let inServerSection = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Skip empty lines, HTML anchor tags, and other non-content lines
+    if (!line || 
+        line.startsWith('<a name=') || 
+        line.startsWith('<a id=') ||
+        line.startsWith('<!--') ||
+        line.startsWith('[!') ||
+        line.includes('🏎️') || 
+        line.includes('📇') ||
+        line.includes('Back to top')) {
+      continue;
+    }
+    
+    // Check if we're in the servers section - look for "Servers" in headers
+    if (line.startsWith('## ') && line.toLowerCase().includes('server')) {
+      inServerSection = true;
+      currentCategory = 'Servers';
+      console.log('Found servers section');
+      continue;
+    }
+    
+    // Skip table of contents and other sections before servers
+    if (!inServerSection) continue;
+    
+    // Extract category from headers (### or #### level)
+    if (line.startsWith('### ') || line.startsWith('#### ')) {
+      // Clean category name by removing emojis, HTML, and anchor links
+      currentCategory = line
+        .replace(/^#+\s*/, '')
+        .replace(/[📁🔧⚡🌐🔍💾🛠️📊🎯🔒🎮📝🌍🏎️📇🏠☁️🍎🪟🐧🎨🎵🔗📈📄🌟]/g, '')
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/\[[^\]]*\]\([^)]*\)/g, '') // Remove markdown links
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      // Skip if it looks like an anchor or empty
+      if (currentCategory.includes('name=') || !currentCategory || currentCategory.length < 2) {
+        continue;
+      }
+      
+      console.log('Updated category to:', currentCategory);
+      continue;
+    }
+    
+    // Parse server entries - look for markdown links in list format
+    const serverMatch = line.match(/^\s*[-*]\s*\[([^\]]+)\]\(([^)]+)\)\s*[-–—]?\s*(.*)$/);
+    
+    if (serverMatch) {
+      const [, name, url, description] = serverMatch;
+      
+      // Skip entries that are clearly not MCP servers
+      const skipPatterns = [
+        /tutorials?/i,
+        /quickstart/i,
+        /reddit/i,
+        /discord/i,
+        /community/i,
+        /setup.*claude/i,
+        /getting.?started/i,
+        /how.?to/i,
+        /^docs?$/i,
+        /^guide$/i
+      ];
+      
+      const shouldSkip = skipPatterns.some(pattern => 
+        pattern.test(name) || pattern.test(description)
+      );
+      
+      if (shouldSkip) {
+        console.log('Skipping non-server entry:', name);
+        continue;
+      }
+      
+      // Enhanced description cleaning
+      let cleanDescription = description
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/\[[^\]]*\]\([^)]*\)/g, '') // Remove markdown links
+        .replace(/�\s*/g, '') // Remove replacement characters
+        .replace(/&[a-z]+;/gi, '') // Remove HTML entities
+        .replace(/^\s*[-–—]\s*/, '') // Remove leading dashes
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+      
+      // If description is empty, unclear, or looks like HTML/anchor, use a default
+      if (!cleanDescription || 
+          cleanDescription.includes('name=') || 
+          cleanDescription.length < 10 ||
+          /^[^a-zA-Z]*$/.test(cleanDescription)) {
+        cleanDescription = 'No description available';
+      }
+      
+      console.log('Found server:', name, 'in category:', currentCategory);
+      
+      // Generate ID from name
+      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      
+      // Check for duplicates before adding
+      const duplicate = libraries.find(existing => 
+        existing.name === name.trim() || 
+        existing.docs === url ||
+        existing.id === id
+      );
+      
+      if (duplicate) {
+        console.log('Skipping duplicate:', name.trim(), 'already exists as:', duplicate.name);
+        continue;
+      }
+      
+      // Generate install command based on GitHub URL
+      let install = '';
+      if (url.includes('github.com')) {
+        const repoPath = url.replace('https://github.com/', '').replace(/\/$/, '');
+        const repoParts = repoPath.split('/');
+        if (repoParts.length >= 2) {
+          // Use the repository name for npx command
+          install = `npx ${repoParts[1]}`;
+        }
+      } else {
+        install = `npm install ${id}`;
+      }
+      
+      // Generate icon URL from GitHub
+      let icon = '';
+      let author = '';
+      let repository = '';
+      if (url.includes('github.com')) {
+        const repoPath = url.replace('https://github.com/', '').replace(/\/$/, '');
+        const repoParts = repoPath.split('/');
+        if (repoParts.length >= 2) {
+          author = repoParts[0];
+          repository = repoParts[1];
+          icon = `https://github.com/${repoParts[0]}.png?size=40`;
+        }
+      }
+      
+      // Generate sample config JSON
+      const config = {
+        mcpServers: {
+          [id]: {
+            command: install.startsWith('npx') ? install.split(' ')[1] : 'node',
+            args: install.startsWith('npx') ? [] : [install.split(' ').slice(1).join(' ')],
+            env: {}
+          }
+        }
+      };
+      
+      libraries.push({
+        name: name.trim(),
+        id,
+        description: cleanDescription,
+        category: currentCategory,
+        install,
+        docs: url,
+        icon,
+        author,
+        repository,
+        config,
+        tags: [currentCategory.toLowerCase()],
+        version: "latest",
+        license: "Unknown"
+      });
+      
+      console.log('Added library:', name.trim(), 'ID:', id, 'Category:', currentCategory);
+    }
+  }
+  
+  console.log('Parsing complete. Found', libraries.length, 'libraries');
+  return libraries;
+};
+
+// Fallback hardcoded libraries in case fetching fails
+const FALLBACK_MCP_LIBRARIES: MCPLibrary[] = [
+  {
+    name: "Tavily MCP Server",
+    id: "tavily-mcp-server",
+    description: "Enable real-time web search and data extraction capabilities for LLMs. Integrates Tavily's advanced search API for up-to-date information.",
+    category: "Web Search",
+    install: "npx @tavily-ai/tavily-mcp@latest",
+    docs: "https://github.com/tavily-ai/tavily-mcp",
+    icon: "https://github.com/tavily-ai.png?size=40",
+    author: "tavily-ai",
+    repository: "tavily-mcp",
+    tags: ["search", "web", "api"],
+    version: "latest",
+    license: "MIT",
+    config: {
+      mcpServers: {
+        "tavily-mcp-server": {
+          command: "npx",
+          args: ["@tavily-ai/tavily-mcp@latest"],
+          env: {
+            TAVILY_API_KEY: "your-tavily-api-key-here"
+          }
+        }
+      }
+    }
+  },
+  {
+    name: "Exa Search MCP Server",
+    id: "exa-mcp-server",
+    description: "Fast, intelligent web search and crawling. Exa combines embeddings and traditional search to deliver the best results for LLMs.",
+    category: "Web Search",
+    install: "npx exa-mcp-server@latest",
+    docs: "https://github.com/exa-ai/exa-mcp-server",
+    icon: "https://github.com/exa-ai.png?size=40",
+    author: "exa-ai",
+    repository: "exa-mcp-server",
+    tags: ["search", "embeddings", "crawling"],
+    version: "latest",
+    license: "Apache-2.0",
+    config: {
+      mcpServers: {
+        "exa-mcp-server": {
+          command: "npx",
+          args: ["exa-mcp-server@latest"],
+          env: {
+            EXA_API_KEY: "your-exa-api-key-here"
+          }
+        }
+      }
+    }
+  },
+  {
+    name: "Filesystem MCP Server",
+    id: "filesystem-mcp-server",
+    description: "Secure file system operations for LLMs. Read, write, and manage files with built-in safety restrictions.",
+    category: "File System",
+    install: "@modelcontextprotocol/server-filesystem",
+    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+    icon: "https://github.com/modelcontextprotocol.png?size=40",
+    author: "modelcontextprotocol",
+    repository: "servers",
+    tags: ["filesystem", "files", "security"],
+    version: "latest",
+    license: "MIT",
+    config: {
+      mcpServers: {
+        "filesystem": {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"],
+          env: {}
+        }
+      }
+    }
+  },
+  {
+    name: "GitHub MCP Server",
+    id: "github-mcp-server",
+    description: "Integrate with GitHub repositories. Search code, create issues, manage pull requests, and access repository information.",
+    category: "Development",
+    install: "@modelcontextprotocol/server-github",
+    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+    icon: "https://github.com/modelcontextprotocol.png?size=40",
+    author: "modelcontextprotocol",
+    repository: "servers",
+    tags: ["github", "git", "development"],
+    version: "latest",
+    license: "MIT",
+    config: {
+      mcpServers: {
+        "github": {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-github"],
+          env: {
+            GITHUB_PERSONAL_ACCESS_TOKEN: "your-github-token-here"
+          }
+        }
+      }
+    }
+  },
+  {
+    name: "SQLite MCP Server",
+    id: "sqlite-mcp-server",
+    description: "Execute SQL queries against SQLite databases. Perfect for data analysis and database management tasks.",
+    category: "Database",
+    install: "@modelcontextprotocol/server-sqlite",
+    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite",
+    icon: "https://github.com/modelcontextprotocol.png?size=40",
+    author: "modelcontextprotocol",
+    repository: "servers",
+    tags: ["database", "sql", "sqlite"],
+    version: "latest",
+    license: "MIT",
+    config: {
+      mcpServers: {
+        "sqlite": {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-sqlite", "/path/to/database.db"],
+          env: {}
+        }
+      }
+    }
+  }
+];
+
+const MCPMarketplace: React.FC = () => {
+  const [search, setSearch] = useState("");
+  const [libraries, setLibraries] = useState<MCPLibrary[]>(FALLBACK_MCP_LIBRARIES);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState<MCPLibrary | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [dataSource, setDataSource] = useState<'github' | 'fallback'>('fallback');
+
+  // Manual refresh function
+  const refreshLibraries = useCallback(async () => {
+    if (loading) return; // Prevent double loading
+    
+    try {
+      console.log('🔄 Manual refresh triggered...');
+      setLoading(true);
+      setError(null);
+      
+      const startTime = Date.now();
+      const libraries = await fetchMCPLibrariesFromAPI();
+      const fetchTime = Date.now() - startTime;
+      
+      console.log(`✅ Manual fetch completed: ${libraries.length} libraries (${fetchTime}ms)`);
+      
+      if (libraries.length > 0) {
+        setLibraries(libraries);
+        setDataSource('github');
+        setError(null); // Clear any previous errors
+        console.log('✅ Manual refresh successful');
+      } else {
+        throw new Error('No libraries found in the API response');
+      }
+    } catch (err) {
+      console.error('❌ Manual refresh failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to refresh: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading]);
+
+  // Get unique categories for the filter
+  const availableCategories = useMemo(() => {
+    const categories = [...new Set(libraries.map(lib => lib.category))];
+    return categories.sort();
+  }, [libraries]);
+
+  // Fetch MCP libraries on component mount
+  useEffect(() => {
+    const loadMCPLibraries = async () => {
+      try {
+        console.log('🚀 Starting to load MCP libraries from API...');
+        setLoading(true);
+        setError(null);
+        
+        // Add network connectivity check
+        const startTime = Date.now();
+        
+        const libraries = await fetchMCPLibrariesFromAPI();
+        
+        const fetchTime = Date.now() - startTime;
+        console.log(`✅ Fetched ${libraries.length} libraries from API (took ${fetchTime}ms)`);
+        
+        if (libraries.length > 0) {
+          console.log('✅ Using libraries from API');
+          console.log('📋 Sample libraries:', libraries.slice(0, 3).map(lib => ({
+            name: lib.name,
+            author: lib.author,
+            category: lib.category,
+            id: lib.id
+          })));
+          
+          // Validate data quality
+          const categories = [...new Set(libraries.map(lib => lib.category))];
+          console.log('📂 Found categories:', categories);
+          
+          // Check for any duplicate IDs
+          const ids = libraries.map(lib => lib.id);
+          const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+          if (duplicateIds.length > 0) {
+            console.warn('⚠️ Found duplicate IDs:', duplicateIds);
+          }
+          
+          setLibraries(libraries);
+          setDataSource('github');
+        } else {
+          console.warn('⚠️ No libraries received from API, using fallback');
+          setError('No libraries received from API. Using fallback data.');
+          setLibraries(FALLBACK_MCP_LIBRARIES);
+          setDataSource('fallback');
+        }
+      } catch (err) {
+        console.error('❌ Failed to load MCP libraries from API:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(`Failed to load latest MCP libraries: ${errorMessage}. Using cached data.`);
+        setLibraries(FALLBACK_MCP_LIBRARIES);
+        setDataSource('fallback');
+      } finally {
+        setLoading(false);
+        console.log('🏁 Library loading completed');
+      }
+    };
+
+    loadMCPLibraries();
+  }, []);
+
+  // Enhanced filtering with space-as-wildcard support
+  const filtered = useMemo(() => {
+    const searchTerm = search.trim().toLowerCase();
+    
+    // Apply category filter first
+    let filteredByCategory = libraries;
+    if (selectedCategories.length > 0) {
+      filteredByCategory = libraries.filter(lib => 
+        selectedCategories.includes(lib.category)
+      );
+    }
+    
+    // Then apply search filter if there's a search term
+    if (!searchTerm) return filteredByCategory;
+    
+    // Split search by spaces to treat each word as a separate filter
+    const searchWords = searchTerm.split(/\s+/).filter(word => word.length > 0);
+    
+    return filteredByCategory.filter((lib) => {
+      // For each search word, check if it matches any field (excluding category)
+      const matches = searchWords.every(word => {
+        // Skip very short words to avoid false positives
+        if (word.length < 2) return true;
+        
+        // Skip common words that shouldn't be used for filtering
+        const commonWords = ['the', 'and', 'for', 'with', 'to', 'of', 'in', 'on', 'at', 'by', 'or', 'an', 'a'];
+        if (commonWords.includes(word)) return true;
+        
+        const nameMatch = lib.name.toLowerCase().includes(word);
+        const descMatch = lib.description.toLowerCase().includes(word);
+        const authorMatch = lib.author && lib.author.toLowerCase().includes(word);
+        const tagsMatch = lib.tags && lib.tags.some(tag => tag.toLowerCase().includes(word));
+        
+        const hasMatch = nameMatch || descMatch || authorMatch || tagsMatch;
+        
+        // Debug logging for problematic servers
+        if (lib.name.toLowerCase().includes('atlassian') || lib.author?.toLowerCase().includes('sooperset')) {
+          console.log(`Debug filtering for ${lib.name}:`, {
+            searchWord: word,
+            nameMatch,
+            descMatch, 
+            authorMatch,
+            tagsMatch,
+            hasMatch,
+            name: lib.name,
+            description: lib.description,
+            author: lib.author,
+            tags: lib.tags
+          });
+        }
+        
+        return hasMatch;
+      });
+      
+      return matches;
+    });
+  }, [search, libraries, selectedCategories]);
+
+  // Function to highlight matching text - only highlight complete word matches
+  const highlightText = useCallback((text: string, searchTerms: string[]) => {
+    if (!searchTerms.length || !text) return text;
+    
+    let highlightedText = text;
+    
+    // Sort search terms by length (longest first) to avoid partial replacements
+    const sortedTerms = searchTerms
+      .filter(term => term.length > 0)
+      .sort((a, b) => b.length - a.length);
+    
+    sortedTerms.forEach((term) => {
+      // Use word boundary regex to match complete words only
+      const regex = new RegExp(`\\b(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+      highlightedText = highlightedText.replace(regex, '<mark class="bg-yellow-400/30 text-yellow-200 px-1 rounded">$1</mark>');
+    });
+    
+    return highlightedText;
+  }, []);
+
+  // Get search words for highlighting
+  const searchWords = useMemo(() => {
+    return search.trim().toLowerCase().split(/\s+/).filter(word => word.length > 0);
+  }, [search]);
+
+  return (
+    <div className="h-full">
+      <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanel defaultSize={selectedLibrary ? 60 : 100} minSize={40}>
+          <div className="p-6 h-full">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Wrench className="h-6 w-6 text-blue-400" />
+                <h2 className="text-2xl font-bold text-white">MCP Marketplace</h2>
+                {loading && (
+                  <div className="flex items-center gap-2 text-blue-400">
+                    <RotateCw className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Loading latest servers...</span>
+                  </div>
+                )}
+                {!loading && libraries.length > 0 && (
+                  <div className="flex items-center gap-3 text-sm text-gray-400">
+                    <span>{libraries.length} servers available</span>
+                    <div className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        dataSource === 'github' ? 'bg-green-400' : 'bg-yellow-400'
+                      }`} />
+                      <span className="text-xs">
+                        {dataSource === 'github' ? 'Live from GitHub' : 'Cached data'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <Button
+                onClick={refreshLibraries}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+                className="bg-gray-800 border-gray-600 hover:bg-gray-700 text-gray-300"
+              >
+                <RotateCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+            
+            {error && (
+              <div className="mb-4 p-4 bg-yellow-900/30 border border-yellow-600 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2 text-yellow-400">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium text-sm">Network Issue</div>
+                      <div className="text-xs text-yellow-300 mt-1">{error}</div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={refreshLibraries}
+                    disabled={loading}
+                    variant="ghost"
+                    size="sm"
+                    className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
+                  >
+                    <RotateCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <div className="mb-4 space-y-3">
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Search MCP libraries... (use spaces to match multiple terms)"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500"
+                    disabled={loading}
+                  />
+                </div>
+                
+                {/* Category Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`px-3 bg-gray-800 border-gray-600 hover:bg-gray-700 ${
+                        selectedCategories.length > 0 ? 'border-blue-500 text-blue-400' : 'text-gray-400'
+                      }`}
+                    >
+                      <Filter className="h-4 w-4 mr-2" />
+                      {selectedCategories.length > 0 ? selectedCategories.length : 'Categories'}
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0 bg-gray-800 border-gray-600" align="start">
+                    <Command className="bg-gray-800">
+                      <CommandInput 
+                        placeholder="Search categories..." 
+                        className="bg-gray-800 text-white border-gray-600"
+                      />
+                      <CommandList>
+                        <CommandEmpty>No categories found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            onSelect={() => setSelectedCategories([])}
+                            className="text-white hover:bg-gray-700"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Checkbox 
+                                checked={selectedCategories.length === 0}
+                                className="border-gray-500"
+                              />
+                              <span>All Categories</span>
+                            </div>
+                          </CommandItem>
+                          {availableCategories.map((category) => (
+                            <CommandItem
+                              key={category}
+                              onSelect={() => {
+                                setSelectedCategories(prev => 
+                                  prev.includes(category)
+                                    ? prev.filter(c => c !== category)
+                                    : [...prev, category]
+                                );
+                              }}
+                              className="text-white hover:bg-gray-700"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                  checked={selectedCategories.includes(category)}
+                                  className="border-gray-500"
+                                />
+                                <span>{category}</span>
+                                <Badge variant="secondary" className="ml-auto bg-gray-700 text-gray-300 text-xs">
+                                  {libraries.filter(lib => lib.category === category).length}
+                                </Badge>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              {/* Active Filters Display */}
+              {(selectedCategories.length > 0 || search.trim()) && (
+                <div className="flex flex-wrap gap-2">
+                  {search.trim() && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-400">Search:</span>
+                      {search.trim().split(/\s+/).map((word, idx) => (
+                        <Badge key={idx} variant="secondary" className="bg-blue-900/30 text-blue-400 text-xs">
+                          "{word}"
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {selectedCategories.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-400">Categories:</span>
+                      {selectedCategories.map((category) => (
+                        <Badge 
+                          key={category} 
+                          variant="secondary" 
+                          className="bg-purple-900/30 text-purple-400 text-xs cursor-pointer hover:bg-purple-800/30"
+                          onClick={() => setSelectedCategories(prev => prev.filter(c => c !== category))}
+                        >
+                          {category}
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {loading ? (
+              <div className="text-center text-gray-500 mt-8">
+                <RotateCw className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <p>Loading MCP libraries...</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                <div className="space-y-2">
+                  {filtered.map((lib) => (
+                    <Card 
+                      key={lib.id} 
+                      className={`cursor-pointer border-0 transition-all ${
+                        selectedLibrary?.id === lib.id 
+                          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-l-4 border-l-blue-500 shadow-lg' 
+                          : 'bg-[#181818] hover:bg-[#222] shadow-lg'
+                      }`}
+                      onClick={() => setSelectedLibrary(lib)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          {lib.icon && (
+                            <img 
+                              src={lib.icon} 
+                              alt={lib.name} 
+                              className="w-8 h-8 rounded flex-shrink-0"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 
+                                className="text-base font-semibold text-white truncate pr-2"
+                                dangerouslySetInnerHTML={{
+                                  __html: highlightText(lib.name, searchWords)
+                                }}
+                              />
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Badge variant="secondary" className="text-xs bg-blue-900/30 text-blue-400">
+                                  {lib.category}
+                                </Badge>
+                                <ChevronRight className="h-4 w-4 text-gray-500" />
+                              </div>
+                            </div>
+                            {lib.author && (
+                              <p 
+                                className="text-xs text-gray-500 mb-1"
+                                dangerouslySetInnerHTML={{
+                                  __html: `by ${highlightText(lib.author, searchWords)}`
+                                }}
+                              />
+                            )}
+                            <p 
+                              className="text-sm text-gray-400 line-clamp-1 mb-2"
+                              dangerouslySetInnerHTML={{
+                                __html: highlightText(lib.description, searchWords)
+                              }}
+                            />
+                            <code 
+                              className="bg-gray-900 px-2 py-1 rounded text-green-400 text-xs"
+                              dangerouslySetInnerHTML={{
+                                __html: highlightText(lib.install, searchWords)
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                
+                {filtered.length === 0 && !loading && (
+                  <div className="text-center text-gray-500 mt-8">
+                    <div className="mb-2">No MCP libraries found.</div>
+                    {(search.trim() || selectedCategories.length > 0) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearch('');
+                          setSelectedCategories([]);
+                        }}
+                        className="text-blue-400 border-blue-400 hover:bg-blue-400/10"
+                      >
+                        Clear all filters
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
+                {!loading && libraries.length > 0 && (
+                  <div className="text-center text-gray-500 mt-6 text-xs">
+                    Showing {filtered.length} of {libraries.length} MCP libraries
+                    {(search.trim() || selectedCategories.length > 0) && (
+                      <span className="text-blue-400"> (filtered)</span>
+                    )}
+                  </div>
+                )}
+              </ScrollArea>
+            )}
+          </div>
+        </ResizablePanel>
+        
+        {selectedLibrary && (
+          <>
+            <ResizableHandle withHandle className="bg-gray-800 hover:bg-gray-700 transition-colors" />
+            <ResizablePanel defaultSize={40} minSize={30}>
+              <div className="p-6 h-full bg-[#0f0f0f] border-l border-gray-800">
+                <div className="flex items-center gap-3 mb-6">
+                  <Info className="h-5 w-5 text-blue-400" />
+                  <h3 className="text-xl font-bold text-white">Server Details</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedLibrary(null)}
+                    className="ml-auto text-gray-400 hover:text-white"
+                  >
+                    ✕
+                  </Button>
+                </div>
+                
+                <ScrollArea className="h-[calc(100vh-200px)]">
+                  <div className="space-y-6">
+                    {/* Basic Info */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        {selectedLibrary.icon && (
+                          <img 
+                            src={selectedLibrary.icon} 
+                            alt={selectedLibrary.name} 
+                            className="w-12 h-12 rounded"
+                          />
+                        )}
+                        <div>
+                          <h4 
+                            className="text-lg font-semibold text-white"
+                            dangerouslySetInnerHTML={{
+                              __html: highlightText(selectedLibrary.name, searchWords)
+                            }}
+                          />
+                          {selectedLibrary.author && (
+                            <p 
+                              className="text-sm text-gray-400"
+                              dangerouslySetInnerHTML={{
+                                __html: `by ${highlightText(selectedLibrary.author, searchWords)}`
+                              }}
+                            />
+                          )}
+                          {selectedLibrary.version && (
+                            <p className="text-xs text-gray-500">v{selectedLibrary.version}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge className="bg-blue-900/30 text-blue-400">
+                          {selectedLibrary.category}
+                        </Badge>
+                        {selectedLibrary.license && (
+                          <Badge variant="outline" className="text-gray-400 border-gray-600">
+                            {selectedLibrary.license}
+                          </Badge>
+                        )}
+                        {selectedLibrary.tags?.map((tag) => (
+                          <Badge 
+                            key={tag} 
+                            variant="secondary" 
+                            className="bg-gray-700 text-gray-300 text-xs"
+                            dangerouslySetInnerHTML={{
+                              __html: highlightText(tag, searchWords)
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p 
+                        className="text-sm text-gray-300"
+                        dangerouslySetInnerHTML={{
+                          __html: highlightText(selectedLibrary.description, searchWords)
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Installation */}
+                    <div>
+                      <h5 className="text-sm font-semibold text-white mb-2">Installation</h5>
+                      <code 
+                        className="block bg-gray-900 p-3 rounded text-green-400 text-sm break-all"
+                        dangerouslySetInnerHTML={{
+                          __html: highlightText(
+                            selectedLibrary.install.startsWith('npx') ? selectedLibrary.install : `npm install ${selectedLibrary.install}`,
+                            searchWords
+                          )
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Links */}
+                    <div>
+                      <h5 className="text-sm font-semibold text-white mb-2">Links</h5>
+                      <div className="space-y-2">
+                        <a
+                          href={selectedLibrary.docs}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-blue-400 hover:underline text-sm"
+                        >
+                          📖 Documentation
+                        </a>
+                        {selectedLibrary.repository && (
+                          <a
+                            href={`https://github.com/${selectedLibrary.author}/${selectedLibrary.repository}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-blue-400 hover:underline text-sm"
+                          >
+                            🔗 GitHub Repository
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Configuration */}
+                    <div>
+                      <h5 className="text-sm font-semibold text-white mb-2">Sample Configuration</h5>
+                      <p className="text-xs text-gray-400 mb-2">
+                        Add this to your Claude Desktop config file:
+                      </p>
+                      <pre className="bg-gray-900 p-3 rounded text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap">
+                        {JSON.stringify(selectedLibrary.config, null, 2)}
+                      </pre>
+                      <div className="mt-2 text-xs text-gray-500">
+                        <p>📋 Config location:</p>
+                        <p className="font-mono bg-gray-800 p-1 rounded mt-1">
+                          ~/Library/Application Support/Claude/claude_desktop_config.json
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </div>
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+    </div>
+  );
+};
+
 const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [servers, setServers] = useState<Record<string, MCPServer>>({});
   const [selectedServerName, setSelectedServerName] = useState<string | null>(null);
@@ -709,6 +1747,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [toolCardState, setToolCardState] = useState<Record<string, { expanded: boolean; paramValues: Record<string, any> }>>({});
+  const [showMarketplace, setShowMarketplace] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Debug logging to track re-renders (can be removed in production)
   // console.log('MCPManager render:', {
@@ -883,20 +1923,17 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         method: 'POST',
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
-      await fetchStatusRef.current();
+      await fetchStatus();
       // Refetch tools for currently selected server
-      setSelectedServerName(current => {
-        if (current) {
-          fetchToolsRef.current(current);
-        }
-        return current;
-      });
+      if (selectedServerName) {
+        fetchTools(selectedServerName);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} server`);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [fetchStatus, fetchTools, selectedServerName]);
 
   const handleRestart = useCallback(async (serverName: string) => {
     setActionLoading('restart' + serverName);
@@ -905,20 +1942,17 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to restart server');
-      await fetchStatusRef.current();
+      await fetchStatus();
       // Refetch tools for currently selected server
-      setSelectedServerName(current => {
-        if (current) {
-          fetchToolsRef.current(current);
-        }
-        return current;
-      });
+      if (selectedServerName) {
+        fetchTools(selectedServerName);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restart server');
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [fetchStatus, fetchTools, selectedServerName]);
 
   const handleToolExpand = useCallback((toolName: string, expanded: boolean) => {
     setToolCardState(prev => ({
@@ -976,13 +2010,47 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
+  // If marketplace is active, render it with full space and its own header
+  if (showMarketplace) {
+    return (
+      <div className={`h-full w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] ${className || ''}`}>
+        <div className="h-full">
+          {/* Marketplace Header */}
+          <div className="p-6 border-b border-gray-800 bg-[#141414]">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                <Server className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h1 className="font-bold text-xl text-white">MCP Manager - Marketplace</h1>
+                <p className="text-sm text-gray-400">Discover and install new MCP servers</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMarketplace(false)}
+              >
+                Back to Servers
+              </Button>
+            </div>
+          </div>
+          {/* Marketplace Content */}
+          <div className="h-[calc(100%-120px)]">
+            <MCPMarketplace />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal server management interface
   return (
     <div className={`h-full w-full bg-gradient-to-br from-[#0f0f0f] to-[#1a1a1a] ${className || ''}`}>
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
         {/* Left: Server List */}
         <ResizablePanel defaultSize={30} minSize={25} maxSize={45}>
           <div className="h-full bg-[#141414] border-r border-gray-800">
-            <div className="p-6 border-b border-gray-800">
+            <div className="p-6 border-b border-gray-800 flex flex-col gap-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
                   <Server className="h-5 w-5 text-white" />
@@ -992,6 +2060,15 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
                 </div>
               </div>
+              {/* Marketplace Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowMarketplace(true)}
+              >
+                Browse Marketplace
+              </Button>
               {/* Search Filter */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1005,35 +2082,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
             </div>
             <ScrollArea className="h-[calc(100%-140px)]">
               <div className="p-4">
-                {initialLoading && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="flex items-center gap-3 text-gray-400">
-                      <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                      <span>Loading servers...</span>
-                    </div>
-                  </div>
-                )}
-                {fatalError && (
-                  <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <span className="text-sm">{fatalError}</span>
-                  </div>
-                )}
-                {!initialLoading && !fatalError && filteredServers.length === 0 && searchFilter && (
-                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                    <Filter className="h-12 w-12 mb-3 opacity-50" />
-                    <p className="text-center">No servers match your search</p>
-                    <p className="text-xs text-center mt-1">Try a different search term</p>
-                  </div>
-                )}
-                {!initialLoading && !fatalError && Object.keys(servers).length === 0 && !searchFilter && (
-                  <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                    <Server className="h-12 w-12 mb-3 opacity-50" />
-                    <p className="text-center">No servers found</p>
-                    <p className="text-xs text-center mt-1">Start some MCP servers to get started</p>
-                  </div>
-                )}
-                {/* Render ServerList here */}
                 <ServerList
                   servers={filteredServers}
                   selectedServerName={selectedServerName}
