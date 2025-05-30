@@ -21,6 +21,8 @@ import { Filter, Plus, FolderPlus, PenSquare, GitBranch, Server } from "lucide-r
 import { cn } from "@/lib/utils";
 import { useTrace } from '@/contexts/TraceContext';
 import ToolsManager from './ToolsManager';
+import MCPManager from './MCPManager';
+import MCPMarketplace from './MCPMarketplace';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
 
@@ -175,7 +177,7 @@ export default function GitDiffViewer() {
   const [selectedCommit, setSelectedCommit] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [mode, setMode] = useState<'edit' | 'git' | 'mcp' | 'toolsManager'>('edit');
+  const [mode, setMode] = useState<'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace'>('edit');
   const [diffContent, setDiffContent] = useState<{ original: string; modified: string }>({
     original: '',
     modified: '',
@@ -1015,179 +1017,183 @@ export default function GitDiffViewer() {
           togglePanel={handlePanelToggle}
           className="py-2"
         />
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="flex-grow overflow-hidden"
-          onLayout={handlePanelResize}
-        >
-          {/* Left Panel */}
-          {isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' && (
-            <>
-              <ResizablePanel 
-                defaultSize={previousPanelSize} 
-                minSize={20} 
-                maxSize={40} 
-                id="left-panel" 
-                order={1}
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex justify-between items-center bg-[#141414] px-8 py-2">
-                    <h3 className="font-semibold flex items-center group relative">
-                      <i className={getIconClass('folder', true)} />
-                      <span className="cursor-default" title={mode === 'git' ? currentGitPath : currentEditPath}>
-                        {(mode === 'git' ? currentGitPath : currentEditPath) === '/' ? '/' : (mode === 'git' ? currentGitPath : currentEditPath).split('/').pop() || '/'}
-                      </span>
-                    </h3>
-                    {mode === 'edit' && (
-                      <div className="space-x-1 flex items-center">
-                        <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
-                          <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
-                            <Filter className={cn(
-                              "h-4 w-4",
-                              filterOption !== 'all' && "fill-current"
-                            )} />
-                            <span className="sr-only">Filter files</span>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Show all</SelectItem>
-                            <SelectItem value="md">Show .md</SelectItem>
-                            <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button variant="ghost" size="icon" onClick={startNewFile}>
-                          <Plus className="h-4 w-4" />
-                          <span className="sr-only">New File</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 overflow-hidden">
-                    {mode === 'git' ? (
-                      <ResizablePanelGroup direction="vertical" className="h-full">
-                        <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
-                          <ScrollArea className="h-full">
-                            <div className="p-4 space-y-4 bg-[#141414]">
-                              <CommitTree
-                                selectedFolder={selectedFolder}
-                                branchesData={branchesData}
-                                setSelectedCommit={setSelectedCommit}
-                                setDiffContent={setDiffContent}
-                                repoPath={repoPath}
-                                handleCommitSelect={handleCommitSelect}
-                                selectedCommit={selectedCommit}
-                              />
-                            </div>
-                          </ScrollArea>
-                        </ResizablePanel>
-                        <ResizableHandle />
-                        <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
-                          <ScrollArea className="h-full">
-                            <div className="p-4 space-y-4 bg-[#141414]">
-                              <FileTree
-                                currentFiles={currentGitFiles}
-                                handleFolderSelect={handleFolderSelect}
-                                mode="git"
-                                selectedItem={selectedItem}
-                                selectedFolder={selectedFolder}
-                                currentPath={currentGitPath}
-                              />
-                            </div>
-                          </ScrollArea>
-                        </ResizablePanel>
-                      </ResizablePanelGroup>
-                    ) : (
-                      <ScrollArea className="h-full">
-                        <div className="px-4 pb-4 space-y-4 bg-[#141414]">
-                          <FileTree
-                            currentFiles={currentEditFiles}
-                            handleFolderSelect={handleFolderSelect}
-                            handleNewFile={handleNewFile}
-                            handleNewFolder={handleNewFolder}
-                            mode={mode}
-                            selectedItem={selectedItem}
-                            selectedFolder={selectedFolder}
-                            currentPath={currentEditPath}
-                            onFileUpdate={handleFileUpdate}
-                            isEditing={isEditing}
-                            setIsEditing={setIsEditing}
-                            newItemName={newItemName}
-                            setNewItemName={setNewItemName}
-                            filterOption={filterOption}
-                            setFilterOption={setFilterOption}
-                          />
-                        </div>
-                      </ScrollArea>
-                    )}
-                  </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle className="w-1 bg-border" />
-            </>
-          )}
-          {/* Right Panel */}
-          <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 2 : 1}>
-            <div className="flex flex-col h-full bg-[#141414]">
-              <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
-                <ResizablePanel
-                  defaultSize={showConsole ? 70 : 100}
-                  minSize={30}
-                  id="editor-panel"
+        {mode === 'mcp' && <MCPManager />}
+        {mode === 'marketplace' && <MCPMarketplace />}
+        {mode !== 'mcp' && mode !== 'marketplace' && (
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="flex-grow overflow-hidden"
+            onLayout={handlePanelResize}
+          >
+            {/* Left Panel */}
+            {isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' && (
+              <>
+                <ResizablePanel 
+                  defaultSize={previousPanelSize} 
+                  minSize={20} 
+                  maxSize={40} 
+                  id="left-panel" 
                   order={1}
                 >
-                  <div className="relative h-full">
-                    {mode === 'toolsManager' ? (
-                      <ToolsManager currentEditPath={currentEditPath} />
-                    ) : (
-                      <Editor
-                        mode={mode}
-                        selectedView={selectedView}
-                        setSelectedView={setSelectedView}
-                        selectedCommit={selectedCommit}
-                        editMode={editMode}
-                        setEditMode={setEditMode}
-                        lastCommitHash={lastCommitHash}
-                        setLastCommitHash={setLastCommitHash}
-                        handleRun={handleRun}
-                        diffContent={diffContent}
-                        editedContent={editedContent}
-                        handleContentChange={handleContentChange}
-                        theme={theme}
-                        editorContainerRef={editorContainerRef}
-                        repoPath={repoPath}
-                        handleBreadcrumbClick={handleBreadcrumbClick}
-                        currentFilePath={currentFilePath}
-                        branchNotification={branchNotification}
-                        branchHash={branchHash}
-                        onBranchHashClick={handleBranchHashClick}
-                        handleBranchSelect={handleBranchSelect}
-                        onSave={() => Promise.resolve()}
-                      />
-                    )}
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-between items-center bg-[#141414] px-8 py-2">
+                      <h3 className="font-semibold flex items-center group relative">
+                        <i className={getIconClass('folder', true)} />
+                        <span className="cursor-default" title={mode === 'git' ? currentGitPath : currentEditPath}>
+                          {(mode === 'git' ? currentGitPath : currentEditPath) === '/' ? '/' : (mode === 'git' ? currentGitPath : currentEditPath).split('/').pop() || '/'}
+                        </span>
+                      </h3>
+                      {mode === 'edit' && (
+                        <div className="space-x-1 flex items-center">
+                          <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
+                            <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
+                              <Filter className={cn(
+                                "h-4 w-4",
+                                filterOption !== 'all' && "fill-current"
+                              )} />
+                              <span className="sr-only">Filter files</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Show all</SelectItem>
+                              <SelectItem value="md">Show .md</SelectItem>
+                              <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" onClick={startNewFile}>
+                            <Plus className="h-4 w-4" />
+                            <span className="sr-only">New File</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      {mode === 'git' ? (
+                        <ResizablePanelGroup direction="vertical" className="h-full">
+                          <ResizablePanel defaultSize={50} id="commit-tree-panel" order={1}>
+                            <ScrollArea className="h-full">
+                              <div className="p-4 space-y-4 bg-[#141414]">
+                                <CommitTree
+                                  selectedFolder={selectedFolder}
+                                  branchesData={branchesData}
+                                  setSelectedCommit={setSelectedCommit}
+                                  setDiffContent={setDiffContent}
+                                  repoPath={repoPath}
+                                  handleCommitSelect={handleCommitSelect}
+                                  selectedCommit={selectedCommit}
+                                />
+                              </div>
+                            </ScrollArea>
+                          </ResizablePanel>
+                          <ResizableHandle />
+                          <ResizablePanel defaultSize={50} id="file-tree-panel" order={2}>
+                            <ScrollArea className="h-full">
+                              <div className="p-4 space-y-4 bg-[#141414]">
+                                <FileTree
+                                  currentFiles={currentGitFiles}
+                                  handleFolderSelect={handleFolderSelect}
+                                  mode="git"
+                                  selectedItem={selectedItem}
+                                  selectedFolder={selectedFolder}
+                                  currentPath={currentGitPath}
+                                />
+                              </div>
+                            </ScrollArea>
+                          </ResizablePanel>
+                        </ResizablePanelGroup>
+                      ) : (
+                        <ScrollArea className="h-full">
+                          <div className="px-4 pb-4 space-y-4 bg-[#141414]">
+                            <FileTree
+                              currentFiles={currentEditFiles}
+                              handleFolderSelect={handleFolderSelect}
+                              handleNewFile={handleNewFile}
+                              handleNewFolder={handleNewFolder}
+                              mode={mode}
+                              selectedItem={selectedItem}
+                              selectedFolder={selectedFolder}
+                              currentPath={currentEditPath}
+                              onFileUpdate={handleFileUpdate}
+                              isEditing={isEditing}
+                              setIsEditing={setIsEditing}
+                              newItemName={newItemName}
+                              setNewItemName={setNewItemName}
+                              filterOption={filterOption}
+                              setFilterOption={setFilterOption}
+                            />
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </div>
                   </div>
                 </ResizablePanel>
-                {/* Console Panel */}
-                {showConsole && (
-                  <>
-                    <ResizableHandle />
-                    <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
-                      <div className="h-full w-full overflow-hidden bg-[#141414]">
-                        <DynamicConsole
-                          setShowConsole={handleConsoleClose}
-                          onResize={handlePanelResize}
-                          currentPath={mode === 'git' ? currentGitPath : currentEditPath}
+                <ResizableHandle className="w-1 bg-border" />
+              </>
+            )}
+            {/* Right Panel */}
+            <ResizablePanel defaultSize={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 75 : 100} minSize={60} id="right-panel" order={isPanelVisible && mode !== 'mcp' && mode !== 'toolsManager' ? 2 : 1}>
+              <div className="flex flex-col h-full bg-[#141414]">
+                <ResizablePanelGroup direction="vertical" onLayout={handlePanelResize} className="flex-grow">
+                  <ResizablePanel
+                    defaultSize={showConsole ? 70 : 100}
+                    minSize={30}
+                    id="editor-panel"
+                    order={1}
+                  >
+                    <div className="relative h-full">
+                      {mode === 'toolsManager' ? (
+                        <ToolsManager currentEditPath={currentEditPath} />
+                      ) : (
+                        <Editor
+                          mode={mode}
+                          selectedView={selectedView}
+                          setSelectedView={setSelectedView}
+                          selectedCommit={selectedCommit}
+                          editMode={editMode}
+                          setEditMode={setEditMode}
+                          lastCommitHash={lastCommitHash}
+                          setLastCommitHash={setLastCommitHash}
+                          handleRun={handleRun}
+                          diffContent={diffContent}
+                          editedContent={editedContent}
+                          handleContentChange={handleContentChange}
+                          theme={theme}
+                          editorContainerRef={editorContainerRef}
+                          repoPath={repoPath}
+                          handleBreadcrumbClick={handleBreadcrumbClick}
                           currentFilePath={currentFilePath}
-                          onSpecialOutput={handleSpecialOutput}
-                          shouldRunFile={shouldRunFile}
-                          triggerCommand={triggerCommand}
+                          branchNotification={branchNotification}
+                          branchHash={branchHash}
+                          onBranchHashClick={handleBranchHashClick}
+                          handleBranchSelect={handleBranchSelect}
+                          onSave={() => Promise.resolve()}
                         />
-                      </div>
-                    </ResizablePanel>
-                  </>
-                )}
-              </ResizablePanelGroup>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+                      )}
+                    </div>
+                  </ResizablePanel>
+                  {/* Console Panel */}
+                  {showConsole && (
+                    <>
+                      <ResizableHandle />
+                      <ResizablePanel defaultSize={30} minSize={20} maxSize={80} id="console-panel" order={2}>
+                        <div className="h-full w-full overflow-hidden bg-[#141414]">
+                          <DynamicConsole
+                            setShowConsole={handleConsoleClose}
+                            onResize={handlePanelResize}
+                            currentPath={mode === 'git' ? currentGitPath : currentEditPath}
+                            currentFilePath={currentFilePath}
+                            onSpecialOutput={handleSpecialOutput}
+                            shouldRunFile={shouldRunFile}
+                            triggerCommand={triggerCommand}
+                          />
+                        </div>
+                      </ResizablePanel>
+                    </>
+                  )}
+                </ResizablePanelGroup>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        )}
       </div>
       <SettingsModal
         isOpen={isSettingsOpen}

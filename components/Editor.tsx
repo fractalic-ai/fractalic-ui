@@ -276,10 +276,6 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       }
 
       setIsDirty(false);
-      toast({
-        title: "Success",
-        description: "File saved successfully"
-      });
     } catch (error) {
       console.error('Error saving file:', error);
       toast({

@@ -1,16 +1,16 @@
 import { Button } from "@/components/ui/button"
-import { PenSquare, GitBranch, Server, Wrench } from 'lucide-react'
+import { PenSquare, GitBranch, Server, Wrench, ShoppingBag } from 'lucide-react'
 
 interface SidebarProps {
-  mode: 'edit' | 'git' | 'mcp' | 'toolsManager'
-  setMode: (mode: 'edit' | 'git' | 'mcp' | 'toolsManager') => void
+  mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace';
+  setMode: (mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace') => void;
   isPanelVisible: boolean
   togglePanel: () => void
   className?: string
 }
 
 export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, className }: SidebarProps) {
-  const handleModeClick = (newMode: 'edit' | 'git' | 'mcp' | 'toolsManager') => {
+  const handleModeClick = (newMode: SidebarProps['mode']) => {
     if (mode === newMode) {
       togglePanel();
     } else {
@@ -55,6 +55,15 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, cl
       >
         <Wrench className="h-6 w-6" />
         <span className="sr-only">Tools Manager</span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => handleModeClick('marketplace')}
+        className={`w-12 h-12 ${mode === 'marketplace' ? 'text-white' : 'text-gray-400'}`}
+      >
+        <ShoppingBag className="h-6 w-6" />
+        <span className="sr-only">MCP Marketplace</span>
       </Button>
     </div>
   )

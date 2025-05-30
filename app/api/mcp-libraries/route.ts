@@ -109,7 +109,12 @@ const parseMarkdownToMCPLibraries = (markdown: string): MCPLibrary[] => {
       // Clean category name by removing emojis, HTML, and anchor links
       currentCategory = line
         .replace(/^#+\s*/, '')
-        .replace(/[📁🔧⚡🌐🔍💾🛠️📊🎯🔒🎮📝🌍🏎️📇🏠☁️🍎🪟🐧🎨🎵🔗📈📄🌟]/g, '')
+        // Remove all emoji characters, symbols, and replacement characters more comprehensively
+        .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1F100}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F700}-\u{1F77F}]|[\u{1F780}-\u{1F7FF}]|[\u{1F800}-\u{1F8FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA00}-\u{1FA6F}]|[\u{1FA70}-\u{1FAFF}]/gu, '')
+        // Remove common technical symbols and other problematic unicode
+        .replace(/[⚡🔧📁🌐🔍💾🛠️📊🎯🔒🎮📝🌍🏎️📇🏠☁️🍎🪟🐧🎨🎵🔗📈📄🌟♂️♀️⭐🎉🔥💡🚀🎊]/g, '')
+        // Remove replacement characters and other problematic symbols
+        .replace(/[\uFFFD\u25A0-\u25FF\u2190-\u21FF\u2000-\u206F]/g, '')
         .replace(/<[^>]*>/g, '') // Remove HTML tags
         .replace(/\[[^\]]*\]\([^)]*\)/g, '') // Remove markdown links
         .replace(/\s+/g, ' ') // Normalize whitespace
@@ -188,14 +193,29 @@ const parseMarkdownToMCPLibraries = (markdown: string): MCPLibrary[] => {
         continue;
       }
       
-      // Generate install command based on GitHub URL
+      // Generate install command based on GitHub URL - improved logic
       let install = '';
       if (url.includes('github.com')) {
         const repoPath = url.replace('https://github.com/', '').replace(/\/$/, '');
         const repoParts = repoPath.split('/');
         if (repoParts.length >= 2) {
-          // Use the repository name for npx command
-          install = `npx ${repoParts[1]}`;
+          const owner = repoParts[0];
+          const repo = repoParts[1];
+          
+          // Try to generate more accurate install commands based on common patterns
+          if (repo.includes('mcp-server') || repo.includes('mcp')) {
+            // Check if it's likely an npm package
+            if (owner === 'modelcontextprotocol' || owner === 'mcp-server' || repo.startsWith('@')) {
+              install = `npx @modelcontextprotocol/${repo}`;
+            } else if (repo.endsWith('-mcp-server') || repo.endsWith('-mcp')) {
+              install = `npx ${repo}`;
+            } else {
+              install = `git clone ${url} && cd ${repo} && npm install && npm start`;
+            }
+          } else {
+            // Generic GitHub repo - assume it needs to be cloned and built
+            install = `git clone ${url} && cd ${repo} && npm install && npm start`;
+          }
         }
       } else {
         install = `npm install ${id}`;
