@@ -67,6 +67,31 @@
   }
 }
 
+/* Terminal isolation - prevent global theme inheritance while preserving xterm functionality */
+.xterm {
+  /* Create a new stacking context to isolate from global styles */
+  position: relative;
+  z-index: 1;
+  /* Don't inherit global text color - let xterm set its own defaults */
+  color: unset;
+  /* Ensure proper box model */
+  box-sizing: border-box;
+}
+
+/* Reset any potential interference but don't force inheritance */
+.xterm * {
+  /* Reset box model to prevent layout issues */
+  box-sizing: border-box;
+}
+
+/* Allow xterm to handle text selection properly */
+.xterm .xterm-selection {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
 /* Notebook specific styles - separate from app theme */
 .notebook-container {
   background-color: #111827 !important;
@@ -97,12 +122,37 @@
 
 .xterm {
   height: 100%;
+  /* Ensure proper text selection */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 .xterm-viewport {
   overflow-y: auto;
   overflow-x: hidden;
   height: 100% !important;
+}
+
+/* Ensure text selection works properly in xterm */
+.xterm .xterm-selection {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  pointer-events: none;
+}
+
+/* Make sure xterm text is selectable */
+.xterm .xterm-rows {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Preserve ANSI color formatting in selection */
+.xterm .xterm-char-measure-element {
+  visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: -9999px;
 }
 
 button[aria-selected="true"] {
@@ -119,7 +169,8 @@ button[aria-selected="true"]:hover {
 /* globals.css */
 
 .selected-file {
-  @apply bg-blue-600 bg-opacity-100 text-white;
+  background-color: rgb(37 99 235); /* bg-blue-600 */
+  color: white; /* text-white */
 }
 
 /* Define notebook theme colors - separate from app theme */

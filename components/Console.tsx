@@ -36,7 +36,6 @@ function Console(props: ConsoleProps) {
     console.log('Console close button clicked');
     setShowConsole(false);
   }, [setShowConsole]);
-
   const executeFractalicFile = useCallback(
     (onData: (chunk: string | null) => void) => {
       console.log('[Console] executeFractalicFile called with currentFilePath:', currentFilePath);
@@ -59,21 +58,94 @@ function Console(props: ConsoleProps) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           const reader = response.body!.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let partial = '';
+          const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: false });
+          let byteBuffer = new Uint8Array(0);
+          let textBuffer = '';
 
           function read() {
             reader
               .read()
               .then(({ done, value }) => {
                 if (done) {
-                  if (partial) onData(partial);
+                  // Process any remaining bytes in the buffer
+                  if (byteBuffer.length > 0) {
+                    try {
+                      const finalText = decoder.decode(byteBuffer, { stream: false });
+                      textBuffer += finalText;
+                      console.log('[Console/executeFractalicFile] Final buffer decoded:', JSON.stringify(finalText));
+                    } catch (error) {
+                      console.error('[Console/executeFractalicFile] Error decoding final buffer:', error);
+                    }
+                  }
+                  
+                  if (textBuffer) {
+                    console.log('[Console/executeFractalicFile] Final text data:', JSON.stringify(textBuffer));
+                    onData(textBuffer);
+                  }
                   onData(null); // Indicate end
                   return;
                 }
-                partial += decoder.decode(value, { stream: true });
-                onData(partial);
-                partial = '';
+                
+                if (value) {
+                  // Append new bytes to buffer
+                  const newBuffer = new Uint8Array(byteBuffer.length + value.length);
+                  newBuffer.set(byteBuffer);
+                  newBuffer.set(value, byteBuffer.length);
+                  byteBuffer = newBuffer;
+                  
+                  console.log('[Console/executeFractalicFile] Buffer size:', byteBuffer.length, 'bytes');
+                  
+                  // Try to decode as much as possible
+                  let decodedText = '';
+                  let lastValidIndex = 0;
+                  
+                  try {
+                    // Attempt to decode the entire buffer
+                    decodedText = decoder.decode(byteBuffer, { stream: true });
+                    // If successful, we can use all bytes
+                    lastValidIndex = byteBuffer.length;
+                    byteBuffer = new Uint8Array(0);
+                  } catch (error) {
+                    // If decoding fails, find the last valid UTF-8 character boundary
+                    for (let i = byteBuffer.length - 1; i >= 0; i--) {
+                      try {
+                        const testBuffer = byteBuffer.slice(0, i + 1);
+                        const testDecoded = new TextDecoder('utf-8', { fatal: true }).decode(testBuffer);
+                        // If we reach here, this is a valid UTF-8 sequence
+                        decodedText = testDecoded;
+                        lastValidIndex = i + 1;
+                        break;
+                      } catch (testError) {
+                        // Continue searching backwards
+                      }
+                    }
+                    
+                    // Keep remaining bytes for next iteration
+                    if (lastValidIndex < byteBuffer.length) {
+                      byteBuffer = byteBuffer.slice(lastValidIndex);
+                    } else {
+                      byteBuffer = new Uint8Array(0);
+                    }
+                  }
+                  
+                  if (decodedText) {
+                    console.log('[Console/executeFractalicFile] Decoded text:', JSON.stringify(decodedText));
+                    
+                    // Check for encoding issues
+                    if (decodedText.includes('�')) {
+                      console.warn('[Console/executeFractalicFile] Replacement characters detected - this should not happen with proper buffering');
+                    }
+                    
+                    // Check for Cyrillic characters
+                    if (/[\u0400-\u04FF]/.test(decodedText)) {
+                      console.log('[Console/executeFractalicFile] Cyrillic characters successfully decoded:', decodedText.match(/[\u0400-\u04FF]+/g));
+                    }
+                    
+                    textBuffer += decodedText;
+                    onData(textBuffer);
+                    textBuffer = '';
+                  }
+                }
                 read();
               })
               .catch((error) => {
@@ -90,7 +162,6 @@ function Console(props: ConsoleProps) {
     },
     [currentFilePath]
   );
-
   const handleSendCommand = useCallback(
     (command: string, onData: (chunk: string | null) => void) => {
       try {
@@ -109,21 +180,84 @@ function Console(props: ConsoleProps) {
               throw new Error(`HTTP error! status: ${response.status}`);
             }
             const reader = response.body!.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let partial = '';
+            const decoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: false });
+            let byteBuffer = new Uint8Array(0);
+            let textBuffer = '';
 
             function read() {
               reader
                 .read()
                 .then(({ done, value }) => {
                   if (done) {
-                    if (partial) onData(partial);
+                    // Process any remaining bytes in the buffer
+                    if (byteBuffer.length > 0) {
+                      try {
+                        const finalText = decoder.decode(byteBuffer, { stream: false });
+                        textBuffer += finalText;
+                        console.log('[Console/handleSendCommand] Final buffer decoded:', JSON.stringify(finalText));
+                      } catch (error) {
+                        console.error('[Console/handleSendCommand] Error decoding final buffer:', error);
+                      }
+                    }
+                    
+                    if (textBuffer) {
+                      onData(textBuffer);
+                    }
                     onData(null); // Indicate end
                     return;
                   }
-                  partial += decoder.decode(value, { stream: true });
-                  onData(partial);
-                  partial = '';
+                  
+                  if (value) {
+                    // Append new bytes to buffer
+                    const newBuffer = new Uint8Array(byteBuffer.length + value.length);
+                    newBuffer.set(byteBuffer);
+                    newBuffer.set(value, byteBuffer.length);
+                    byteBuffer = newBuffer;
+                    
+                    // Try to decode as much as possible
+                    let decodedText = '';
+                    let lastValidIndex = 0;
+                    
+                    try {
+                      // Attempt to decode the entire buffer
+                      decodedText = decoder.decode(byteBuffer, { stream: true });
+                      // If successful, we can use all bytes
+                      lastValidIndex = byteBuffer.length;
+                      byteBuffer = new Uint8Array(0);
+                    } catch (error) {
+                      // If decoding fails, find the last valid UTF-8 character boundary
+                      for (let i = byteBuffer.length - 1; i >= 0; i--) {
+                        try {
+                          const testBuffer = byteBuffer.slice(0, i + 1);
+                          const testDecoded = new TextDecoder('utf-8', { fatal: true }).decode(testBuffer);
+                          // If we reach here, this is a valid UTF-8 sequence
+                          decodedText = testDecoded;
+                          lastValidIndex = i + 1;
+                          break;
+                        } catch (testError) {
+                          // Continue searching backwards
+                        }
+                      }
+                      
+                      // Keep remaining bytes for next iteration
+                      if (lastValidIndex < byteBuffer.length) {
+                        byteBuffer = byteBuffer.slice(lastValidIndex);
+                      } else {
+                        byteBuffer = new Uint8Array(0);
+                      }
+                    }
+                    
+                    if (decodedText) {
+                      // Check for Cyrillic characters
+                      if (/[\u0400-\u04FF]/.test(decodedText)) {
+                        console.log('[Console/handleSendCommand] Cyrillic characters successfully decoded:', decodedText.match(/[\u0400-\u04FF]+/g));
+                      }
+                      
+                      textBuffer += decodedText;
+                      onData(textBuffer);
+                      textBuffer = '';
+                    }
+                  }
                   read();
                 })
                 .catch((error) => {
