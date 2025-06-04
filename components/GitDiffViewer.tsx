@@ -1063,6 +1063,10 @@ export default function GitDiffViewer() {
                             <Plus className="h-4 w-4" />
                             <span className="sr-only">New File</span>
                           </Button>
+                          <Button variant="ghost" size="icon" onClick={startNewFolder}>
+                            <FolderPlus className="h-4 w-4" />
+                            <span className="sr-only">New Folder</span>
+                          </Button>
                         </div>
                       )}
                     </div>
