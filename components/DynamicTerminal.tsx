@@ -35,12 +35,64 @@ function DynamicTerminal(props: DynamicTerminalProps) {
   const inputBufferRef = useRef<string>('');
   const currentWorkingDirRef = useRef<string>(currentPath);
   const lastTriggerCommandRef = useRef<string | undefined>(undefined);
+  
+  // Add buffer for Rich library ANSI sequences to prevent artifacts
+  const richAnsiBufferRef = useRef<string>('');
+  const isRichStreamingRef = useRef<boolean>(false);
+  const richFlushTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updatePrompt = useCallback(() => {
     if (terminalInstanceRef.current) {
       terminalInstanceRef.current.write(`${currentWorkingDirRef.current}$ `);
     }
-  }, []);  const handleTerminalData = useCallback(
+  }, []);
+
+  // Helper function to detect Rich library streaming patterns
+  const isRichPanelSequence = useCallback((data: string): boolean => {
+    // Rich panels use specific patterns for live updates
+    return (
+      data.includes('━') || // Rich panel borders
+      data.includes('┏') || data.includes('┓') || 
+      data.includes('┗') || data.includes('┛') ||
+      data.includes('streaming...') ||
+      /\x1b\[2K\x1b\[1G/.test(data) || // Clear line + cursor to beginning (Rich pattern)
+      /\x1b\[s/.test(data) || // Save cursor position (Rich uses this)
+      /\x1b\[u/.test(data) || // Restore cursor position
+      /\x1b\[\d+;\d+H/.test(data) // Absolute cursor positioning
+    );
+  }, []);
+
+  // Flush Rich buffer with proper ANSI sequence handling
+  const flushRichBuffer = useCallback(() => {
+    if (richAnsiBufferRef.current && terminalInstanceRef.current) {
+      const buffer = richAnsiBufferRef.current;
+      
+      // Process the buffer to handle Rich's cursor positioning properly
+      let processedBuffer = buffer;
+      
+      // Handle Rich's common pattern of clearing and redrawing
+      // Replace multiple cursor save/restore sequences that can cause artifacts
+      processedBuffer = processedBuffer.replace(/(\x1b\[s.*?\x1b\[u)/g, (match) => {
+        // For Rich panels, we want to preserve only the final state
+        // Remove redundant save/restore cycles during streaming
+        const lines = match.split('\n');
+        if (lines.length > 1) {
+          // Keep only the last complete line to prevent duplicates
+          return lines[lines.length - 1] || lines[lines.length - 2] || match;
+        }
+        return match;
+      });
+      
+      // Handle Rich's line clearing pattern that can cause artifacts
+      processedBuffer = processedBuffer.replace(/(\x1b\[2K\x1b\[1G)+/g, '\x1b\[2K\x1b\[1G');
+      
+      terminalInstanceRef.current.write(processedBuffer);
+      richAnsiBufferRef.current = '';
+    }
+    richFlushTimeoutRef.current = null;
+  }, []);
+
+  const handleTerminalData = useCallback(
     (data: string) => {
       console.log('[DynamicTerminal] handleTerminalData received:', JSON.stringify(data));
       
@@ -65,7 +117,35 @@ function DynamicTerminal(props: DynamicTerminalProps) {
       if (data.includes('�')) {
         console.warn('[DynamicTerminal] ❌ Replacement characters detected - UTF-8 buffering may have failed:', JSON.stringify(data));
       }
-        // Debug Python Rich library ANSI sequences
+
+      // Detect Rich library streaming and handle buffering
+      const isRichData = isRichPanelSequence(data);
+      
+      if (isRichData || isRichStreamingRef.current) {
+        console.log('[DynamicTerminal] 📦 Rich library streaming detected - buffering for proper rendering');
+        
+        isRichStreamingRef.current = true;
+        richAnsiBufferRef.current += data;
+        
+        // Clear existing timeout
+        if (richFlushTimeoutRef.current) {
+          clearTimeout(richFlushTimeoutRef.current);
+        }
+        
+        // Set timeout to flush buffer (allows Rich to complete its updates)
+        richFlushTimeoutRef.current = setTimeout(() => {
+          flushRichBuffer();
+          isRichStreamingRef.current = false;
+        }, 50); // Small delay to let Rich complete its update cycle
+        
+      } else {
+        // Non-Rich data, write immediately
+        if (terminalInstanceRef.current) {
+          terminalInstanceRef.current.write(data);
+        }
+      }
+
+      // Debug Python Rich library ANSI sequences
       if (/\x1b\[[0-9;]*m/.test(data)) {
         const ansiSequences = data.match(/\x1b\[[0-9;]*m/g);
         console.log('[DynamicTerminal] 🎨 ANSI escape sequences detected (Rich formatting):', ansiSequences);
@@ -108,11 +188,8 @@ function DynamicTerminal(props: DynamicTerminalProps) {
           console.log('[DynamicTerminal] Regex used:', regex.toString());
         }
       }
-      
-      // Write the raw data to the terminal (no cleaning for event parsing)
-      terminalInstanceRef.current?.write(data);
     },
-    [onSpecialOutput, currentFilePath]
+    [onSpecialOutput, currentFilePath, isRichPanelSequence, flushRichBuffer]
   );
 
   const handleFileExecution = useCallback(() => {
@@ -153,10 +230,12 @@ function DynamicTerminal(props: DynamicTerminalProps) {
     if (!terminalRef.current || terminalInstanceRef.current) return;    const newTerminal = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: 'monospace',
-      theme: {
+      fontFamily: 'monospace',      theme: {
         background: '#1a1a1a',
         foreground: '#ffffff',
+        // Selection colors for proper highlighting without masking text
+        selection: 'rgba(68, 114, 196, 0.3)',
+        selectionForeground: undefined, // Let original text colors show through
         // Extended color palette for Rich library
         black: '#000000',
         red: '#ff0000',
@@ -171,38 +250,36 @@ function DynamicTerminal(props: DynamicTerminalProps) {
         brightGreen: '#80ff80',
         brightYellow: '#ffff80',
         brightBlue: '#8080ff',
-        brightMagenta: '#ff80ff',
-        brightCyan: '#80ffff',
+        brightMagenta: '#ff80ff',        brightCyan: '#80ffff',
         brightWhite: '#ffffff',
-        // Selection colors for proper text selection
-        selection: 'rgba(255, 255, 255, 0.3)',
-        selectionForeground: '#ffffff',
       },
       convertEol: true,
       scrollback: 10000,
       // Enhanced support for Python Rich library
       allowProposedApi: true, // Enable proposed APIs for better formatting support
-      allowTransparency: false, // Better color rendering
-      drawBoldTextInBrightColors: true, // Support for Rich's bold styling
-      rightClickSelectsWord: true, // Better text selection
+      allowTransparency: false, // Better color rendering      rightClickSelectsWord: true, // Better text selection
       wordSeparator: ' ()[]{}|;:.,!?', // Improved word boundaries for Rich panels
       altClickMovesCursor: false, // Prevent interference with Rich interactions
       // ANSI and color support for Rich library
       screenReaderMode: false, // Better performance with Rich formatting
       windowOptions: {
         setWinLines: false, // Prevent Rich from changing terminal size
-      },
-      // Terminal capabilities for proper ANSI support
+      },      // Terminal capabilities for proper ANSI support
       macOptionIsMeta: true,
-      macOptionClickForcesSelection: false,
       // Box drawing character support
       lineHeight: 1.0,
       letterSpacing: 0,
       // Ensure proper text selection behavior
-      minimumContrastRatio: 1, // Don't modify colors for contrast
       disableStdin: false, // Allow input
       // Better ANSI color support
       windowsMode: false,
+      // Improved cursor management for Rich library streaming
+      cursorStyle: 'block',
+      cursorWidth: 1,
+      // Better handling of cursor save/restore operations
+      fastScrollModifier: 'shift',
+      // Enhanced scrolling behavior to reduce artifacts
+      smoothScrollDuration: 0, // Disable smooth scrolling during Rich updates
     });
 
     const fitAddon = new FitAddon();
@@ -217,8 +294,7 @@ function DynamicTerminal(props: DynamicTerminalProps) {
     newTerminal.unicode.activeVersion = '11';
       // Enhanced ANSI support for Python Rich library
     // Enable 24-bit color support (truecolor) for Rich's advanced styling
-    newTerminal.options.windowOptions = { setWinLines: false };
-      newTerminal.open(terminalRef.current);
+    newTerminal.options.windowOptions = { setWinLines: false };    newTerminal.open(terminalRef.current);
     fitAddon.fit();
     
     // Force xterm to report proper terminal capabilities to help Rich detect color support
@@ -293,7 +369,6 @@ function DynamicTerminal(props: DynamicTerminalProps) {
     initializedRef,
     currentFilePath,
   ]);
-
   useEffect(() => {
     initializeTerminal();
     const resizeObserver = new ResizeObserver(() => {
@@ -308,9 +383,25 @@ function DynamicTerminal(props: DynamicTerminalProps) {
 
     return () => {
       resizeObserver.disconnect();
+      // Cleanup Rich streaming state and timers
+      if (richFlushTimeoutRef.current) {
+        clearTimeout(richFlushTimeoutRef.current);
+        richFlushTimeoutRef.current = null;
+      }
+      richAnsiBufferRef.current = '';
+      isRichStreamingRef.current = false;
     };
   }, [initializeTerminal]);
-  return (
+
+  // Cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      // Ensure final flush of any pending Rich data
+      if (richAnsiBufferRef.current && terminalInstanceRef.current) {
+        flushRichBuffer();
+      }
+    };
+  }, [flushRichBuffer]);  return (
     <div
       ref={terminalRef}
       style={{
@@ -320,9 +411,6 @@ function DynamicTerminal(props: DynamicTerminalProps) {
         position: 'absolute',
         top: 0,
         left: 0,
-        // Set CSS custom properties for terminal colors
-        '--xterm-background': '#1a1a1a',
-        '--xterm-foreground': '#ffffff',
       } as React.CSSProperties}
     />
   );

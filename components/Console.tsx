@@ -127,8 +127,7 @@ function Console(props: ConsoleProps) {
                       byteBuffer = new Uint8Array(0);
                     }
                   }
-                  
-                  if (decodedText) {
+                    if (decodedText) {
                     console.log('[Console/executeFractalicFile] Decoded text:', JSON.stringify(decodedText));
                     
                     // Check for encoding issues
@@ -141,7 +140,54 @@ function Console(props: ConsoleProps) {
                       console.log('[Console/executeFractalicFile] Cyrillic characters successfully decoded:', decodedText.match(/[\u0400-\u04FF]+/g));
                     }
                     
-                    textBuffer += decodedText;
+                    // Process Rich library streaming patterns to prevent artifacts
+                    let processedText = decodedText;
+                    
+                    // Detect Rich panel streaming patterns
+                    const hasRichPatterns = (
+                      processedText.includes('streaming...') ||
+                      processedText.includes('━') ||
+                      processedText.includes('┏') ||
+                      /\x1b\[s.*?\x1b\[u/.test(processedText) || // cursor save/restore
+                      /\x1b\[\d+;\d+H/.test(processedText) // absolute cursor positioning
+                    );
+                    
+                    if (hasRichPatterns) {
+                      console.log('[Console/executeFractalicFile] Rich library streaming detected - preprocessing ANSI sequences');
+                      
+                      // Handle Rich's cursor positioning more carefully
+                      // Rich often uses cursor save/restore patterns that can cause artifacts
+                      processedText = processedText.replace(/(\x1b\[s.*?\x1b\[u)/gs, (match) => {
+                        // For streaming panels, preserve only essential positioning
+                        const lines = match.split('\n');
+                        if (lines.length > 1) {
+                          // Keep the last complete line to avoid duplicates
+                          const lastNonEmptyLine = lines.reverse().find(line => line.trim());
+                          return lastNonEmptyLine || match;
+                        }
+                        return match;
+                      });
+                      
+                      // Clean up redundant line clearing sequences
+                      processedText = processedText.replace(/(\x1b\[2K\x1b\[1G)+/g, '\x1b\[2K\x1b\[1G');
+                      
+                      // Handle Rich's panel redraw patterns
+                      processedText = processedText.replace(/(\x1b\[\d+;\d+H.*?┏.*?\n.*?streaming.*?\n)/gs, (match, offset, string) => {
+                        // Check if this is a duplicate panel header
+                        const beforeMatch = string.substring(0, offset);
+                        const duplicatePattern = /┏.*?streaming.*?\n/g;
+                        const previousMatches = (beforeMatch.match(duplicatePattern) || []).length;
+                        
+                        if (previousMatches > 0) {
+                          // This is a duplicate header, only keep the content updates
+                          const contentOnly = match.replace(/┏.*?\n/, '').replace(/┃.*?streaming.*?\n/, '');
+                          return contentOnly;
+                        }
+                        return match;
+                      });
+                    }
+                    
+                    textBuffer += processedText;
                     onData(textBuffer);
                     textBuffer = '';
                   }
@@ -246,14 +292,42 @@ function Console(props: ConsoleProps) {
                         byteBuffer = new Uint8Array(0);
                       }
                     }
-                    
-                    if (decodedText) {
+                      if (decodedText) {
                       // Check for Cyrillic characters
                       if (/[\u0400-\u04FF]/.test(decodedText)) {
                         console.log('[Console/handleSendCommand] Cyrillic characters successfully decoded:', decodedText.match(/[\u0400-\u04FF]+/g));
                       }
                       
-                      textBuffer += decodedText;
+                      // Apply same Rich library processing as in executeFractalicFile
+                      let processedText = decodedText;
+                      
+                      // Detect Rich panel streaming patterns
+                      const hasRichPatterns = (
+                        processedText.includes('streaming...') ||
+                        processedText.includes('━') ||
+                        processedText.includes('┏') ||
+                        /\x1b\[s.*?\x1b\[u/.test(processedText) || // cursor save/restore
+                        /\x1b\[\d+;\d+H/.test(processedText) // absolute cursor positioning
+                      );
+                      
+                      if (hasRichPatterns) {
+                        console.log('[Console/handleSendCommand] Rich library streaming detected - preprocessing ANSI sequences');
+                        
+                        // Handle Rich's cursor positioning patterns
+                        processedText = processedText.replace(/(\x1b\[s.*?\x1b\[u)/gs, (match) => {
+                          const lines = match.split('\n');
+                          if (lines.length > 1) {
+                            const lastNonEmptyLine = lines.reverse().find(line => line.trim());
+                            return lastNonEmptyLine || match;
+                          }
+                          return match;
+                        });
+                        
+                        // Clean up redundant line clearing
+                        processedText = processedText.replace(/(\x1b\[2K\x1b\[1G)+/g, '\x1b\[2K\x1b\[1G');
+                      }
+                      
+                      textBuffer += processedText;
                       onData(textBuffer);
                       textBuffer = '';
                     }
