@@ -17,10 +17,11 @@ export interface ConsoleProps {
   onSpecialOutput: (branchId: string, fileHash: string, filePath: string) => void;
   shouldRunFile?: boolean;
   triggerCommand?: string;
+  onTriggerCommandExecuted?: () => void;
 }
 
 function Console(props: ConsoleProps) {
-  const { setShowConsole, onResize, currentPath, currentFilePath, onSpecialOutput, shouldRunFile, triggerCommand } = props;
+  const { setShowConsole, onResize, currentPath, currentFilePath, onSpecialOutput, shouldRunFile, triggerCommand, onTriggerCommandExecuted } = props;
   const terminalRef = useRef<any>(null);
   const initializedRef = useRef(false);
 
@@ -364,8 +365,7 @@ function Console(props: ConsoleProps) {
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex-1 relative overflow-hidden">
-        <DynamicTerminal
+      <div className="flex-1 relative overflow-hidden">        <DynamicTerminal
           onSendCommand={handleSendCommand}
           onExecuteFile={executeFractalicFile}
           currentPath={currentPath || '/'}
@@ -373,6 +373,7 @@ function Console(props: ConsoleProps) {
           currentFilePath={currentFilePath}
           initializedRef={initializedRef}
           triggerCommand={triggerCommand}
+          onTriggerCommandExecuted={onTriggerCommandExecuted}
         />
       </div>
     </div>

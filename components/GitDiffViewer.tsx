@@ -162,6 +162,7 @@ interface ConsoleProps {
   onSpecialOutput: (branchId: string, fileHash: string, filePath: string) => void;
   shouldRunFile?: boolean;
   triggerCommand?: string;
+  onTriggerCommandExecuted?: () => void;
 }
 
 // Dynamically imported Console with no forwardRef
@@ -612,6 +613,11 @@ export default function GitDiffViewer() {
 
   const handleConsoleClose = useCallback(() => {
     setShowConsole(false);
+    setTriggerCommand(undefined);
+  }, []);
+
+  const handleTriggerCommandExecuted = useCallback(() => {
+    console.log('[GitDiffViewer] Clearing triggerCommand after execution');
     setTriggerCommand(undefined);
   }, []);
 
@@ -1188,6 +1194,7 @@ export default function GitDiffViewer() {
                             onSpecialOutput={handleSpecialOutput}
                             shouldRunFile={shouldRunFile}
                             triggerCommand={triggerCommand}
+                            onTriggerCommandExecuted={handleTriggerCommandExecuted}
                           />
                         </div>
                       </ResizablePanel>

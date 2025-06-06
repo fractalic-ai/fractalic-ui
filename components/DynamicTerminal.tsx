@@ -16,6 +16,7 @@ interface DynamicTerminalProps {
   onSpecialOutput: (branchId: string, fileHash: string, filePath: string) => void;
   initializedRef: React.MutableRefObject<boolean>;
   triggerCommand?: string;
+  onTriggerCommandExecuted?: () => void;
 }
 
 function DynamicTerminal(props: DynamicTerminalProps) {
@@ -27,14 +28,15 @@ function DynamicTerminal(props: DynamicTerminalProps) {
     onSpecialOutput,
     initializedRef,
     triggerCommand,
+    onTriggerCommandExecuted,
   } = props;
-
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstanceRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputBufferRef = useRef<string>('');
   const currentWorkingDirRef = useRef<string>(currentPath);
   const lastTriggerCommandRef = useRef<string | undefined>(undefined);
+  const executedCommandsRef = useRef<Set<string>>(new Set());
   
   // Add buffer for Rich library ANSI sequences to prevent artifacts
   const richAnsiBufferRef = useRef<string>('');
@@ -204,17 +206,35 @@ function DynamicTerminal(props: DynamicTerminalProps) {
   useEffect(() => {
     if (triggerCommand && triggerCommand !== lastTriggerCommandRef.current) {
       console.log('[DynamicTerminal] Trigger command changed from', lastTriggerCommandRef.current, 'to', triggerCommand);
+      
+      // Check if this command has already been executed
+      if (executedCommandsRef.current.has(triggerCommand)) {
+        console.log('[DynamicTerminal] Command', triggerCommand, 'already executed, skipping to prevent re-execution on tab switch');
+        lastTriggerCommandRef.current = triggerCommand;
+        return;
+      }
+      
       lastTriggerCommandRef.current = triggerCommand;
+      
       if (currentFilePath) {
         console.log('[DynamicTerminal] onExecuteFile called from triggerCommand effect');
-        // Clear the terminal before executing
+        // Mark this command as executed before starting execution
+        executedCommandsRef.current.add(triggerCommand);
+        
+        // Clear the terminal before executing (only for new commands)
         terminalInstanceRef.current?.clear();
-        // Execute the file regardless of the command value
+        
+        // Execute the file
         onExecuteFile((chunk) => {
           console.log('[DynamicTerminal] onExecuteFile received chunk:', chunk);
           if (chunk === null) {
-            // End of stream
+            // End of stream - execution completed
             updatePrompt();
+            // Clear the triggerCommand to prevent re-execution on tab switches
+            if (onTriggerCommandExecuted) {
+              console.log('[DynamicTerminal] Calling onTriggerCommandExecuted to clear triggerCommand');
+              onTriggerCommandExecuted();
+            }
             return;
           }
           // Use handleTerminalData instead of writing directly to ensure regex matching
@@ -222,9 +242,15 @@ function DynamicTerminal(props: DynamicTerminalProps) {
         });
       } else {
         console.log('[DynamicTerminal] No currentFilePath, cannot execute');
+        // Mark as executed even if we can't execute
+        executedCommandsRef.current.add(triggerCommand);
+        // Clear the triggerCommand even if we can't execute
+        if (onTriggerCommandExecuted) {
+          onTriggerCommandExecuted();
+        }
       }
     }
-  }, [triggerCommand, currentFilePath, onExecuteFile, updatePrompt, handleTerminalData]);
+  }, [triggerCommand, currentFilePath, onExecuteFile, updatePrompt, handleTerminalData, onTriggerCommandExecuted]);
 
   const initializeTerminal = useCallback(() => {
     if (!terminalRef.current || terminalInstanceRef.current) return;    const newTerminal = new Terminal({
@@ -379,9 +405,7 @@ function DynamicTerminal(props: DynamicTerminalProps) {
 
     if (terminalRef.current) {
       resizeObserver.observe(terminalRef.current);
-    }
-
-    return () => {
+    }    return () => {
       resizeObserver.disconnect();
       // Cleanup Rich streaming state and timers
       if (richFlushTimeoutRef.current) {
@@ -390,6 +414,8 @@ function DynamicTerminal(props: DynamicTerminalProps) {
       }
       richAnsiBufferRef.current = '';
       isRichStreamingRef.current = false;
+      // Clear executed commands to prevent memory leaks
+      executedCommandsRef.current.clear();
     };
   }, [initializeTerminal]);
 
