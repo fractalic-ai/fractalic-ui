@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from "@/components/ui/checkbox";
 import Uptime from "./Uptime";
 import MCPMarketplace from './MCPMarketplace';
+import { AddServerDialog } from './AddServerDialog';
 import { 
   Server, 
   Search, 
@@ -30,7 +31,8 @@ import {
   PowerOff,
   Info,
   ChevronDown,
-  X
+  X,
+  Plus
 } from 'lucide-react';
 
 interface MCPServer {
@@ -1134,6 +1136,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [searchFilter, setSearchFilter] = useState('');
   const [toolCardState, setToolCardState] = useState<Record<string, { expanded: boolean; paramValues: Record<string, any> }>>({});
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Debug logging to track re-renders (can be removed in production)
@@ -1373,6 +1376,23 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     setSearchFilter(e.target.value);
   }, []);
 
+  // Handle adding a new server
+  const handleAddServer = useCallback((serverConfig: any) => {
+    console.log('Adding new MCP server:', serverConfig);
+    
+    // Here you can implement the logic to:
+    // 1. Save the server configuration to your backend/storage
+    // 2. Update the local servers state if needed
+    // 3. Show a success/error message
+    
+    // For now, just show a success message
+    // You may want to integrate with your MCP server management system
+    alert(`Server "${serverConfig.name}" has been configured. Please restart the MCP Manager to see the new server.`);
+    
+    // Optional: Refresh the status to check for new servers
+    fetchStatus();
+  }, [fetchStatus]);
+
   // Initial fetch on mount
   useEffect(() => {
     fetchStatus(true);
@@ -1446,6 +1466,16 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
                 </div>
               </div>
+              {/* Add Server Button */}
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-gradient-to-r from-green-800 to-emerald-800 hover:from-green-700 hover:to-emerald-700 text-white flex items-center gap-2 shadow-lg"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Add Server
+              </Button>
               {/* Marketplace Toggle */}
               <Button
                 variant="outline"
@@ -1515,6 +1545,13 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           </ScrollArea>
         </ResizablePanel>
       </ResizablePanelGroup>
+      
+      {/* Add Server Dialog */}
+      <AddServerDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onAddServer={handleAddServer}
+      />
     </div>
   );
 };
