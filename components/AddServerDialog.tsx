@@ -12,12 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InfoIcon } from 'lucide-react';
+import { InfoIcon, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddServerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddServer: (serverConfig: any) => void;
+  onAddServer: (serverConfig: any) => Promise<void>;
 }
 
 export const AddServerDialog: React.FC<AddServerDialogProps> = ({
@@ -29,11 +30,19 @@ export const AddServerDialog: React.FC<AddServerDialogProps> = ({
   const [serverName, setServerName] = useState('');
   const [jsonConfig, setJsonConfig] = useState('');
   const [activeTab, setActiveTab] = useState('manual');
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleAddServer = () => {
+  const handleAddServer = async () => {
+    if (isLoading) return;
+    
     if (activeTab === 'manual') {
       if (!serverUrl.trim() || !serverName.trim()) {
-        alert('Please fill in both Server URL and Server Name');
+        toast({
+          title: "Validation Error",
+          description: "Please fill in both Server URL and Server Name",
+          variant: "destructive",
+        });
         return;
       }
       
@@ -43,22 +52,40 @@ export const AddServerDialog: React.FC<AddServerDialogProps> = ({
         type: 'manual'
       };
       
-      onAddServer(config);
-    } else {
+      setIsLoading(true);
       try {
-        const config = JSON.parse(jsonConfig);
-        onAddServer({ ...config, type: 'json' });
+        await onAddServer(config);
+        // Reset form on success
+        setServerUrl('');
+        setServerName('');
+        setJsonConfig('');
+        onOpenChange(false);
       } catch (error) {
-        alert('Invalid JSON configuration. Please check your input.');
-        return;
+        // Error handling is done in the parent component
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Send raw text to backend - let backend handle all parsing and validation
+      const finalConfig = {
+        jsonConfig: jsonConfig.trim(),
+        type: 'json'
+      };
+      
+      setIsLoading(true);
+      try {
+        await onAddServer(finalConfig);
+        // Reset form on success
+        setServerUrl('');
+        setServerName('');
+        setJsonConfig('');
+        onOpenChange(false);
+      } catch (error) {
+        // Error handling is done in the parent component
+      } finally {
+        setIsLoading(false);
       }
     }
-    
-    // Reset form
-    setServerUrl('');
-    setServerName('');
-    setJsonConfig('');
-    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -108,15 +135,33 @@ export const AddServerDialog: React.FC<AddServerDialogProps> = ({
               <Label htmlFor="jsonConfig">JSON Configuration</Label>
               <Textarea
                 id="jsonConfig"
-                placeholder={`Paste your MCP server JSON configuration here, e.g.:
+                placeholder={`Paste your MCP server JSON configuration here. Supported formats:
+
+1. Direct server config:
 {
-  "name": "My MCP Server",
-  "url": "https://api.example.com/mcp",
-  "auth": {
-    "type": "bearer",
-    "token": "your-token"
-  },
-  "capabilities": ["tools", "resources"]
+  "command": "npx",
+  "args": ["-y", "@smithery/cli@latest", "run", "@kazuph/mcp-taskmanager"],
+  "transport": "stdio"
+}
+
+2. Named server config:
+{
+  "mcp-taskmanager": {
+    "command": "npx",
+    "args": ["-y", "@smithery/cli@latest", "run", "@kazuph/mcp-taskmanager"],
+    "transport": "stdio"
+  }
+}
+
+3. mcpServers wrapper:
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "node",
+      "args": ["server.js"],
+      "transport": "stdio"
+    }
+  }
 }`}
                 value={jsonConfig}
                 onChange={(e) => setJsonConfig(e.target.value)}
@@ -137,11 +182,18 @@ export const AddServerDialog: React.FC<AddServerDialogProps> = ({
         </Alert>
         
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleAddServer}>
-            Add to Fractalic
+          <Button onClick={handleAddServer} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              'Add to Fractalic'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

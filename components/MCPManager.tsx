@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 import Uptime from "./Uptime";
 import MCPMarketplace from './MCPMarketplace';
 import { AddServerDialog } from './AddServerDialog';
@@ -1138,6 +1139,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Debug logging to track re-renders (can be removed in production)
   // console.log('MCPManager render:', {
@@ -1377,20 +1379,72 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   }, []);
 
   // Handle adding a new server
-  const handleAddServer = useCallback((serverConfig: any) => {
+  const handleAddServer = useCallback(async (serverConfig: any) => {
     console.log('Adding new MCP server:', serverConfig);
     
-    // Here you can implement the logic to:
-    // 1. Save the server configuration to your backend/storage
-    // 2. Update the local servers state if needed
-    // 3. Show a success/error message
-    
-    // For now, just show a success message
-    // You may want to integrate with your MCP server management system
-    alert(`Server "${serverConfig.name}" has been configured. Please restart the MCP Manager to see the new server.`);
-    
-    // Optional: Refresh the status to check for new servers
-    fetchStatus();
+    try {
+      // Prepare the request payload
+      let requestPayload;
+      
+      if (serverConfig.type === 'json') {
+        // JSON configuration - pass directly to backend
+        requestPayload = {
+          jsonConfig: serverConfig.jsonConfig,
+          type: 'json'
+        };
+      } else {
+        // Manual/URL-based server configuration
+        requestPayload = {
+          name: serverConfig.name,
+          url: serverConfig.url || serverConfig.serverUrl,
+          config: {
+            type: serverConfig.type || 'manual',
+            transport: serverConfig.transport || 'http',
+            auth: serverConfig.auth || null,
+            capabilities: serverConfig.capabilities || ['tools', 'resources']
+          }
+        };
+      }
+      
+      // Send server configuration to backend
+      const response = await fetch('http://127.0.0.1:5859/add_server', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Server added successfully:', result);
+      
+      // Show success message with toast notification
+      const serverName = serverConfig.name || 'server';
+      toast({
+        title: "Server Added Successfully",
+        description: `Server "${serverName}" has been successfully added to Fractalic!`,
+        variant: "default",
+      });
+      
+      // Refresh server status to show the new server
+      await fetchStatus();
+      
+    } catch (error) {
+      console.error('Failed to add server:', error);
+      
+      // Show error message with toast notification
+      const serverName = serverConfig.name || 'server';
+      toast({
+        title: "Failed to Add Server",
+        description: `Failed to add ${serverName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
   }, [fetchStatus]);
 
   // Initial fetch on mount
