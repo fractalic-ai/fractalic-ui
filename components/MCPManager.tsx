@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,7 +34,8 @@ import {
   Info,
   ChevronDown,
   X,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 interface MCPServer {
@@ -434,6 +436,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   toolCardState,
   onAction,
   onRestart,
+  onDelete,
   onToolExpand,
   onParamChange,
   initialLoading,
@@ -446,6 +449,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   toolCardState: Record<string, { expanded: boolean; paramValues: Record<string, any> }>;
   onAction: (action: 'start' | 'stop', serverName: string) => void;
   onRestart: (serverName: string) => void;
+  onDelete: (serverName: string) => void;
   onToolExpand: (toolName: string, expanded: boolean) => void;
   onParamChange: (toolName: string, paramName: string, value: any) => void;
   initialLoading: boolean;
@@ -540,6 +544,37 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                   <RotateCw className="h-4 w-4" />
                 )}
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/20 hover:border-red-500/40"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-[#1e1e1e] border-gray-700">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-white">Delete Server</AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-400">
+                      Are you sure you want to delete the server "{server.name}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-gray-800 text-gray-300 hover:bg-gray-700">
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => onDelete(server.name)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         </div>
@@ -1387,7 +1422,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       let requestPayload;
       
       if (serverConfig.type === 'json') {
-        // JSON configuration - pass directly to backend
+        // JSON configuration - send as-is to backend
         requestPayload = {
           jsonConfig: serverConfig.jsonConfig,
           type: 'json'
@@ -1446,6 +1481,56 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       });
     }
   }, [fetchStatus]);
+
+  // Handle deleting a server
+  const handleDeleteServer = useCallback(async (serverName: string) => {
+    console.log('Deleting MCP server:', serverName);
+    
+    try {
+      // Send delete request to backend
+      const response = await fetch('http://127.0.0.1:5859/delete_server', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: serverName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Server deleted successfully:', result);
+      
+      // Show success message with toast notification
+      toast({
+        title: "Server Deleted Successfully",
+        description: `Server "${serverName}" has been successfully deleted from Fractalic!`,
+        variant: "default",
+      });
+      
+      // If the deleted server was selected, clear the selection
+      if (selectedServerName === serverName) {
+        setSelectedServerName(null);
+        setTools([]);
+      }
+      
+      // Refresh server status to remove the deleted server
+      await fetchStatus();
+      
+    } catch (error) {
+      console.error('Failed to delete server:', error);
+      
+      // Show error message with toast notification
+      toast({
+        title: "Failed to Delete Server",
+        description: `Failed to delete ${serverName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
+  }, [fetchStatus, selectedServerName, toast]);
 
   // Initial fetch on mount
   useEffect(() => {
@@ -1577,6 +1662,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   toolCardState={toolCardState}
                   onAction={handleAction}
                   onRestart={handleRestart}
+                  onDelete={handleDeleteServer}
                   onToolExpand={handleToolExpand}
                   onParamChange={handleParamChange}
                   initialLoading={initialLoading}
