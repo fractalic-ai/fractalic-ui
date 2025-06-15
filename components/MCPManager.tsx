@@ -1760,8 +1760,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       <ResizablePanelGroup direction="horizontal" className="h-full w-full">
         {/* Left: Server List */}
         <ResizablePanel defaultSize={30} minSize={25} maxSize={45}>
-          <div className="h-full bg-[#141414] border-r border-gray-800">
-            <div className="p-6 border-b border-gray-800 flex flex-col gap-2">
+          <div className="h-full bg-[#141414] border-r border-gray-800 flex flex-col">
+            <div className="p-6 border-b border-gray-800 flex flex-col gap-2 flex-shrink-0">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
                   <Server className="h-5 w-5 text-white" />
@@ -1903,7 +1903,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                 />
               </div>
             </div>
-            <ScrollArea className="h-[calc(100%-140px)]">
+            <ScrollArea className="flex-1">
               <div className="p-4">
                 <ServerList
                   servers={filteredServers}
