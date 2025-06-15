@@ -1174,6 +1174,17 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // MCP Manager state
+  const [mcpManagerRunning, setMcpManagerRunning] = useState<boolean | null>(null);
+  const [mcpManagerLoading, setMcpManagerLoading] = useState(false);
+  const [mcpManagerStatus, setMcpManagerStatus] = useState<{
+    status: string;
+    api_responsive: boolean;
+    exit_code?: number;
+    last_pid?: number;
+  } | null>(null);
+  
   const { toast } = useToast();
 
   // Debug logging to track re-renders (can be removed in production)
@@ -1317,6 +1328,14 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       loadingRef.current = false;
       errorRef.current = null;
     } catch (e: any) {
+      // If MCP Manager is stopped, clear servers list
+      if (e.message?.includes('Failed to fetch') || e.message?.includes('Connection refused') || e.message?.includes('ECONNREFUSED')) {
+        console.log('MCP Manager appears to be stopped, clearing servers list');
+        setServers({});
+        setSelectedServerName(null);
+        setTools([]);
+      }
+      
       if (isInitial) {
         setFatalError(e.message || 'Failed to fetch server status');
       }
@@ -1532,11 +1551,112 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     }
   }, [fetchStatus, selectedServerName, toast]);
 
+  // Check MCP Manager status
+  const checkMcpManagerStatus = useCallback(async () => {
+    try {
+      const response = await fetch('http://localhost:8000/mcp/status');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('MCP Manager status:', data);
+        
+        // Update detailed status
+        setMcpManagerStatus({
+          status: data.status || 'unknown',
+          api_responsive: data.api_responsive || false,
+          exit_code: data.exit_code,
+          last_pid: data.last_pid
+        });
+        
+        // Set running state based on status
+        const isRunning = data.status === 'running' || data.status === 'running_not_responsive';
+        setMcpManagerRunning(isRunning);
+        
+      } else {
+        // If status endpoint is not accessible, assume not running
+        setMcpManagerRunning(false);
+        setMcpManagerStatus({
+          status: 'not_started',
+          api_responsive: false
+        });
+      }
+    } catch (error) {
+      console.log('MCP Manager status check failed:', error);
+      // If we can't reach the status endpoint, assume it's not running
+      setMcpManagerRunning(false);
+      setMcpManagerStatus({
+        status: 'not_started',
+        api_responsive: false
+      });
+    }
+  }, []);
+
+  // Handle MCP Manager start/stop
+  const handleMcpManagerAction = useCallback(async (action: 'start' | 'stop') => {
+    setMcpManagerLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8000/mcp/${action}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} MCP Manager: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log(`MCP Manager ${action} result:`, result);
+      
+      // Show success message
+      toast({
+        title: `MCP Manager ${action === 'start' ? 'Started' : 'Stopped'}`,
+        description: `MCP Manager has been successfully ${action === 'start' ? 'started' : 'stopped'}.`,
+        variant: "default",
+      });
+      
+      // Handle different actions
+      if (action === 'stop') {
+        // Immediately clear servers list and selection when stopping
+        setServers({});
+        setSelectedServerName(null);
+        setTools([]);
+        // Update status immediately
+        setTimeout(() => {
+          checkMcpManagerStatus();
+        }, 500);
+      } else {
+        // For start action, refresh status after a delay
+        setTimeout(async () => {
+          await checkMcpManagerStatus();
+          // Also refresh server status after MCP Manager is responsive
+          setTimeout(() => {
+            fetchStatus();
+          }, 2000); // Additional delay for servers to initialize
+        }, 1000);
+      }
+      
+    } catch (error) {
+      console.error(`Failed to ${action} MCP Manager:`, error);
+      
+      toast({
+        title: `Failed to ${action === 'start' ? 'Start' : 'Stop'} MCP Manager`,
+        description: error instanceof Error ? error.message : `Unknown error occurred while trying to ${action} MCP Manager`,
+        variant: "destructive",
+      });
+      
+      // Still refresh status to get current state
+      setTimeout(() => {
+        checkMcpManagerStatus();
+      }, 1000);
+    } finally {
+      setMcpManagerLoading(false);
+    }
+  }, [toast, fetchStatus, checkMcpManagerStatus]);
+
   // Initial fetch on mount
   useEffect(() => {
     fetchStatus(true);
+    checkMcpManagerStatus();
     // Optionally, set up polling here if desired
-  }, [fetchStatus]);
+  }, [fetchStatus, checkMcpManagerStatus]);
 
   // Fetch tools when selectedServerName changes
   useEffect(() => {
@@ -1550,10 +1670,21 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   // Poll server status every 5 seconds to update uptime and status
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchStatus();
+      // Always check MCP Manager status
+      checkMcpManagerStatus();
+      
+      // Only fetch server status if MCP Manager is running
+      if (mcpManagerStatus?.status === 'running' && mcpManagerStatus?.api_responsive) {
+        fetchStatus();
+      } else if (mcpManagerStatus?.status === 'not_started' || mcpManagerStatus?.status === 'terminated') {
+        // Clear servers list if MCP Manager is not running
+        setServers(prev => Object.keys(prev).length > 0 ? {} : prev);
+        setSelectedServerName(prev => prev ? null : prev);
+        setTools(prev => prev.length > 0 ? [] : prev);
+      }
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [fetchStatus, checkMcpManagerStatus, mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
 
   // If marketplace is active, render it with full space and its own header
   if (showMarketplace) {
@@ -1600,9 +1731,102 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
                   <Server className="h-5 w-5 text-white" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h1 className="font-bold text-xl text-white">MCP Manager</h1>
-                  <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
+                    {mcpManagerStatus && (
+                      <>
+                        <span className="text-gray-500">•</span>
+                        <div className="flex items-center gap-1">
+                          {mcpManagerStatus.status === 'running' && mcpManagerStatus.api_responsive && (
+                            <>
+                              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                              <span className="text-xs text-green-400">Running</span>
+                            </>
+                          )}
+                          {mcpManagerStatus.status === 'running_not_responsive' && (
+                            <>
+                              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                              <span className="text-xs text-yellow-400">Starting up...</span>
+                            </>
+                          )}
+                          {mcpManagerStatus.status === 'terminated' && (
+                            <>
+                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                              <span className="text-xs text-red-400">
+                                Crashed {mcpManagerStatus.exit_code && `(exit ${mcpManagerStatus.exit_code})`}
+                              </span>
+                            </>
+                          )}
+                          {mcpManagerStatus.status === 'not_started' && (
+                            <>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                              <span className="text-xs text-gray-400">Not started</span>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {/* Show start button when not running or terminated */}
+                  {(mcpManagerStatus?.status === 'not_started' || mcpManagerStatus?.status === 'terminated' || mcpManagerRunning === false) && (
+                    <Button
+                      onClick={() => handleMcpManagerAction('start')}
+                      disabled={mcpManagerLoading}
+                      size="sm"
+                      variant="default"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {mcpManagerLoading ? (
+                        <RotateCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Power className="h-4 w-4 mr-1" />
+                          Start Manager
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {/* Show stop button when running (regardless of API responsiveness) */}
+                  {(mcpManagerStatus?.status === 'running' || mcpManagerStatus?.status === 'running_not_responsive' || mcpManagerRunning === true) && (
+                    <Button
+                      onClick={() => handleMcpManagerAction('stop')}
+                      disabled={mcpManagerLoading}
+                      size="sm"
+                      variant="destructive"
+                    >
+                      {mcpManagerLoading ? (
+                        <RotateCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <PowerOff className="h-4 w-4 mr-1" />
+                          Stop Manager
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  {/* Show restart button for crashed processes */}
+                  {mcpManagerStatus?.status === 'terminated' && mcpManagerStatus.exit_code && (
+                    <Button
+                      onClick={() => handleMcpManagerAction('start')}
+                      disabled={mcpManagerLoading}
+                      size="sm"
+                      variant="outline"
+                      className="border-yellow-500 text-yellow-400 hover:bg-yellow-500/10"
+                    >
+                      {mcpManagerLoading ? (
+                        <RotateCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <RotateCw className="h-4 w-4 mr-1" />
+                          Restart
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
               {/* Add Server Button */}
