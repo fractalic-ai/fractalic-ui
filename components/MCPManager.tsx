@@ -139,12 +139,11 @@ const ServerCard = React.memo(function ServerCard({
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-3">
-            {getStateIcon(server.state)}
-            <div>
-              <h3 className="font-semibold text-white">{server.name}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          <div className="flex items-center gap-3 flex-1">
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-white truncate">{server.name}</h3>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                   server.state === 'running' ? 'bg-green-500/20 text-green-400' :
                   server.state === 'stopped' ? 'bg-gray-500/20 text-gray-400' :
                   server.state === 'errored' ? 'bg-red-500/20 text-red-400' :
@@ -152,11 +151,6 @@ const ServerCard = React.memo(function ServerCard({
                 }`}>
                   {server.state.toUpperCase()}
                 </span>
-                {server.healthy ? (
-                  <span className="text-xs text-green-400">Healthy</span>
-                ) : (
-                  <span className="text-xs text-red-400">Unhealthy</span>
-                )}
               </div>
             </div>
           </div>
@@ -175,6 +169,12 @@ const ServerCard = React.memo(function ServerCard({
             <div className="flex justify-between">
               <span>Tools:</span>
               <span className="font-mono">{server.tool_count}</span>
+            </div>
+          )}
+          {server.token_count !== undefined && server.token_count > 0 && (
+            <div className="flex justify-between">
+              <span>Tokens:</span>
+              <span className="font-mono text-blue-400">{server.token_count.toLocaleString()}</span>
             </div>
           )}
         </div>
@@ -465,8 +465,30 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
       <div className="border-b border-gray-800 bg-[#141414]/80 backdrop-blur-sm">
         <div className="p-8">
           <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-              <Server className="h-8 w-8 text-white" />
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg flex items-center justify-center">
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 24 24" 
+                width="20" 
+                height="20" 
+                fill="none"
+                className="text-white"
+              >
+                <path 
+                  d="M3.49994 11.7501L11.6717 3.57855C12.7762 2.47398 14.5672 2.47398 15.6717 3.57855C16.7762 4.68312 16.7762 6.47398 15.6717 7.57855M15.6717 7.57855L9.49994 13.7501M15.6717 7.57855C16.7762 6.47398 18.5672 6.47398 19.6717 7.57855C20.7762 8.68312 20.7762 10.474 19.6717 11.5785L12.7072 18.543C12.3167 18.9335 12.3167 19.5667 12.7072 19.9572L13.9999 21.2499" 
+                  stroke="currentColor" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+                <path 
+                  d="M17.4999 9.74921L11.3282 15.921C10.2237 17.0255 8.43272 17.0255 7.32823 15.921C6.22373 14.8164 6.22373 13.0255 7.32823 11.921L13.4999 5.74939" 
+                  stroke="currentColor" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-white mb-2">{server.name}</h1>
@@ -1199,6 +1221,19 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     return selectedServerName ? servers[selectedServerName] : null;
   }, [selectedServerName, servers]);
 
+  // Memoize server statistics
+  const serverStats = useMemo(() => {
+    const serversArray = Object.values(servers);
+    const runningServers = serversArray.filter(server => server.state === 'running');
+    const totalTokens = runningServers.reduce((sum, server) => sum + (server.token_count || 0), 0);
+    
+    return {
+      total: serversArray.length,
+      running: runningServers.length,
+      totalTokens
+    };
+  }, [servers]);
+
   // Memoize filteredServers only (not the rendered JSX)
   const filteredServers = useMemo(() => {
     const serversArray = Object.values(servers);
@@ -1733,40 +1768,49 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                 </div>
                 <div className="flex-1">
                   <h1 className="font-bold text-xl text-white">MCP Manager</h1>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm text-gray-400">{filteredServers.length} of {Object.keys(servers).length} servers</p>
-                    {mcpManagerStatus && (
-                      <>
-                        <span className="text-gray-500">•</span>
-                        <div className="flex items-center gap-1">
-                          {mcpManagerStatus.status === 'running' && mcpManagerStatus.api_responsive && (
-                            <>
-                              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                              <span className="text-xs text-green-400">Running</span>
-                            </>
-                          )}
-                          {mcpManagerStatus.status === 'running_not_responsive' && (
-                            <>
-                              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                              <span className="text-xs text-yellow-400">Starting up...</span>
-                            </>
-                          )}
-                          {mcpManagerStatus.status === 'terminated' && (
-                            <>
-                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                              <span className="text-xs text-red-400">
-                                Crashed {mcpManagerStatus.exit_code && `(exit ${mcpManagerStatus.exit_code})`}
-                              </span>
-                            </>
-                          )}
-                          {mcpManagerStatus.status === 'not_started' && (
-                            <>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                              <span className="text-xs text-gray-400">Not started</span>
-                            </>
-                          )}
-                        </div>
-                      </>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-400">
+                        {serverStats.running} of {serverStats.total} servers running
+                      </p>
+                      {mcpManagerStatus && (
+                        <>
+                          <span className="text-gray-500">•</span>
+                          <div className="flex items-center gap-1">
+                            {mcpManagerStatus.status === 'running' && mcpManagerStatus.api_responsive && (
+                              <>
+                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                <span className="text-xs text-green-400">Running</span>
+                              </>
+                            )}
+                            {mcpManagerStatus.status === 'running_not_responsive' && (
+                              <>
+                                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                <span className="text-xs text-yellow-400">Starting up...</span>
+                              </>
+                            )}
+                            {mcpManagerStatus.status === 'terminated' && (
+                              <>
+                                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                <span className="text-xs text-red-400">
+                                  Crashed {mcpManagerStatus.exit_code && `(exit ${mcpManagerStatus.exit_code})`}
+                                </span>
+                              </>
+                            )}
+                            {mcpManagerStatus.status === 'not_started' && (
+                              <>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span className="text-xs text-gray-400">Not started</span>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {serverStats.totalTokens > 0 && (
+                      <p className="text-xs text-gray-400">
+                        {serverStats.totalTokens.toLocaleString()} schema tokens
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1875,9 +1919,9 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         
         {/* Right: Server Details */}
         <ResizablePanel defaultSize={70} minSize={55}>
-          <ScrollArea className="h-full">
-            <div className="h-full">
-              {selectedServer ? (
+          <div className="h-full">
+            {selectedServer ? (
+              <ScrollArea className="h-full">
                 <ServerDetailsPanel
                   server={selectedServer}
                   tools={tools}
@@ -1892,21 +1936,21 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   initialLoading={initialLoading}
                   fetchStatus={fetchStatus}
                 />
-              ) : (
-                <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f]">
-                  <div className="text-center space-y-4">
-                    <div className="p-6 bg-gray-800/30 rounded-full mx-auto w-fit">
-                      <Server className="h-16 w-16 text-gray-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-semibold text-gray-300 mb-2">Select a Server</h3>
-                      <p className="text-gray-500">Choose a server from the left panel to view its details and tools</p>
-                    </div>
+              </ScrollArea>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center">
+                <div className="text-center space-y-6">
+                  <div className="mx-auto w-fit">
+                    <Server className="h-16 w-16 text-gray-500 mx-auto" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-semibold text-gray-300 mb-2">Select a Server</h3>
+                    <p className="text-gray-500">Choose a server from the left panel to view its details and tools</p>
                   </div>
                 </div>
-              )}
-            </div>
-          </ScrollArea>
+              </div>
+            )}
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
       
