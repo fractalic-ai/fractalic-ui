@@ -22,26 +22,39 @@ export default function CommitTree({
   selectedCommit
 }: CommitTreeProps) {
   const [viewMode, setViewMode] = useState<'full' | 'compact'>('compact')
+  
   // Function to format commit text based on view mode
-  const formatCommitText = (text: string): string => {
+  const formatCommitText = (text: string | null | undefined, isRootCommit: boolean = false): string => {
+    // Handle null/undefined text
+    if (!text) {
+      return 'Untitled'
+    }
+    
     if (viewMode === 'full') {
       return text
     }
     
-    // For compact mode, extract meaningful parts from branch names like "20250606031812_0338efda_Testing-git-operations"
-    // Split by underscore and take the last part (the actual description)
-    const parts = text.split('_')
-    if (parts.length >= 3) {
-      // Return the description part, replacing hyphens with spaces for readability
-      return parts[parts.length - 1].replace(/-/g, ' ')
+    // For compact mode, only apply special formatting to root commits (branch/session names)
+    if (isRootCommit) {
+      // For branch names like "20250606031812_0338efda_Testing-git-operations"
+      // Split by underscore and take the last part (the actual description)
+      const parts = text.split('_')
+      if (parts.length >= 3 && parts[0].length === 14 && /^\d{14}$/.test(parts[0])) {
+        // This looks like a timestamped branch name - return the description part, replacing hyphens with spaces for readability
+        return parts[parts.length - 1].replace(/-/g, ' ')
+      }
     }
-    
-    // Fallback: if format doesn't match expected pattern, truncate if too long
+      // For file names or other formats, just truncate if too long
     return text.length > 30 ? text.substring(0, 30) + '...' : text
   }
 
   // Function to extract and format date/time from branch name
-  const extractDateTime = (text: string): string | null => {
+  const extractDateTime = (text: string | null | undefined): string | null => {
+    // Handle null/undefined text
+    if (!text) {
+      return null
+    }
+    
     const parts = text.split('_')
     if (parts.length >= 1) {
       const dateTimePart = parts[0]
@@ -56,10 +69,10 @@ export default function CommitTree({
         
         // Format as readable date/time
         return `${day}/${month}/${year} ${hour}:${minute}:${second}`
-      }
-    }
+      }    }
     return null
   }
+  
   const toggleViewMode = () => {
     setViewMode(prev => prev === 'full' ? 'compact' : 'full')
   }
@@ -81,8 +94,7 @@ export default function CommitTree({
                   size="sm"
                   className={`w-full justify-start ${
                     isSelected
-                      ? 'bg-[#202020] text-white hover:bg-[#202020]'
-                      : 'text-gray-400 hover:bg-[#202020] hover:text-white'
+                      ? 'bg-[#202020] text-white hover:bg-[#202020]'                      : 'text-gray-400 hover:bg-[#202020] hover:text-white'
                   }`}
                   onClick={() => handleCommitSelect(nodeWithParent)}
                 >
@@ -92,8 +104,8 @@ export default function CommitTree({
                     <FileText className="mr-2 h-4 w-4 flex-shrink-0" />
                   )}
                   <div className="flex flex-col items-start min-w-0 flex-1" title={node.text}>
-                    <span className="truncate w-full text-left">{formatCommitText(node.text)}</span>
-                    {viewMode === 'compact' && extractDateTime(node.text) && (
+                    <span className="truncate w-full text-left">{formatCommitText(node.text, isRootCommit)}</span>
+                    {viewMode === 'compact' && isRootCommit && extractDateTime(node.text) && (
                       <span className="text-xs text-gray-500 w-full text-left">
                         {extractDateTime(node.text)}
                       </span>
