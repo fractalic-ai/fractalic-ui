@@ -3,7 +3,8 @@ import { TraceNodeData, TraceTreeNode, ProcessedTraceGroup } from '../types';
 export enum ConnectionType {
   IDENTITY = 'identity',     // Blue lines - same nodes in different groups
   HIERARCHICAL = 'hierarchical',  // Purple lines - parent-child group relationships
-  CREATED_BY = 'created_by'  // Green lines - created_by relationships
+  CREATED_BY = 'created_by',  // Green lines - created_by relationships
+  RETURN_NODES_ATTRIBUTION = 'return_nodes_attribution'  // Orange lines - return nodes attribution relationships
 }
 
 export interface Connection {
@@ -38,6 +39,9 @@ export class ConnectionManager {
     
     // Calculate created_by connections
     this.calculateCreatedByConnections(traceGroups);
+    
+    // Calculate return nodes attribution connections
+    this.calculateReturnNodesAttributionConnections(traceGroups);
     
     return this.connections;
   }
@@ -138,6 +142,96 @@ export class ConnectionManager {
         }
       });
     });
+  }
+  
+  private calculateReturnNodesAttributionConnections(traceGroups: any[]): void {
+    console.log('[ConnectionManager] Calculating return nodes attribution connections...');
+    console.log('[ConnectionManager] Total trace groups:', traceGroups.length);
+    
+    // First, index all nodes by their key
+    const allNodesMap: Map<string, {node: TraceNodeData, groupId: string}> = new Map();
+    
+    traceGroups.forEach(group => {
+      group.data.forEach((node: TraceNodeData) => {
+        allNodesMap.set(node.key, { node, groupId: group.id });
+      });
+    });
+    
+    console.log('[ConnectionManager] Total nodes indexed:', allNodesMap.size);
+    
+    // Process nodes looking for return_nodes_attribution data in response_messages
+    traceGroups.forEach(group => {
+      group.data.forEach((node: TraceNodeData) => {
+        // Check if this node has response_messages with return_nodes_attribution data
+        if (node.response_messages && Array.isArray(node.response_messages)) {
+          node.response_messages.forEach((msg: any, msgIndex: number) => {
+            if (msg.role === 'tool' && msg.content) {
+              try {
+                const toolContent = JSON.parse(msg.content);
+                if (toolContent.return_nodes_attribution && Array.isArray(toolContent.return_nodes_attribution)) {
+                  console.log('[ConnectionManager] Found node with return_nodes_attribution:', {
+                    nodeKey: node.key,
+                    groupId: group.id,
+                    msgIndex: msgIndex,
+                    attributions: toolContent.return_nodes_attribution
+                  });
+                  
+                  toolContent.return_nodes_attribution.forEach((attribution: any) => {
+                    if (attribution.node_key) {
+                      console.log('[ConnectionManager] Processing attribution:', attribution);
+                      
+                      // Find the returned content node (the actual target we want to connect to)
+                      const returnedNode = allNodesMap.get(attribution.node_key);
+                      
+                      console.log('[ConnectionManager] Returned content node found:', !!returnedNode);
+                      
+                      // Create connection from the current node (that has the attribution) to the returned content node
+                      // This represents: "this node contains content that was originally from that content node"
+                      if (returnedNode) {
+                        console.log('[ConnectionManager] Creating return attribution connection:', {
+                          sourceId: node.key, // The node that contains the attribution data
+                          targetId: attribution.node_key, // The returned content node
+                          sourceGroupId: group.id,
+                          targetGroupId: returnedNode.groupId,
+                          contentNodeId: attribution.node_id
+                        });
+                        
+                        this.connections.push({
+                          id: `return-attr-${node.key}-${attribution.node_key}-${msgIndex}`,
+                          sourceId: node.key,
+                          targetId: attribution.node_key,
+                          sourceGroupId: group.id,
+                          targetGroupId: returnedNode.groupId,
+                          type: ConnectionType.RETURN_NODES_ATTRIBUTION
+                        });
+                      } else {
+                        console.log('[ConnectionManager] ⚠️  Referenced content node not found in current trace:', attribution.node_key);
+                        console.log('[ConnectionManager] This is expected for cross-file references.');
+                        
+                        // Still create a connection for external references
+                        this.connections.push({
+                          id: `return-attr-${node.key}-${attribution.node_key}-${msgIndex}`,
+                          sourceId: node.key,
+                          targetId: attribution.node_key,
+                          sourceGroupId: group.id,
+                          targetGroupId: 'external', // Mark as external reference
+                          type: ConnectionType.RETURN_NODES_ATTRIBUTION
+                        });
+                      }
+                    }
+                  });
+                }
+              } catch (e) {
+                // Not JSON, skip
+              }
+            }
+          });
+        }
+      });
+    });
+    
+    console.log('[ConnectionManager] Total return attribution connections created:', 
+      this.connections.filter(c => c.type === ConnectionType.RETURN_NODES_ATTRIBUTION).length);
   }
   
   private getGroupLevel(groupId: string): number {

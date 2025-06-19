@@ -53,6 +53,7 @@ export const Canvas: React.FC<CanvasProps> = ({
   
   const [showIdentityConnections, setShowIdentityConnections] = useState(true);
   const [showCreatedByConnections, setShowCreatedByConnections] = useState(true);
+  const [showReturnNodesAttributionConnections, setShowReturnNodesAttributionConnections] = useState(true);
 
   const updateTransform = useCallback((newTransform: Transform) => {
     setTransform(newTransform);
@@ -175,17 +176,25 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
   }, [handleWheel]);
 
-  const toggleConnectionVisibility = (type: 'identity' | 'created-by') => {
+  const toggleConnectionVisibility = (type: 'identity' | 'created-by' | 'return-nodes-attribution') => {
+    console.log('[Canvas] toggleConnectionVisibility called with type:', type);
+    
     const fireUpdate = () => {
       const event = new CustomEvent('force-connections-update');
       window.dispatchEvent(event);
     };
     
     if (type === 'identity') {
+      console.log('[Canvas] Toggling identity connections:', !showIdentityConnections);
       setShowIdentityConnections(!showIdentityConnections);
       setTimeout(fireUpdate, 50);
-    } else {
+    } else if (type === 'created-by') {
+      console.log('[Canvas] Toggling created-by connections:', !showCreatedByConnections);
       setShowCreatedByConnections(!showCreatedByConnections);
+      setTimeout(fireUpdate, 50);
+    } else if (type === 'return-nodes-attribution') {
+      console.log('[Canvas] Toggling return-nodes-attribution connections:', !showReturnNodesAttributionConnections);
+      setShowReturnNodesAttributionConnections(!showReturnNodesAttributionConnections);
       setTimeout(fireUpdate, 50);
     }
   };
@@ -241,11 +250,19 @@ export const Canvas: React.FC<CanvasProps> = ({
           </button>
           <button
             onClick={() => toggleConnectionVisibility('created-by')}
-            className={`p-2 flex items-center ${showCreatedByConnections ? 'bg-blue-600' : 'bg-gray-800'} text-gray-300 rounded-r-md hover:bg-gray-700 transition-colors`}
+            className={`p-2 flex items-center ${showCreatedByConnections ? 'bg-blue-600' : 'bg-gray-800'} text-gray-300 hover:bg-gray-700 transition-colors`}
             title={showCreatedByConnections ? "Hide green Created-by connections" : "Show green Created-by connections"}
           >
             {showCreatedByConnections ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
             <div className="w-3 h-3 bg-green-400 rounded-full ml-2" />
+          </button>
+          <button
+            onClick={() => toggleConnectionVisibility('return-nodes-attribution')}
+            className={`p-2 flex items-center ${showReturnNodesAttributionConnections ? 'bg-blue-600' : 'bg-gray-800'} text-gray-300 rounded-r-md hover:bg-gray-700 transition-colors`}
+            title={showReturnNodesAttributionConnections ? "Hide orange Return Attribution connections" : "Show orange Return Attribution connections"}
+          >
+            {showReturnNodesAttributionConnections ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+            <div className="w-3 h-3 bg-orange-400 rounded-full ml-2" />
           </button>
           <button
             onClick={() => onHighlightSourceChange && onHighlightSourceChange(!highlightSource)}
@@ -313,6 +330,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               onConnectionSegmentsUpdate={onConnectionSegmentsUpdate}
               showIdentityConnections={showIdentityConnections}
               showCreatedByConnections={showCreatedByConnections}
+              showReturnNodesAttributionConnections={showReturnNodesAttributionConnections}
               collectNodePositions={collectNodePositions || (() => {})}
             />
           )}

@@ -67,6 +67,7 @@ interface NodeConnectionsProps {
   onConnectionSegmentsUpdate?: (segments: any[]) => void;
   showIdentityConnections?: boolean;
   showCreatedByConnections?: boolean;
+  showReturnNodesAttributionConnections?: boolean;
   collectNodePositions: () => void; // Make non-optional
 }
 
@@ -212,6 +213,7 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
   onConnectionSegmentsUpdate,
   showIdentityConnections = true,
   showCreatedByConnections = true,
+  showReturnNodesAttributionConnections = true,
   collectNodePositions, // Now required
 }) => {
   const [renderConnections, setRenderConnections] = useState<Array<{
@@ -625,6 +627,135 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
          });
      }
 
+    // --- RETURN NODES ATTRIBUTION Connections ---
+    if (showReturnNodesAttributionConnections) {
+        console.log('[NodeConnections] Processing return nodes attribution connections...');
+        const returnAttrPass1: any[] = [];
+
+        // Pass 1.1: Find return nodes attribution pairs
+        for (const [sourceKey, sourceInfo] of positionedNodes.entries()) {
+            // Find node data to check for return_nodes_attribution
+            const nodeData = traceGroups.find(g => g.id === sourceInfo.groupId)?.data.find(n => n.key === sourceInfo.id);
+            
+            if (nodeData) {
+                // Check for return_nodes_attribution in response_messages (primary location)
+                let attributionData: any[] = [];
+                
+                if (nodeData.response_messages && Array.isArray(nodeData.response_messages)) {
+                    nodeData.response_messages.forEach((msg: any) => {
+                        if (msg.role === 'tool' && msg.content) {
+                            try {
+                                const toolContent = JSON.parse(msg.content);
+                                if (toolContent.return_nodes_attribution && Array.isArray(toolContent.return_nodes_attribution)) {
+                                    attributionData.push(...toolContent.return_nodes_attribution);
+                                }
+                            } catch (e) {
+                                // Not JSON, skip
+                            }
+                        }
+                    });
+                }
+                
+                // Also check legacy params location for backward compatibility
+                if (nodeData.params && nodeData.params.return_nodes_attribution && Array.isArray(nodeData.params.return_nodes_attribution)) {
+                    attributionData.push(...nodeData.params.return_nodes_attribution);
+                }
+                
+                if (attributionData.length > 0) {
+                    console.log('[NodeConnections] Found node with return_nodes_attribution:', {
+                        sourceKey,
+                        attributions: attributionData
+                    });
+                    
+                    attributionData.forEach((attribution: any) => {
+                        if (attribution.node_key) {
+                            console.log('[NodeConnections] Processing attribution:', attribution);
+                            
+                            // Find the content node that was returned (not the creator LLM operation)
+                            for (const [targetKey, targetInfo] of positionedNodes.entries()) {
+                                if (targetInfo.id === attribution.node_key && targetInfo.groupId !== sourceInfo.groupId) {
+                                    console.log('[NodeConnections] Found content node:', targetKey, 'for node_key:', attribution.node_key);
+                                    
+                                    // Create connection from source node (that contains the attribution) to the content node
+                                    const connDetails = calculateConnectionPoints({ rect: sourceInfo.domRect }, { rect: targetInfo.domRect });
+                                    
+                                    if (connDetails) {
+                                        const connId = `return-attr-${sourceKey}-${targetKey}`;
+                                        returnAttrPass1.push({
+                                            id: connId,
+                                            source: sourceInfo,
+                                            target: targetInfo,
+                                            ...connDetails
+                                        });
+                                        console.log('[NodeConnections] Created return attribution connection:', connId);
+                                    }
+                                }
+                            }
+                            
+                            // If content node not found (external reference), log it
+                            const contentNodeExists = Array.from(positionedNodes.values()).some(info => info.id === attribution.node_key);
+                            if (!contentNodeExists) {
+                                console.log('[NodeConnections] ⚠️  Referenced content node not found in current trace:', {
+                                    sourceNode: sourceKey,
+                                    missingContentNode: attribution.node_key,
+                                    createdByFile: attribution.created_by_file
+                                });
+                                console.log('[NodeConnections] This is expected for cross-file references.');
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        console.log('[NodeConnections] Return attribution pairs found:', returnAttrPass1.length);
+
+        // Pass 1.2: Calculate specific offset points & path for return attribution
+        returnAttrPass1.forEach(({ id, source, target, startX, startY, endX, endY, startSide, endSide, isRightToLeft }) => {
+            const sourceSide = startSide;
+            const targetSide = endSide;
+            const sourceTotal = nodeConnectionsRef.current[source.key][sourceSide];
+            const targetTotal = nodeConnectionsRef.current[target.key][targetSide];
+            const sourceIndex = nodeConnectionsRef.current[source.key].connections[sourceSide].length;
+            const targetIndex = nodeConnectionsRef.current[target.key].connections[targetSide].length;
+
+            const yPadding = 10;
+            const nodeHeightSource = source.domRect.height - 2 * yPadding;
+            const nodeHeightTarget = target.domRect.height - 2 * yPadding;
+
+            if (nodeHeightSource > 0 && sourceTotal > 0) {
+                const step = nodeHeightSource / (sourceTotal + 1);
+                const offset = (sourceIndex + 1) * step - (nodeHeightSource / 2);
+                startY = source.domRect.top + yPadding + (nodeHeightSource / 2) + offset;
+            }
+            if (nodeHeightTarget > 0 && targetTotal > 0) {
+                const step = nodeHeightTarget / (targetTotal + 1);
+                const offset = (targetIndex + 1) * step - (nodeHeightTarget / 2);
+                endY = target.domRect.top + yPadding + (nodeHeightTarget / 2) + offset;
+            }
+            startY = Math.max(source.domRect.top + yPadding, Math.min(source.domRect.bottom - yPadding, startY));
+            endY = Math.max(target.domRect.top + yPadding, Math.min(target.domRect.bottom - yPadding, endY));
+
+            const svgStart = toSvgCoords(startX, startY);
+            const svgEnd = toSvgCoords(endX, endY);
+            const connKey = `${id}:${Math.round(svgStart.x/10)},${Math.round(svgStart.y/10)}`;
+
+            const path = getEnhancedPath(
+                svgStart, svgEnd,
+                source, target,
+                ConnectionType.RETURN_NODES_ATTRIBUTION,
+                connKey, layoutChanged, isRightToLeft
+            );
+
+            allConnections.push({
+                id: id, start: svgStart, end: svgEnd, type: ConnectionType.RETURN_NODES_ATTRIBUTION,
+                sourceNodeKey: source.key, targetNodeKey: target.key, path
+            });
+
+            nodeConnectionsRef.current[source.key].connections[sourceSide].push({ type: ConnectionType.RETURN_NODES_ATTRIBUTION, id: id });
+            nodeConnectionsRef.current[target.key].connections[targetSide].push({ type: ConnectionType.RETURN_NODES_ATTRIBUTION, id: id });
+        });
+    }
+
     setRenderConnections(allConnections);
 
     if (onConnectionSegmentsUpdate && allConnections.length > 0) {
@@ -637,7 +768,7 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
     }
   }, [
       containerRef, nodeRefs, traceGroups, transform,
-      showCreatedByConnections, showIdentityConnections,
+      showCreatedByConnections, showIdentityConnections, showReturnNodesAttributionConnections,
       isDragging, onConnectionSegmentsUpdate,
       generateLayoutId, calculateConnectionPoints, getEnhancedPath,
       // No collectNodePositions needed here
@@ -702,7 +833,7 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
        return () => {
            if (updateTimeoutRef.current) cancelAnimationFrame(updateTimeoutRef.current);
        };
-   }, [transform, showIdentityConnections, showCreatedByConnections, isDragging, updateConnectionPositions]);
+   }, [transform, showIdentityConnections, showCreatedByConnections, showReturnNodesAttributionConnections, isDragging, updateConnectionPositions]);
 
 
   // --- Effect for Handling Node Transitions (Expand/Collapse) ---
@@ -776,6 +907,15 @@ export const NodeConnections: React.FC<NodeConnectionsProps> = ({
           strokeWidth: isHovered ? hoverWidth : baseWidth, 
           strokeDasharray: isHovered ? "8, 4" : "none",  // Only apply dash pattern on hover
           circleFill: isHovered ? "#3B82F6" : "rgba(59, 130, 246, 0.8)",
+          circleRadius: isHovered ? 5 : 3,
+          hitboxWidth: hitboxWidth
+        };
+      case ConnectionType.RETURN_NODES_ATTRIBUTION:
+        return { 
+          stroke: `rgba(249, 115, 22, ${opacity})`, // Orange color for return nodes attribution
+          strokeWidth: isHovered ? hoverWidth : baseWidth, 
+          strokeDasharray: isHovered ? "6, 3" : "none",  // Different dash pattern when hovered
+          circleFill: isHovered ? "#F97316" : "rgba(249, 115, 22, 0.8)",
           circleRadius: isHovered ? 5 : 3,
           hitboxWidth: hitboxWidth
         };

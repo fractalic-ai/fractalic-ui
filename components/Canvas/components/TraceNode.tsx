@@ -508,6 +508,66 @@ export const TraceNode: React.FC<TraceNodeProps> = ({
               </div>
             )}
 
+            {/* Return Nodes Attribution */}
+            {/* Display return_nodes_attribution data if found in response_messages */}
+            {(() => {
+              // Check for return_nodes_attribution in response_messages
+              const attributionData: any[] = [];
+              if (node.response_messages && Array.isArray(node.response_messages)) {
+                node.response_messages.forEach((msg: any) => {
+                  if (msg.role === 'tool' && msg.content) {
+                    try {
+                      const toolContent = JSON.parse(msg.content);
+                      if (toolContent.return_nodes_attribution && Array.isArray(toolContent.return_nodes_attribution)) {
+                        attributionData.push(...toolContent.return_nodes_attribution);
+                      }
+                    } catch (e) {
+                      // Not JSON, skip
+                    }
+                  }
+                });
+              }
+              
+              // Also check legacy params location for backward compatibility
+              if (node.params && node.params.return_nodes_attribution && Array.isArray(node.params.return_nodes_attribution)) {
+                attributionData.push(...node.params.return_nodes_attribution);
+              }
+              
+              return attributionData.length > 0 ? (
+                <div className="mt-6">
+                  <h3 className="font-medium text-gray-300 mb-3">Return Nodes Attribution</h3>
+                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                    {attributionData.map((attribution: any, index: number) => (
+                      <div key={index} className="mb-3 last:mb-0 p-2 bg-gray-800 rounded">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium text-orange-300">Created By:</span>
+                            <span className="ml-2 text-gray-300">{attribution.created_by || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-orange-300">Created By File:</span>
+                            <span className="ml-2 text-gray-300">{attribution.created_by_file || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-orange-300">Node ID:</span>
+                            <span className="ml-2 text-gray-300">{attribution.node_id || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-orange-300">Node Key:</span>
+                            <span className="ml-2 text-gray-300">{attribution.node_key || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="font-medium text-orange-300">Content Length:</span>
+                            <span className="ml-2 text-gray-300">{attribution.content_length || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             <div className="mt-6 flex justify-center">
               <button
                 onClick={(e) => {

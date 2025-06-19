@@ -289,7 +289,9 @@ const handleLoadTrace = () => {
 
   useEffect(() => {
     if (traceGroups.length > 0 && hierarchicalGroups) {
+      console.log('[CanvasDisplay] Calculating connections for trace groups:', traceGroups.length);
       const newConnections = connectionManager.calculateConnections(traceGroups);
+      console.log('[CanvasDisplay] Total connections calculated:', newConnections.length);
       setConnections(newConnections);
     }
   }, [traceGroups, hierarchicalGroups]);
