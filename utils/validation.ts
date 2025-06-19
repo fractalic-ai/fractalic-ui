@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 // Common field validators
-const pathValidator = z.string().regex(/^([\w-]+\/)?[\w.-]+$/, "Path must be in format 'file.ext' or 'folder/file.ext'");
-const blockPathValidator = z.string().regex(/^[\w-]+(\/[\w-]+)*(\*)?$/, "Block path must be in format 'block' or 'block/subblock' with optional '*' for nested");
+const pathValidator = z.string().regex(/^([\w-]+\/)*[\w.-]+$/, "Path must be in format 'file.ext' or 'folder/file.ext' with support for nested folders");
+const blockPathValidator = z.string().regex(/^[\w-]+(\/[\w-]+)*(\*|\/\*)?$/, "Block path must be in format 'block' or 'block/subblock' with optional '*' for nested");
 const blockPathNoNestedValidator = z.string().regex(/^[\w-]+(\/[\w-]+)*$/, "Block path cannot have nested flag '*'");
 const headerValidator = z.string().min(1, "Header cannot be empty");
 const modeValidator = z.enum(['append', 'prepend', 'replace']);
