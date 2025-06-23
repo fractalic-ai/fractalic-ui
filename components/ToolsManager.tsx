@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wrench, Code, FileText, Settings, Play, Copy, ChevronRight, AlertCircle, CheckCircle, Info, Search, Filter } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 interface ToolsManagerProps {
   currentEditPath: string;
@@ -42,6 +43,7 @@ interface ToolSchema {
 }
 
 const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
+  const { config } = useAppConfig();
   const [tools, setTools] = useState<ToolSchema[]>([]);
   const [selectedToolIdx, setSelectedToolIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,7 +61,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
       setTools([]);
       try {
         const toolsDir = `${currentEditPath.replace(/\/$/, '')}/tools`;
-        const url = `http://127.0.0.1:8000/tools_schema/?tools_dir=${encodeURIComponent(toolsDir)}`;
+        const url = `${getApiUrl('backend', config)}/tools_schema/?tools_dir=${encodeURIComponent(toolsDir)}`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -71,7 +73,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
       }
     };
     fetchTools();
-  }, [currentEditPath]);
+  }, [currentEditPath, config]);
 
   useEffect(() => {
     setSelectedVariantIndex(0);
@@ -102,7 +104,7 @@ const ToolsManager: React.FC<ToolsManagerProps> = ({ currentEditPath }) => {
     setTestingTool(toolName);
     try {
       const toolParams = paramValues[toolName] || {};
-      const response = await fetch('http://127.0.0.1:8000/test_tool/', {
+      const response = await fetch(`${getApiUrl('backend', config)}/test_tool/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

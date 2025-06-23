@@ -1,5 +1,5 @@
 //TODO: #1 For selected active record we should save to settings a model name, not a provider name
-import React, { useState, useId, useEffect, useMemo } from 'react';
+import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { CheckCircle2, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -72,6 +73,7 @@ interface EnvVariable {
 }
 
 export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: SettingsModalProps) {
+  const { config } = useAppConfig();
   // Create a stable session ID that changes each time the modal opens
   const sessionId = useMemo(() => `llm-settings-${Date.now()}`, [isOpen]);
   const uniqueId = useId();
@@ -118,7 +120,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       setIsLoading(true);
       setError(null);
       // Fetch settings when the modal opens
-      fetch('/load_settings')
+      fetch(`${getApiUrl('backend', config)}/load_settings`)
         .then(async (response) => {
           if (!response.ok) {
             // Try to get more specific error if possible
@@ -193,7 +195,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           setFetchedModels([]); // fallback to empty
         });
     }
-  }, [isOpen]);
+  }, [isOpen, config]);
 
   // Keep modelInputValue in sync with settings[activeProvider].model
   useEffect(() => {
@@ -300,7 +302,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   };
 
   // When saving settings, use provider field as TOML block key if available
-  const handleSaveSettings = async (e: React.FormEvent) => {
+  const handleSaveSettings = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     const updatedSettings = { ...settings };
@@ -351,7 +353,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     console.log("Saving configuration:", JSON.stringify(configToSave, null, 2));
 
     try {
-      const response = await fetch('/save_settings', {
+      const response = await fetch(`${getApiUrl('backend', config)}/save_settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -370,7 +372,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       console.error('Error saving settings:', error);
     }
     setIsOpen(false);
-  };
+  }, [config, settings, defaultProvider, envVars, runtimeSettings, mcpServers, setGlobalSettings, setIsOpen]);
 
   const handleOpenSettingsFile = () => {
     console.log("Opening settings file");

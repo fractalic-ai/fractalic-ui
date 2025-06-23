@@ -34,3 +34,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Docker extraction temp folders
+docker-extracted/
+temp-extract/
+container-files/

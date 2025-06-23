@@ -13,6 +13,7 @@ import { TraceView } from "./TraceView";
 import CanvasDisplay from "./Canvas/CanvasDisplay";
 import { useTrace } from '@/contexts/TraceContext';
 import { processTraceData } from '@/lib/traceProcessor';
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -119,6 +120,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
 
   const { traceData } = useTrace();
   const { toast } = useToast();
+  const { config } = useAppConfig();
   const [isVisited, setIsVisited] = useState(false);
   const [isButtonClicked, setIsButtonClicked] = useState(false);
   const [fontSize, setFontSize] = useState(14);
@@ -161,9 +163,9 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     }
   }, []);
 
-  const fetchFileContent = async (filePath: string): Promise<string> => {
+  const fetchFileContent = useCallback(async (filePath: string): Promise<string> => {
     try {
-      const response = await fetch(`/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
+      const response = await fetch(`${getApiUrl('backend', config)}/get_file_content_disk/?path=${encodeURIComponent(filePath)}`);
       if (response.ok) {
         const data = await response.text();
         return data;
@@ -175,7 +177,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       console.error('Error fetching file content:', error);
       return '';
     }
-  };
+  }, [config]);
 
   const handleContentChangeWithDebounce = useCallback(
     debounce((value: string | undefined) => {
@@ -213,10 +215,10 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     setLineNumbers(checked);
   };
 
-  const handleFileSelect = async (file: any) => {
+  const handleFileSelect = useCallback(async (file: any) => {
     const content = await fetchFileContent(file.path);
     handleContentChange(content);
-  };
+  }, [fetchFileContent, handleContentChange]);
 
   const handleEditModeChange = (mode: "plainText" | "notebook") => {
     try {
@@ -239,7 +241,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!currentFilePath) {
       toast({
         variant: "destructive",
@@ -258,7 +260,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
         contentToSave = exportToMarkdown(nodes);
       }
 
-      const response = await fetch(`/save_file?path=${encodeURIComponent(currentFilePath)}`, {
+      const response = await fetch(`${getApiUrl('backend', config)}/save_file?path=${encodeURIComponent(currentFilePath)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -286,7 +288,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [config, currentFilePath, editedContent, editMode, toast]);
 
   // Debug logging - only log when component re-renders (can be removed in production)
   // console.log('[EditorComponent] Re-render triggered:', {

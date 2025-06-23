@@ -1,0 +1,29 @@
+{
+  "api": {
+    "backend": "http://localhost:8000",
+    "ai_server": "http://localhost:8101",
+    "mcp_manager": "http://localhost:5859"
+  },
+  "container": {
+    "internal_ports": {
+      "frontend": 3000,
+      "backend": 8000,
+      "ai_server": 8001,
+      "mcp_manager": 5859
+    },
+    "host_ports": {
+      "frontend": 3100,
+      "backend": 8100,
+      "ai_server": 8101,
+      "mcp_manager": 5859
+    }
+  },
+  "deployment": {
+    "type": "docker",
+    "container_name": "fractalic-hello-test",
+    "build_timestamp": 1750632657.316351
+  },
+  "paths": {
+    "default_git_path": "/app/fractalic"
+  }
+}

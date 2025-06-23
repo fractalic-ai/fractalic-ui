@@ -23,6 +23,7 @@ import { useTrace } from '@/contexts/TraceContext';
 import ToolsManager from './ToolsManager';
 import MCPManager from './MCPManager';
 import MCPMarketplace from './MCPMarketplace';
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
 
@@ -169,6 +170,7 @@ interface ConsoleProps {
 const DynamicConsole = dynamic<ConsoleProps>(() => import('./Console'), { ssr: false });
 
 export default function GitDiffViewer() {
+  const { config } = useAppConfig();
   // State variables
   const [selectedView, setSelectedView] = useState<'sideBySide' | 'inline' | 'report' | 'trace' | 'inspector'>('sideBySide');
   const [currentGitPath, setCurrentGitPath] = useState('/');
@@ -222,6 +224,14 @@ export default function GitDiffViewer() {
     return () => console.log('GitDiffViewer unmounted');
   }, []);
 
+  // Update default git path from config
+  useEffect(() => {
+    if (config?.paths?.default_git_path && currentGitPath === '/') {
+      setCurrentGitPath(config.paths.default_git_path);
+      setCurrentEditPath(config.paths.default_git_path);
+    }
+  }, [config, currentGitPath]);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
@@ -254,7 +264,7 @@ export default function GitDiffViewer() {
     try {
       console.log('[GitDiffViewer] handleFileSelect triggered for:', file.path);
       const response = await fetch(
-        `/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
+        `${getApiUrl('backend', config)}/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
       );
       if (response.ok) {
         const data = await response.text();
@@ -278,7 +288,7 @@ export default function GitDiffViewer() {
     } catch (error) {
       console.error('[GitDiffViewer] Error in handleFileSelect catch block:', error);
     }
-  }, [mode]);
+  }, [config, mode]);
 
   const handlePanelResize = useCallback(() => {
     // Handle any logic needed when the panel resizes
@@ -287,7 +297,7 @@ export default function GitDiffViewer() {
   const fetchDirectoryContents = useCallback(async (pathStr: string, isGitMode: boolean) => {
     try {
       console.log('Fetching directory contents for path:', pathStr, 'isGitMode:', isGitMode);
-      const response = await fetch(`/list_directory/?path=${encodeURIComponent(pathStr)}`);
+      const response = await fetch(`${getApiUrl('backend', config)}/list_directory/?path=${encodeURIComponent(pathStr)}`);
       if (response.ok) {
         const data = await response.json();
         console.log('Received directory contents:', data);
@@ -315,7 +325,7 @@ export default function GitDiffViewer() {
     }
     try {
       const response = await fetch(
-        `/branches_and_commits/?repo_path=${encodeURIComponent(pathStr)}`
+        `${getApiUrl('backend', config)}/branches_and_commits/?repo_path=${encodeURIComponent(pathStr)}`
       );
       // Log the response status
       console.log(`fetchBranchesAndCommits: Response status for ${pathStr}: ${response.status} ${response.statusText}`);
@@ -380,10 +390,10 @@ export default function GitDiffViewer() {
     setEditedContent(value || '');
   };
 
-  const handleNewFile = (fileName: string) => {
+  const handleNewFile = useCallback((fileName: string) => {
     if (fileName) {
       fetch(
-        `/create_file/?path=${encodeURIComponent(currentEditPath)}&name=${encodeURIComponent(
+        `${getApiUrl('backend', config)}/create_file/?path=${encodeURIComponent(currentEditPath)}&name=${encodeURIComponent(
           fileName
         )}`,
         {
@@ -410,12 +420,12 @@ export default function GitDiffViewer() {
           console.error('Error creating file:', error);
         });
     }
-  };
+  }, [config, currentEditPath, fetchDirectoryContents, handleFileSelect]);
 
-  const handleNewFolder = (folderName: string) => {
+  const handleNewFolder = useCallback((folderName: string) => {
     if (folderName) {
       fetch(
-        `/create_folder/?path=${encodeURIComponent(
+        `${getApiUrl('backend', config)}/create_folder/?path=${encodeURIComponent(
           currentEditPath
         )}&name=${encodeURIComponent(folderName)}`,
         {
@@ -433,13 +443,13 @@ export default function GitDiffViewer() {
           console.error('Error creating folder:', error);
         });
     }
-  };
+  }, [config, currentEditPath, fetchDirectoryContents]);
 
   const fetchFileContent = useCallback(
     async (repoPathParam: string, filePath: string, commitHash: string) => {
       try {
         const response = await fetch(
-          `/get_file_content/?repo_path=${encodeURIComponent(
+          `${getApiUrl('backend', config)}/get_file_content/?repo_path=${encodeURIComponent(
             repoPathParam
           )}&file_path=${encodeURIComponent(filePath)}&commit_hash=${commitHash}`
         );
@@ -455,7 +465,7 @@ export default function GitDiffViewer() {
         return '';
       }
     },
-    []
+    [config]
   );
 
   const fetchDiffContent = useCallback(
@@ -550,7 +560,7 @@ export default function GitDiffViewer() {
         try {
           console.log('[handleCommitSelect] Fetching trace content...');
           const response = await fetch(
-            `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+            `${getApiUrl('backend', config)}/get_file_content/?repo_path=${encodeURIComponent(
               repoPath
             )}&file_path=${encodeURIComponent(node.trc_file)}&commit_hash=${encodeURIComponent(node.trc_commit_hash)}`
           );
@@ -583,7 +593,7 @@ export default function GitDiffViewer() {
         }
       }
     },
-    [repoPath, updateTraceEntry, fetchDiffContent]
+    [repoPath, updateTraceEntry, fetchDiffContent, config]
   );
 
   const handleBreadcrumbClick = useCallback(

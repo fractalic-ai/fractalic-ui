@@ -3,6 +3,7 @@ import React, { useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import { X, Terminal } from 'lucide-react';
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 const DynamicTerminal = dynamic(() => import('./DynamicTerminal'), {
   ssr: false,
@@ -22,6 +23,7 @@ export interface ConsoleProps {
 
 function Console(props: ConsoleProps) {
   const { setShowConsole, onResize, currentPath, currentFilePath, onSpecialOutput, shouldRunFile, triggerCommand, onTriggerCommandExecuted } = props;
+  const { config } = useAppConfig();
   const terminalRef = useRef<any>(null);
   const initializedRef = useRef(false);
 
@@ -45,7 +47,7 @@ function Console(props: ConsoleProps) {
         return;
       }
 
-      fetch(`http://localhost:8000/ws/run_fractalic`, {
+      fetch(`${getApiUrl('backend', config)}/ws/run_fractalic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -204,15 +206,14 @@ function Console(props: ConsoleProps) {
         })
         .catch((error) => {
           console.error('Error executing fractalic file:', error);
-          onData('Error: Failed to execute file\n');
-        });
+          onData('Error: Failed to execute file\n');        });
     },
-    [currentFilePath]
+    [currentFilePath, config]
   );
   const handleSendCommand = useCallback(
     (command: string, onData: (chunk: string | null) => void) => {
       try {
-        fetch(`http://localhost:8000/ws/run_command`, {
+        fetch(`${getApiUrl('backend', config)}/ws/run_command`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -348,10 +349,9 @@ function Console(props: ConsoleProps) {
           });
       } catch (error) {
         console.error('Error sending command:', error);
-        onData('Error: Failed to execute command\n');
-      }
+        onData('Error: Failed to execute command\n');      }
     },
-    [currentPath]
+    [currentPath, config]
   );
 
   return (

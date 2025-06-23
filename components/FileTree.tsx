@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Plus, FolderPlus, Filter } from 'lucide-react'
-import { useState, KeyboardEvent } from 'react'
+import { useState, KeyboardEvent, useCallback } from 'react'
 import { Input } from "@/components/ui/input"
 // Remove vscode-icons-js import
 // import { getIconForFile, getIconForFolder } from 'vscode-icons-js'
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 interface FileTreeProps {
   currentFiles: any[]
@@ -207,6 +208,7 @@ export default function FileTree({
   filterOption: externalFilterOption,
   setFilterOption: externalSetFilterOption
 }: FileTreeProps) {
+  const { config } = useAppConfig();
   // Use local state if external state is not provided
   const [localIsEditing, localSetIsEditing] = useState<'file' | 'folder' | null>(null);
   const [localNewItemName, localSetNewItemName] = useState('');
@@ -228,7 +230,7 @@ export default function FileTree({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fileToDelete, setFileToDelete] = useState<any | null>(null)
 
-  const handleKeyPress = async (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = useCallback(async (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (editingItem) {
         // Skip rename if the new name is the same as the old name
@@ -242,7 +244,7 @@ export default function FileTree({
         // Handle rename
         try {
           const response = await fetch(
-            `/rename_item/?old_path=${encodeURIComponent(editingItem.path)}&new_name=${encodeURIComponent(newItemName)}`,
+            `${getApiUrl('backend', config)}/rename_item/?old_path=${encodeURIComponent(editingItem.path)}&new_name=${encodeURIComponent(newItemName)}`,
             {
               method: 'POST',
             }
@@ -269,7 +271,7 @@ export default function FileTree({
       setNewItemName('')
       setEditingItem(null)
     }
-  }
+  }, [config, editingItem, newItemName, setIsEditing, setNewItemName, onFileUpdate, isEditing, handleNewFile, handleNewFolder]);
 
   const startNewFile = () => {
     setIsEditing('file')
@@ -306,11 +308,11 @@ export default function FileTree({
     setContextMenu(null);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     if (!fileToDelete) return;
     try {
       const response = await fetch(
-        `/delete_item/?path=${encodeURIComponent(fileToDelete.path)}`,
+        `${getApiUrl('backend', config)}/delete_item/?path=${encodeURIComponent(fileToDelete.path)}`,
         {
           method: 'DELETE',
         }
@@ -326,7 +328,7 @@ export default function FileTree({
     }
     setDeleteDialogOpen(false);
     setFileToDelete(null);
-  };
+  }, [config, fileToDelete, onFileUpdate]);
 
   const filteredFiles = currentFiles.filter(file => {
     // Always show folders

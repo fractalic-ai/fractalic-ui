@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 import Uptime from "./Uptime";
 import MCPMarketplace from './MCPMarketplace';
 import { AddServerDialog } from './AddServerDialog';
@@ -206,13 +207,15 @@ const ToolCard = React.memo(function ToolCard({
   expanded, 
   onExpand, 
   paramValues, 
-  onParamChange 
+  onParamChange,
+  config
 }: {
   tool: MCPTool;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
   paramValues: Record<string, any>;
   onParamChange: (param: string, value: any) => void;
+  config: any;
 }) {
   const [testResult, setTestResult] = React.useState<any>(null);
   const [testing, setTesting] = React.useState(false);
@@ -231,7 +234,7 @@ const ToolCard = React.memo(function ToolCard({
     setTesting(true);
     setTestResult(null);
     try {
-      const response = await fetch('http://127.0.0.1:5859/call_tool', {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/call_tool`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: tool.name, arguments: paramValues }),
@@ -440,7 +443,8 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onToolExpand,
   onParamChange,
   initialLoading,
-  fetchStatus
+  fetchStatus,
+  config
 }: {
   server: MCPServer;
   tools: MCPTool[];
@@ -454,6 +458,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onParamChange: (toolName: string, paramName: string, value: any) => void;
   initialLoading: boolean;
   fetchStatus: () => void;
+  config: any;
 }) {
   const [showOutput, setShowOutput] = useState(false);
 
@@ -775,6 +780,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                 onExpand={(expanded) => onToolExpand(tool.name, expanded)}
                 paramValues={toolCardState[tool.name]?.paramValues || {}}
                 onParamChange={(param, value) => onParamChange(tool.name, param, value)}
+                config={config}
               />
             ))}
           </div>
@@ -1186,6 +1192,7 @@ const FALLBACK_MCP_LIBRARIES: MCPLibrary[] = [
 ];
 
 const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
+  const { config } = useAppConfig();
   const [servers, setServers] = useState<Record<string, MCPServer>>({});
   const [selectedServerName, setSelectedServerName] = useState<string | null>(null);
   const [tools, setTools] = useState<MCPTool[]>([]);
@@ -1260,7 +1267,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     loadingRef.current = true;
     errorRef.current = null;
     try {
-      const response = await fetch('http://127.0.0.1:5859/status');
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/status`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const serversWithNames = Object.fromEntries(
@@ -1379,12 +1386,12 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       if (isInitial) setInitialLoading(false);
     }
-  }, []);
+  }, [config]);
 
   const fetchTools = useCallback(async (serverName: string) => {
     setToolsLoading(true);
     try {
-      const response = await fetch('http://127.0.0.1:5859/tools');
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/tools`);
       if (!response.ok) throw new Error('Failed to fetch tools');
       const data = await response.json();
       setTools(data[serverName]?.tools || []);
@@ -1394,12 +1401,12 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setToolsLoading(false);
     }
-  }, []);
+  }, [config]);
 
   const handleAction = useCallback(async (action: 'start' | 'stop', serverName: string) => {
     setActionLoading(action + serverName);
     try {
-      const response = await fetch(`http://127.0.0.1:5859/${action}/${serverName}`, {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/${action}/${serverName}`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
@@ -1413,12 +1420,12 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools, selectedServerName]);
+  }, [fetchStatus, fetchTools, selectedServerName, config]);
 
   const handleRestart = useCallback(async (serverName: string) => {
     setActionLoading('restart' + serverName);
     try {
-      const response = await fetch(`http://127.0.0.1:5859/restart/${serverName}`, {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/restart/${serverName}`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to restart server');
@@ -1432,7 +1439,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools, selectedServerName]);
+  }, [fetchStatus, fetchTools, selectedServerName, config]);
 
   const handleToolExpand = useCallback((toolName: string, expanded: boolean) => {
     setToolCardState(prev => ({
@@ -1496,7 +1503,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       }
       
       // Send server configuration to backend
-      const response = await fetch('http://127.0.0.1:5859/add_server', {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/add_server`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1534,7 +1541,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         variant: "destructive",
       });
     }
-  }, [fetchStatus]);
+  }, [fetchStatus, config]);
 
   // Handle deleting a server
   const handleDeleteServer = useCallback(async (serverName: string) => {
@@ -1542,7 +1549,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     
     try {
       // Send delete request to backend
-      const response = await fetch('http://127.0.0.1:5859/delete_server', {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/delete_server`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1584,12 +1591,12 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         variant: "destructive",
       });
     }
-  }, [fetchStatus, selectedServerName, toast]);
+  }, [fetchStatus, selectedServerName, toast, config]);
 
   // Check MCP Manager status
   const checkMcpManagerStatus = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8000/mcp/status');
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/status`);
       if (response.ok) {
         const data = await response.json();
         console.log('MCP Manager status:', data);
@@ -1623,13 +1630,13 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         api_responsive: false
       });
     }
-  }, []);
+  }, [config]);
 
   // Handle MCP Manager start/stop
   const handleMcpManagerAction = useCallback(async (action: 'start' | 'stop') => {
     setMcpManagerLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/mcp/${action}`, {
+      const response = await fetch(`${getApiUrl('backend', config)}/mcp/${action}`, {
         method: 'POST',
       });
       
@@ -1684,7 +1691,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setMcpManagerLoading(false);
     }
-  }, [toast, fetchStatus, checkMcpManagerStatus]);
+  }, [toast, fetchStatus, checkMcpManagerStatus, config]);
 
   // Initial fetch on mount
   useEffect(() => {
@@ -1935,6 +1942,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   onParamChange={handleParamChange}
                   initialLoading={initialLoading}
                   fetchStatus={fetchStatus}
+                  config={config}
                 />
               </ScrollArea>
             ) : (

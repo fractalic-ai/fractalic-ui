@@ -1,0 +1,29 @@
+{
+  "api": {
+    "backend": "http://backend.docker.internal:8000",
+    "ai_server": "http://ai-server.docker.internal:8001",
+    "mcp_manager": "http://mcp-manager.docker.internal:5859"
+  },
+  "container": {
+    "internal_ports": {
+      "frontend": 3000,
+      "backend": 8000,
+      "ai_server": 8001,
+      "mcp_manager": 5859
+    },
+    "host_ports": {
+      "frontend": 3000,
+      "backend": 8000,
+      "ai_server": 8001,
+      "mcp_manager": 5859
+    }
+  },
+  "deployment": {
+    "type": "docker",
+    "container_name": "fractalic-production",
+    "build_timestamp": 1735002525000
+  },
+  "paths": {
+    "default_git_path": "/app/fractalic"
+  }
+}
