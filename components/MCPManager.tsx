@@ -1593,10 +1593,10 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     }
   }, [fetchStatus, selectedServerName, toast, config]);
 
-  // Check MCP Manager status
+  // Check MCP Manager status via backend API
   const checkMcpManagerStatus = useCallback(async () => {
     try {
-      const response = await fetch(`${getApiUrl('mcp_manager', config)}/status`);
+      const response = await fetch(`${getApiUrl('backend', config)}/mcp/status`);
       if (response.ok) {
         const data = await response.json();
         console.log('MCP Manager status:', data);
@@ -1609,8 +1609,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           last_pid: data.last_pid
         });
         
-        // Set running state based on status
-        const isRunning = data.status === 'running' || data.status === 'running_not_responsive';
+        // Set running state based on status and running field
+        const isRunning = data.running === true || data.status === 'running' || data.status === 'running_not_responsive';
         setMcpManagerRunning(isRunning);
         
       } else {
