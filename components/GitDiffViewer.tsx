@@ -9,6 +9,7 @@ import CommitTree from './CommitTree';
 import Editor from './Editor';
 import dynamic from 'next/dynamic';
 import SettingsModal from './SettingsModal';
+import DeployModal from './DeployModal';
 import '@xterm/xterm/css/xterm.css';
 import path from 'path';
 import { DiffEditor } from "@monaco-editor/react";
@@ -194,6 +195,7 @@ export default function GitDiffViewer() {
   const [editMode, setEditMode] = useState<'plainText' | 'notebook'>('plainText');
   const [lastCommitHash, setLastCommitHash] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeployOpen, setIsDeployOpen] = useState(false);
   const [globalSettings, setGlobalSettings] = useState(null);
   const [currentFilePath, setCurrentFilePath] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -1024,6 +1026,8 @@ export default function GitDiffViewer() {
         setTheme={setTheme}
         isSettingsOpen={isSettingsOpen}
         setIsSettingsOpen={setIsSettingsOpen}
+        isDeployOpen={isDeployOpen}
+        setIsDeployOpen={setIsDeployOpen}
       />
       <div className="flex-grow flex overflow-hidden">
         <Sidebar 
@@ -1220,6 +1224,12 @@ export default function GitDiffViewer() {
         isOpen={isSettingsOpen}
         setIsOpen={setIsSettingsOpen}
         setGlobalSettings={setGlobalSettings}
+      />
+      <DeployModal 
+        isOpen={isDeployOpen}
+        setIsOpen={setIsDeployOpen}
+        currentFilePath={currentFilePath}
+        repoPath={repoPath || currentGitPath}
       />
     </div>
   );
