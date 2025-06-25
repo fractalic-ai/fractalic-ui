@@ -151,12 +151,10 @@ export function getStageInfo(stage: string): { label: string; color: string; des
 }
 
 /**
- * Get the deployment API URL - deployment API runs on port 8003
+ * Get the deployment API URL - uses the backend URL from config
  */
 export function getDeploymentApiUrl(config?: AppConfig | null): string {
-  const backendUrl = getApiUrl('backend', config);
-  // Replace default backend port with deployment API port
-  return backendUrl.replace(':8000', ':8003');
+  return getApiUrl('backend', config);
 }
 
 /**

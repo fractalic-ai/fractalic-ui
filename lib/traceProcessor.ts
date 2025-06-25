@@ -1,3 +1,5 @@
+import { getApiUrl } from '@/hooks/use-app-config';
+
 export interface TraceNode {
   id: string;
   text: string;
@@ -37,8 +39,9 @@ const fetchContentHelper = async (
 
   // Fetch from API if not in cache
   try {
+    const backendUrl = getApiUrl('backend');
     const response = await fetch(
-      `http://localhost:8000/get_file_content/?repo_path=${encodeURIComponent(
+      `${backendUrl}/get_file_content/?repo_path=${encodeURIComponent(
         repoPath
       )}&file_path=${encodeURIComponent(filePath)}&commit_hash=${encodeURIComponent(commitHash)}`
     );
