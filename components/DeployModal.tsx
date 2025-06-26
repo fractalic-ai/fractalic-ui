@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useAppConfig } from '@/hooks/use-app-config';
 import { useToast } from '@/hooks/use-toast';
+import DeploymentResults from './DeploymentResults';
 import {
   DeploymentStatus,
   DeploymentPayload,
@@ -274,18 +275,6 @@ export default function DeployModal({ isOpen, setIsOpen, currentFilePath, repoPa
     }
   }, [deploymentPayload, config, addLogMessage, toast, handleDeploymentError]);
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: 'Copied to Clipboard',
-        description: 'URL copied successfully',
-      });
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
-    }
-  };
-
   const handleClose = () => {
     if (isDeploying) {
       // Ask for confirmation if deployment is in progress
@@ -397,47 +386,10 @@ export default function DeployModal({ isOpen, setIsOpen, currentFilePath, repoPa
 
           {/* Results Section */}
           {deploymentStatus?.result && (
-            <Card className="border-gray-700 bg-[#252525]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-green-400 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Deployment Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {deploymentStatus.result.endpoint_url && (
-                  <div className="space-y-2">
-                    <span className="text-sm text-gray-400">Access URL:</span>
-                    <div className="flex items-center gap-2 p-2 bg-gray-800 rounded-md">
-                      <span className="text-sm font-mono text-blue-400 flex-1 break-all min-w-0">
-                        {deploymentStatus.result.endpoint_url}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => copyToClipboard(deploymentStatus.result!.endpoint_url)}
-                        className="h-6 w-6 p-0 flex-shrink-0"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => window.open(deploymentStatus.result!.endpoint_url, '_blank')}
-                        className="h-6 w-6 p-0 flex-shrink-0"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <div className="text-xs text-gray-400">
-                  <Badge variant="outline" className="text-green-400 border-green-400">
-                    Deployment Successful
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+            <DeploymentResults
+              endpointUrl={deploymentStatus.result.endpoint_url}
+              metadata={deploymentStatus.result.metadata}
+            />
           )}
 
           {/* Error Section */}

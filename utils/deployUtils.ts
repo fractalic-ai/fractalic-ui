@@ -1,5 +1,37 @@
 import { AppConfig, getApiUrl } from '@/hooks/use-app-config';
 
+export interface DeploymentMetadata {
+  ai_server: {
+    host: string;
+    port: number;
+    health_url: string;
+    docs_url: string;
+  };
+  deployment: {
+    script_name: string;
+    script_path: string;
+    container_name: string;
+    container_id: string;
+  };
+  api: {
+    endpoint: string;
+    sample_curl: string;
+    example_payload: {
+      filename: string;
+      additional_context?: string;
+    };
+  };
+  container: {
+    logs_command: string;
+    stop_command: string;
+    remove_command: string;
+  };
+  services: {
+    ai_server: string;
+    mcp_manager: string;
+  };
+}
+
 export interface DeploymentStatus {
   deployment_id: string;
   stage: string;
@@ -11,7 +43,7 @@ export interface DeploymentStatus {
     success: boolean;
     deployment_id: string;
     endpoint_url: string;
-    metadata: any;
+    metadata?: DeploymentMetadata;
   };
 }
 
@@ -28,15 +60,32 @@ export interface DeploymentPayload {
 export function parseDeploymentEvent(data: string): DeploymentStatus | null {
   try {
     // Handle empty or malformed data
-    if (!data || data.trim() === '') {
+    if (!data || typeof data !== 'string' || data.trim() === '') {
       return null;
     }
 
     // Remove "data: " prefix if present
     const cleanData = data.startsWith('data: ') ? data.substring(6) : data;
     
-    // Parse JSON
-    const parsed = JSON.parse(cleanData);
+    // Additional validation for clean data
+    if (!cleanData || cleanData.trim() === '') {
+      return null;
+    }
+
+    // Parse JSON with additional safety check
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanData.trim());
+    } catch (jsonError) {
+      console.warn('JSON parse error:', jsonError, 'Data:', cleanData);
+      return null;
+    }
+    
+    // Validate parsed data is an object
+    if (!parsed || typeof parsed !== 'object') {
+      console.warn('Parsed data is not an object:', parsed);
+      return null;
+    }
     
     // Validate required fields
     if (!parsed.deployment_id || !parsed.stage || typeof parsed.progress !== 'number') {
