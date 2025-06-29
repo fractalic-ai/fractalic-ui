@@ -18,7 +18,7 @@ export interface DeploymentMetadata {
     sample_curl: string;
     example_payload: {
       filename: string;
-      additional_context?: string;
+      parameter_text?: string;
     };
   };
   container: {
