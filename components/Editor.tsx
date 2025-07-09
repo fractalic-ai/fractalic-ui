@@ -17,24 +17,18 @@ import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 import { Button } from "@/components/ui/button";
 import {
-  GitCompare,
   AlignJustify,
   FileText,
   Type,
   Book,
   Play,
-  ChevronRight,
   Eye,
-  Settings,
   Sliders,
   Save,
   Loader2,
   ArrowLeftCircle,
   GitCommit,
-  Maximize,
-  Minimize,
   Columns,
-  ArrowLeft,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
@@ -43,7 +37,6 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
@@ -56,8 +49,8 @@ import MCPManager from './MCPManager';
 
 interface EditorProps {
   mode: "edit" | "git" | "mcp";
-  selectedView: "sideBySide" | "inline" | "report" | "trace" | "inspector";
-  setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace" | "inspector") => void;
+  selectedView: "sideBySide" | "inline" | "report" | "trace" | "inspector" | "preview";
+  setSelectedView: (view: "sideBySide" | "inline" | "report" | "trace" | "inspector" | "preview") => void;
   selectedCommit: any[];
   editMode: "plainText" | "notebook";
   setEditMode: (mode: "plainText" | "notebook") => void;
@@ -83,6 +76,13 @@ interface EditorProps {
   onSave: () => Promise<void>;
 }
 
+// Helper function to determine if file is markdown
+const isMarkdownFile = (filePath: string): boolean => {
+  if (!filePath) return false;
+  const extension = filePath.split('.').pop()?.toLowerCase();
+  return ['md', 'mdc', 'ctx', 'markdown'].includes(extension || '');
+};
+
 function debounce<Func extends (...args: any[]) => void>(func: Func, wait: number) {
   let timeout: number | undefined;
   return (...args: Parameters<Func>) => {
@@ -100,29 +100,21 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     selectedCommit,
     editMode,
     setEditMode,
-    lastCommitHash,
-    setLastCommitHash,
     handleRun,
     diffContent,
     editedContent,
     handleContentChange,
     theme,
-    editorContainerRef,
-    repoPath,
-    handleBreadcrumbClick,
     currentFilePath,
     branchHash,
     onBranchHashClick,
     branchNotification,
     handleBranchSelect,
-    onSave,
   } = props;
 
   const { traceData } = useTrace();
   const { toast } = useToast();
   const { config } = useAppConfig();
-  const [isVisited, setIsVisited] = useState(false);
-  const [isButtonClicked, setIsButtonClicked] = useState(false);
   const [fontSize, setFontSize] = useState(14);
   const [wordWrap, setWordWrap] = useState(true);
   const [lineNumbers, setLineNumbers] = useState(true);
@@ -130,9 +122,9 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [inspectorTraceData, setInspectorTraceData] = useState<any>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -143,10 +135,11 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       wordWrap,
       lineNumbers,
       selectedView,
-      editMode
+      editMode,
+      showPreview
     };
     localStorage.setItem('editorSettings', JSON.stringify(savedSettings));
-  }, [wordWrap, lineNumbers, selectedView, editMode]);
+  }, [wordWrap, lineNumbers, selectedView, editMode, showPreview]);
 
   useEffect(() => {
     const savedSettingsStr = localStorage.getItem('editorSettings');
@@ -157,6 +150,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
         setLineNumbers(savedSettings.lineNumbers ?? true);
         setSelectedView(savedSettings.selectedView || 'sideBySide');
         setEditMode(savedSettings.editMode || 'plainText');
+        setShowPreview(savedSettings.showPreview ?? false);
       } catch (error) {
         console.error('Error restoring editor settings:', error);
       }
@@ -179,32 +173,13 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     }
   }, [config]);
 
-  const handleContentChangeWithDebounce = useCallback(
-    debounce((value: string | undefined) => {
-      if (typeof value === 'string' && value !== props.editedContent) {
-        handleContentChange(value);
-        setIsDirty(true);
-      }
-    }, 300),
-    [handleContentChange, props.editedContent]
-  );
-
-  const handleBranchHashClick = useCallback(() => {
-    if (branchHash) {
-      onBranchHashClick(branchHash);
-    }
-  }, [branchHash, onBranchHashClick]);
-
   const handleBranchSelectWithState = () => {
     handleBranchSelect();
-    setIsVisited(true);
-    setIsButtonClicked(true);
   };
 
   const handleRunWithStateReset = () => {
     console.log('[Editor] Run button clicked');
     handleRun();
-    setIsButtonClicked(false);
   };
 
   const handleWordWrapChange = (checked: boolean) => {
@@ -214,11 +189,6 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
   const handleLineNumbersChange = (checked: boolean) => {
     setLineNumbers(checked);
   };
-
-  const handleFileSelect = useCallback(async (file: any) => {
-    const content = await fetchFileContent(file.path);
-    handleContentChange(content);
-  }, [fetchFileContent, handleContentChange]);
 
   const handleEditModeChange = (mode: "plainText" | "notebook") => {
     try {
@@ -357,76 +327,6 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
     console.log('[Editor] branchNotification changed:', branchNotification);
   }, [branchNotification]);
 
-  const renderEditorSettings = () => (
-    <div className="flex items-center space-x-4 p-2 border-b border-border bg-card text-card-foreground">
-      <div className="flex items-center space-x-2">
-        <Button
-          variant={editMode === 'plainText' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleEditModeChange('plainText')}
-          className="text-xs px-2 py-1 h-auto"
-        >
-          Plain Text
-        </Button>
-        <Button
-          variant={editMode === 'notebook' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => handleEditModeChange('notebook')}
-          className="text-xs px-2 py-1 h-auto"
-        >
-          Notebook
-        </Button>
-      </div>
-
-      <Separator orientation="vertical" className="h-6" />
-
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="word-wrap-switch"
-          checked={wordWrap}
-          onCheckedChange={handleWordWrapChange}
-          className="data-[state=checked]:bg-primary"
-        />
-        <Label htmlFor="word-wrap-switch" className="text-xs">Word Wrap</Label>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="line-numbers-switch"
-          checked={lineNumbers}
-          onCheckedChange={handleLineNumbersChange}
-          className="data-[state=checked]:bg-primary"
-        />
-        <Label htmlFor="line-numbers-switch" className="text-xs">Line Numbers</Label>
-      </div>
-
-      <Separator orientation="vertical" className="h-6" />
-
-      <div className="flex items-center space-x-2">
-        <Label htmlFor="font-size-input" className="text-xs">Font Size:</Label>
-        <Input
-          id="font-size-input"
-          type="number"
-          value={fontSize}
-          onChange={(e) => setFontSize(Math.max(8, parseInt(e.target.value) || 14))}
-          className="w-16 h-7 text-xs px-2"
-          min="8"
-          max="32"
-        />
-      </div>
-
-      <Button
-        onClick={handleSave}
-        size="sm"
-        disabled={!isDirty || isSaving}
-        className="ml-auto text-xs px-2 py-1 h-auto"
-      >
-        {isSaving ? 'Saving...' : 'Save'}
-        {isDirty && !isSaving && <span className="ml-1 text-yellow-500">*</span>}
-      </Button>
-    </div>
-  );
-
   const renderEditor = () => {
     if (mode === 'mcp') {
       return <MCPManager className="h-full" />;
@@ -502,6 +402,19 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       );
     }
     if (mode === "edit") {
+      if (showPreview && isMarkdownFile(currentFilePath)) {
+        return (
+          <div className="h-full w-full">
+            <ScrollArea className="h-full">
+              <MarkdownViewer 
+                content={editedContent} 
+                className={styles.markdownContent}
+              />
+            </ScrollArea>
+          </div>
+        );
+      }
+      
       if (editMode === "notebook") {
         return (
           <div className="flex flex-col h-full">
@@ -648,9 +561,12 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleEditModeChange("plainText")}
+                onClick={() => {
+                  handleEditModeChange("plainText");
+                  setShowPreview(false);
+                }}
                 className={`${
-                  editMode === "plainText"
+                  editMode === "plainText" && !showPreview
                     ? "text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
@@ -661,9 +577,12 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleEditModeChange("notebook")}
+                onClick={() => {
+                  handleEditModeChange("notebook");
+                  setShowPreview(false);
+                }}
                 className={`${
-                  editMode === "notebook"
+                  editMode === "notebook" && !showPreview
                     ? "text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
@@ -671,6 +590,21 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
                 <Book className="mr-2 h-4 w-4" />
                 Notebook
               </Button>
+              {isMarkdownFile(currentFilePath) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPreview(true)}
+                  className={`${
+                    showPreview
+                      ? "text-white"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                </Button>
+              )}
             </>
           )}
           {mode !== "mcp" && (
