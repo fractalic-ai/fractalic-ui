@@ -6,7 +6,6 @@ import { importFromMarkdown, exportToMarkdown } from '@/utils/fileOperations';
 import { setupFractalicLanguage } from '@/utils/monaco';
 import './gitDiff.css';
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import MarkdownViewer from './MarkdownViewer';
 import styles from '@/components/MarkdownViewer.module.css';
 import { TraceView } from "./TraceView";
@@ -336,12 +335,10 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       if (selectedView === 'report' && diffContent.modified) {
         return (
           <div className="h-full w-full">
-            <ScrollArea className="h-full">
-              <MarkdownViewer 
-                content={diffContent.modified} 
-                className={styles.markdownContent}
-              />
-            </ScrollArea>
+            <MarkdownViewer 
+              content={diffContent.modified} 
+              className={styles.markdownContent}
+            />
           </div>
         );
       }
@@ -405,12 +402,10 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
       if (showPreview && isMarkdownFile(currentFilePath)) {
         return (
           <div className="h-full w-full">
-            <ScrollArea className="h-full">
-              <MarkdownViewer 
-                content={editedContent} 
-                className={styles.markdownContent}
-              />
-            </ScrollArea>
+            <MarkdownViewer 
+              content={editedContent} 
+              className={styles.markdownContent}
+            />
           </div>
         );
       }
