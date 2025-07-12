@@ -124,6 +124,7 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
   const [inspectorTraceData, setInspectorTraceData] = useState<any>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [isButtonClicked, setIsButtonClicked] = useState(false);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -174,11 +175,13 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
 
   const handleBranchSelectWithState = () => {
     handleBranchSelect();
+    setIsButtonClicked(true);
   };
 
   const handleRunWithStateReset = () => {
     console.log('[Editor] Run button clicked');
     handleRun();
+    setIsButtonClicked(false);
   };
 
   const handleWordWrapChange = (checked: boolean) => {
