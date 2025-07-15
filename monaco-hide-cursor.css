@@ -1,0 +1,4 @@
+/* Hide Monaco editor cursor when not focused */
+.monaco-hide-cursor .monaco-editor .cursor {
+  opacity: 0 !important;
+}

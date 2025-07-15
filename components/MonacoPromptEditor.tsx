@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import '../monaco-hide-cursor.css';
 import { useMonaco } from '../hooks/useMonaco';
 
 interface MonacoPromptEditorProps {
@@ -102,6 +103,18 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
           cursorWidth: 1
         });
 
+
+        // Helper to toggle cursor visibility via CSS class
+        const setCursorVisible = (visible: boolean) => {
+          if (containerRef.current) {
+            if (visible) {
+              containerRef.current.classList.remove('monaco-hide-cursor');
+            } else {
+              containerRef.current.classList.add('monaco-hide-cursor');
+            }
+          }
+        };
+
         disposablesRef.current.push(
           modelRef.current.onDidChangeContent(() => {
             const newValue = modelRef.current.getValue();
@@ -109,8 +122,14 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
             updatePlaceholder();
             handleResize();
           }),
-          editorRef.current.onDidFocusEditorText(() => onFocusChange?.(true)),
-          editorRef.current.onDidBlurEditorText(() => onFocusChange?.(false))
+          editorRef.current.onDidFocusEditorText(() => {
+            setCursorVisible(true);
+            onFocusChange?.(true);
+          }),
+          editorRef.current.onDidBlurEditorText(() => {
+            setCursorVisible(false);
+            onFocusChange?.(false);
+          })
         );
 
         updatePlaceholder();
@@ -178,10 +197,12 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
     }
   }, [value]);
 
+  // Add monaco-hide-cursor by default so cursor is hidden until focus
+  const containerClass = `min-h-[24px] w-full${isOperationEditor ? ' operation-editor' : ''} monaco-hide-cursor`;
   return (
-    <div 
-      ref={containerRef} 
-      className={`min-h-[24px] w-full ${isOperationEditor ? 'operation-editor' : ''}`}
+    <div
+      ref={containerRef}
+      className={containerClass}
       style={{ minHeight: '24px' }}
     />
   );
