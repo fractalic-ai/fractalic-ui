@@ -668,7 +668,7 @@ export default function GitDiffViewer() {
       // Only pass the first element as it's the root node
       // This prevents the duplication issue
       return (
-        <div className="h-full w-full flex flex-col flex-grow">
+        <div className="notebook-theme notebook-container h-full w-full flex flex-col flex-grow">
           <TraceView 
             repoPath={repoPath}
             callTree={[selectedCommit[0]]}  // Pass only the root node

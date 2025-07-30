@@ -93,8 +93,9 @@
 }
 
 /* Notebook specific styles - separate from app theme */
-.notebook-container {
-  background-color: #111827 !important;
+/* NOTE: notebook-container should be inside .notebook-theme for variable access */
+.notebook-theme .notebook-container {
+  background-color: var(--notebook-bg) !important;
   color: #ffffff !important;
   height: 100vh;
   overflow-y: auto;
@@ -175,25 +176,107 @@ button[aria-selected="true"]:hover {
 
 /* Define notebook theme colors - separate from app theme */
 .notebook-theme {
-  --notebook-bg: #111827 !important;
-  --notebook-node-bg: #111827;
-  --notebook-hover-bg: #111827;
-  --notebook-active-bg: #111827;
-  background-color: #111827 !important;
+  /* =================== NOTEBOOK THEME SCOPED VARIABLES =================== */
+  /* Main notebook area background */
+  --notebook-bg: #7bbd26;
+  
+  /* Default node colors */
+  --notebook-node-bg: #ff0000;           /* Default node background - RED FOR TESTING */
+  --notebook-node-header-bg: #00ff00;    /* Default node header background - GREEN FOR TESTING */
+  --notebook-node-content-bg: #0000ff;   /* Default node content area background - BLUE FOR TESTING */
+  
+  /* Operation node colors */
+  --notebook-operation-bg: #ffff00;      /* Operation node background - YELLOW FOR TESTING */
+  --notebook-operation-header-bg: #ff00ff; /* Operation header background - MAGENTA FOR TESTING */
+  --notebook-operation-content-bg: #00ffff; /* Operation content background - CYAN FOR TESTING */
+  
+  /* Monaco editor colors */
+  --notebook-monaco-bg: #ffffff;         /* Monaco editor background - WHITE FOR TESTING */
+  --notebook-monaco-margin-bg: #808080;  /* Monaco line numbers margin - GRAY FOR TESTING */
+  
+  /* UI component colors (shared across node types) */
+  --notebook-input-bg: #f0f0f0;          /* Input boxes background */
+  --notebook-input-border: #cccccc;      /* Input boxes border */
+  --notebook-input-text: #000000;        /* Input boxes text */
+  --notebook-button-bg: #d0d0d0;         /* Button background */
+  --notebook-button-border: #aaaaaa;     /* Button border */
+  --notebook-button-text: #000000;       /* Button text */
+  --notebook-button-hover-bg: #c0c0c0;   /* Button hover background */
+  
+  /* Operation type dropdown - special isolation */
+  --notebook-operation-type-dropdown-bg: #1e1e1e;  /* Operation type dropdown background */
+  --notebook-operation-type-dropdown-border: #555555; /* Operation type dropdown border */
+  --notebook-operation-type-dropdown-text: #ffffff; /* Operation type dropdown text */
+  
+  /* Interactive states */
+  --notebook-hover-bg: #374151;
+  --notebook-active-bg: #374151;
+
+  /* Apply the main background */
+  background-color: var(--notebook-bg) !important;
+  /* Ensure it covers the whole notebook area */
+  min-height: 100%;
+  width: 100%;
+  position: relative;
+  z-index: 0;
 }
 
-/* Component specific styles */
-.notebook-node {
-  background-color: var(--notebook-node-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+/* Component specific styles - Default nodes only */
+
+.notebook-theme .notebook-node[data-type="default"] {
+  background-color: var(--notebook-node-bg) !important;
+  border: 2px solid var(--notebook-node-border, #4b5563) !important;
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1rem;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  background-clip: padding-box;
 }
 
-.notebook-node:hover {
+/* Operation nodes use different colors */
+.notebook-theme .notebook-node[data-type="operation"] {
+  background-color: var(--notebook-operation-bg) !important;
+  border: 2px solid var(--notebook-operation-border, #ff0040) !important;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 2;
+  background-clip: padding-box;
+}
+
+/* Node header styling - Default nodes */
+.notebook-theme .notebook-node:not([data-type="operation"]) .node-header {
+  background-color: var(--notebook-node-header-bg) !important;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Node header styling - Operation nodes */
+.notebook-theme .notebook-node[data-type="operation"] .node-header {
+  background-color: var(--notebook-operation-header-bg) !important;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Node content styling - Default nodes */
+.notebook-theme .notebook-node:not([data-type="operation"]) .node-content {
+  background-color: var(--notebook-node-content-bg) !important;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+/* Node content styling - Operation nodes */
+.notebook-theme .notebook-node[data-type="operation"] .node-content {
+  background-color: var(--notebook-operation-content-bg) !important;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+.notebook-theme .notebook-node:hover {
   background-color: var(--notebook-hover-bg);
 }
 
@@ -237,6 +320,72 @@ button[aria-selected="true"]:hover {
   pointer-events: none;
 }
 
+/* Monaco editor styling - separate for default and operation nodes */
+.notebook-theme .notebook-node:not([data-type="operation"]) .monaco-editor,
+.notebook-theme .notebook-node:not([data-type="operation"]) .monaco-editor-background,
+.notebook-theme .notebook-node:not([data-type="operation"]) .monaco-editor .overflow-guard {
+  background-color: var(--notebook-node-monaco-bg) !important;
+}
+
+.notebook-theme .notebook-node:not([data-type="operation"]) .monaco-editor .margin {
+  background-color: var(--notebook-node-monaco-margin-bg) !important;
+}
+
+.notebook-theme .notebook-node[data-type="operation"] .monaco-editor,
+.notebook-theme .notebook-node[data-type="operation"] .monaco-editor-background,
+.notebook-theme .notebook-node[data-type="operation"] .monaco-editor .overflow-guard {
+  background-color: var(--notebook-operation-monaco-bg) !important;
+}
+
+.notebook-theme .notebook-node[data-type="operation"] .monaco-editor .margin {
+  background-color: var(--notebook-operation-monaco-margin-bg) !important;
+}
+
+/* UI components styling - separate for default and operation nodes */
+.notebook-theme .notebook-node:not([data-type="operation"]) input,
+.notebook-theme .notebook-node:not([data-type="operation"]) select,
+.notebook-theme .notebook-node:not([data-type="operation"]) textarea {
+  background-color: var(--notebook-node-input-bg) !important;
+  border-color: var(--notebook-node-input-border) !important;
+  color: var(--notebook-node-input-text) !important;
+}
+
+.notebook-theme .notebook-node:not([data-type="operation"]) button {
+  background-color: var(--notebook-node-button-bg) !important;
+  border-color: var(--notebook-node-button-border) !important;
+  color: var(--notebook-node-button-text) !important;
+}
+
+.notebook-theme .notebook-node:not([data-type="operation"]) button:hover {
+  background-color: var(--notebook-node-button-hover-bg) !important;
+}
+
+.notebook-theme .notebook-node[data-type="operation"] input,
+.notebook-theme .notebook-node[data-type="operation"] select,
+.notebook-theme .notebook-node[data-type="operation"] textarea {
+  background-color: var(--notebook-operation-input-bg) !important;
+  border-color: var(--notebook-operation-input-border) !important;
+  color: var(--notebook-operation-input-text) !important;
+}
+
+.notebook-theme .notebook-node[data-type="operation"] button {
+  background-color: var(--notebook-operation-button-bg) !important;
+  border-color: var(--notebook-operation-button-border) !important;
+  color: var(--notebook-operation-button-text) !important;
+}
+
+.notebook-theme .notebook-node[data-type="operation"] button:hover {
+  background-color: var(--notebook-operation-button-hover-bg) !important;
+}
+
+/* Operation type dropdown special styling */
+.notebook-theme [data-operation-type-selector="true"] .operation-type-dropdown,
+.notebook-theme [data-operation-type-selector="true"] .operation-type-dropdown-menu {
+  background-color: var(--notebook-operation-dropdown-bg) !important;
+  border-color: var(--notebook-operation-dropdown-border) !important;
+  color: var(--notebook-operation-dropdown-text) !important;
+}
+
 .operation-editor, 
 .monaco-editor, 
 .monaco-editor-background,
@@ -248,7 +397,7 @@ button[aria-selected="true"]:hover {
 .notebook-theme .operation-editor .monaco-editor, 
 .notebook-theme .operation-editor .monaco-editor-background,
 .notebook-theme .operation-editor .monaco-editor .overflow-guard {
-  background-color: #111827 !important;
+  background-color: var(--notebook-bg) !important;
 }
 
 /* Keep default Monaco editor styling for edit and diff modes */
@@ -259,11 +408,24 @@ button[aria-selected="true"]:hover {
   background-color: inherit;
 }
 
-/* Override any inherited dark backgrounds */
-.notebook-theme * {
-  --background: #111827 !important;
-  --card-background: #111827 !important;
-  --popover-background: #111827 !important;
+/* Override any inherited dark backgrounds - SCOPED TO NOTEBOOK ELEMENTS ONLY */
+/* CRITICAL: Only apply to direct notebook elements, never to containers that might hold dialogs */
+.notebook-theme .notebook-container {
+  /* Only set background-color directly, not CSS variables that can leak */
+  background-color: var(--notebook-bg) !important;
+}
+
+.notebook-theme .notebook-node,
+.notebook-theme .notebook-operation {
+  /* Only override background for notebook nodes/operations themselves */
+  background-color: var(--notebook-bg) !important;
+  /* Don't override CSS variables that dialogs might inherit */
+}
+
+.notebook-theme .notebook-header,
+.notebook-theme .notebook-content {
+  /* Only set specific background, not global CSS variables */
+  background-color: var(--notebook-bg) !important;
 }
 
 /* Update monaco.css */
@@ -286,7 +448,7 @@ button[aria-selected="true"]:hover {
 .notebook-theme .operation-editor .monaco-editor,
 .notebook-theme .operation-editor .monaco-editor-background,
 .notebook-theme .operation-editor .monaco-editor .overflow-guard {
-  background-color: #111827 !important;
+  background-color: var(--notebook-bg) !important;
 }
 
 /* Fix notebook editor line numbers margin to use node background */
@@ -344,12 +506,12 @@ button[aria-selected="true"]:hover {
 }
 
 .notebook-theme::-webkit-scrollbar-track {
-  background: #111827;
+  background: var(--notebook-bg);
 }
 
 .notebook-theme::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border: 2px solid #111827;
+  border: 2px solid var(--notebook-bg);
 }
 
 .notebook-theme::-webkit-scrollbar-thumb:hover {
@@ -363,12 +525,12 @@ button[aria-selected="true"]:hover {
 }
 
 .notebook-theme *::-webkit-scrollbar-track {
-  background: #111827;
+  background: var(--notebook-bg);
 }
 
 .notebook-theme *::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border: 2px solid #111827;
+  border: 2px solid var(--notebook-bg);
 }
 
 .notebook-theme *::-webkit-scrollbar-thumb:hover {
@@ -518,7 +680,7 @@ button[aria-selected="true"]:hover {
 
 /* VSCode-like dark gray theme for file tree and left bar */
 .dark .bg-background {
-  background-color: #0d0d0d !important;
+  background-color: var(--notebook-bg) !important;
 }
 
 .dark .border-r {
@@ -580,9 +742,8 @@ button[aria-selected="true"]:hover {
 
 /* Ensure notebook styles are not affected by dark theme */
 .dark .notebook-container,
-.dark .notebook-theme,
-.dark .notebook-theme * {
-  background-color: #111827 !important;
+.dark .notebook-theme {
+  background-color: var(--notebook-bg) !important;
 }
 
 /* Custom hover style for node action buttons */

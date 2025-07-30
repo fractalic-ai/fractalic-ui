@@ -99,6 +99,36 @@ const PromptNode: React.FC<PromptNodeProps> = ({
     }
   }, [title, isEditing]);
 
+  // Force reset inline background styles that might be applied by external tools
+  useEffect(() => {
+    if (nodeRef.current) {
+      // Override any inline background styles
+      nodeRef.current.style.removeProperty('background-color');
+      nodeRef.current.style.removeProperty('background');
+      
+      // Create a MutationObserver to watch for style changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const target = mutation.target as HTMLElement;
+            // Remove any inline background styles that might be injected
+            if (target.style.backgroundColor || target.style.background) {
+              target.style.removeProperty('background-color');
+              target.style.removeProperty('background');
+            }
+          }
+        });
+      });
+
+      observer.observe(nodeRef.current, {
+        attributes: true,
+        attributeFilter: ['style']
+      });
+
+      return () => observer.disconnect();
+    }
+  }, []);
+
   useEffect(() => {
     if (isEditing && contentEditableRef.current) {
       contentEditableRef.current.textContent = lastStableTitle;
@@ -207,6 +237,48 @@ const PromptNode: React.FC<PromptNodeProps> = ({
     setLocalSettings({});
   }, [wordWrap, lineNumbers]);
 
+  // Force reset any inline background styles that might be applied by external tools
+  useEffect(() => {
+    const nodeElement = nodeRef.current;
+    if (nodeElement) {
+      // Force reset background immediately
+      const resetBackground = () => {
+        nodeElement.style.removeProperty('background-color');
+        nodeElement.style.removeProperty('background');
+        nodeElement.classList.remove('ai-style-change-1', 'ai-style-change-2');
+      };
+      
+      resetBackground();
+      
+      // Create a MutationObserver to watch for style and class changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes') {
+            if (mutation.attributeName === 'style') {
+              const target = mutation.target as HTMLElement;
+              if (target.style.backgroundColor || target.style.background) {
+                resetBackground();
+              }
+            }
+            if (mutation.attributeName === 'class') {
+              const target = mutation.target as HTMLElement;
+              if (target.classList.contains('ai-style-change-1') || target.classList.contains('ai-style-change-2')) {
+                resetBackground();
+              }
+            }
+          }
+        });
+      });
+
+      observer.observe(nodeElement, {
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+
+      return () => observer.disconnect();
+    }
+  }, []);
+
   return (
     <div
       ref={nodeRef}
@@ -216,6 +288,7 @@ const PromptNode: React.FC<PromptNodeProps> = ({
         isDragging && 'dragging',
         type === 'default' && getIndentationClass(titleData.level)
       )}
+      data-type={type}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

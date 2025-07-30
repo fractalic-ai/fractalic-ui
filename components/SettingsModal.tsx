@@ -1,5 +1,6 @@
 //TODO: #1 For selected active record we should save to settings a model name, not a provider name
 import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
+import "../styles/protected-settings-modal.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -391,7 +392,17 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[1035px] bg-background text-foreground rounded-lg shadow-lg z-50 border border-border">
+      <DialogContent 
+        className="sm:max-w-[1035px] text-foreground rounded-lg shadow-lg z-50 border border-border settings-modal-isolated-container"
+        style={{
+          backgroundColor: '#000000',
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 9999
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-foreground text-3xl font-bold">Settings</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -453,7 +464,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
           autoComplete="off"
           className="space-y-4"
         >
-          <div className="h-[500px] overflow-y-auto pr-2">
+          <div className="pr-2 min-h-[450px]">
             {activeTab === 'providers' ? (
               <div className="flex">
                 <div className="w-[32%] border-r border-border pr-4">
@@ -621,7 +632,8 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                           </button>
                           {modelDropdownOpen && (
                             <div
-                              className="absolute z-20 mt-1 w-full bg-background border border-border rounded shadow-lg max-h-48 overflow-auto"
+                              className="absolute z-20 mt-1 w-full border border-border rounded shadow-lg max-h-48 overflow-auto"
+                              style={{ backgroundColor: '#1a1a1a' }}
                               onMouseLeave={() => setModelDropdownOpen(false)}
                             >
                               {filteredModelOptions.length === 0 ? (

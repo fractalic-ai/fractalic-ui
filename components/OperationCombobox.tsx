@@ -93,7 +93,7 @@ const OperationCombobox: React.FC<OperationComboboxProps> = ({ value, onChange }
 
   return (
     <>
-      <div ref={triggerRef} className="relative w-32">
+      <div ref={triggerRef} className="relative w-32 operation-type-dropdown" data-operation-type-selector="true">
         <div 
           className="flex items-center justify-between w-full px-2 py-1 text-gray-200 bg-transparent border border-gray-700 rounded cursor-pointer hover:border-gray-600"
           onClick={() => setIsOpen(!isOpen)}
@@ -113,7 +113,8 @@ const OperationCombobox: React.FC<OperationComboboxProps> = ({ value, onChange }
       {isOpen && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-[99999]"
+          className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-[99999] operation-type-dropdown-menu"
+          data-operation-type-selector="true"
           style={{
             transformOrigin: position.direction === 'up' ? 'bottom' : 'top',
           }}

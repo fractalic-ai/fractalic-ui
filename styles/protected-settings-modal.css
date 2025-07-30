@@ -1,0 +1,136 @@
+/* SETTINGS MODAL PROTECTION - Complete isolation from notebook theme */
+
+/* Target Radix Dialog Content directly with maximum specificity */
+[data-radix-dialog-content].settings-modal-isolated-container,
+.settings-modal-isolated-container[data-radix-dialog-content],
+[data-radix-dialog-content][class*="settings-modal-isolated-container"],
+.settings-modal-isolated-container {
+  /* FORCE solid black background - MAXIMUM OVERRIDE */
+  background: #000000 !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  
+  /* Remove any transparency or inherited styles */
+  opacity: 1 !important;
+  background-image: none !important;
+  background-attachment: initial !important;
+  
+  /* Reset positioning to center properly */
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  
+  /* High z-index to ensure it's above everything */
+  z-index: 9999 !important;
+  
+  /* Force dimensions */
+  width: 90vw !important;
+  max-width: 1035px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  
+  /* Block ALL notebook variables from contaminating */
+  --notebook-bg: initial !important;
+  --notebook-node-bg: initial !important;
+  --notebook-operation-bg: initial !important;
+  --notebook-node-border: initial !important;
+  --notebook-operation-border: initial !important;
+  
+  /* Standard dark theme variables for child elements */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 0%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 0%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+  
+  /* Standard modal styling */
+  border: 1px solid #333333 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1) !important;
+  padding: 24px !important;
+}
+
+/* CRITICAL: Override any bg-background classes that appear in the modal */
+.settings-modal-isolated-container .bg-background,
+[data-radix-dialog-content].settings-modal-isolated-container .bg-background,
+.settings-modal-isolated-container.bg-background,
+[data-radix-dialog-content].bg-background.settings-modal-isolated-container {
+  background-color: #000000 !important;
+  background: #000000 !important;
+}
+
+/* Override any Tailwind classes that might be interfering */
+[data-radix-dialog-content].settings-modal-isolated-container.fixed {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* Force the dialog overlay to be dark */
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  z-index: 9998 !important;
+}
+
+/* Fix input and button backgrounds to be visible on black */
+.settings-modal-isolated-container input,
+.settings-modal-isolated-container select,
+.settings-modal-isolated-container textarea,
+[data-radix-dialog-content].settings-modal-isolated-container input,
+[data-radix-dialog-content].settings-modal-isolated-container select,
+[data-radix-dialog-content].settings-modal-isolated-container textarea {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+.settings-modal-isolated-container button,
+[data-radix-dialog-content].settings-modal-isolated-container button {
+  color: #ffffff !important;
+  border-color: #333333 !important;
+}
+
+.settings-modal-isolated-container button:hover,
+[data-radix-dialog-content].settings-modal-isolated-container button:hover {
+  background-color: #2a2a2a !important;
+}
+
+/* Fix slider thumb backgrounds */
+.settings-modal-isolated-container [role="slider"],
+[data-radix-dialog-content].settings-modal-isolated-container [role="slider"] {
+  background-color: #1a1a1a !important;
+  border-color: #333333 !important;
+}
+
+/* Fix switch backgrounds */
+.settings-modal-isolated-container [role="switch"],
+[data-radix-dialog-content].settings-modal-isolated-container [role="switch"] {
+  background-color: #1a1a1a !important;
+}
+
+.settings-modal-isolated-container [role="switch"][data-state="checked"],
+[data-radix-dialog-content].settings-modal-isolated-container [role="switch"][data-state="checked"] {
+  background-color: hsl(217.2 91.2% 59.8%) !important;
+}
+
+/* Fix any remaining bg-muted classes */
+.settings-modal-isolated-container .bg-muted,
+[data-radix-dialog-content].settings-modal-isolated-container .bg-muted {
+  background-color: #1a1a1a !important;
+}

@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Settings, Moon, Sun, Rocket } from 'lucide-react'
-import SettingsModal from './SettingsModal'
+import { Settings, Moon, Sun, Rocket, Palette } from 'lucide-react'
+import { NotebookColorControls } from './NotebookColorControls'
 import Image from 'next/image'
+import { useState } from 'react'
 
 interface HeaderProps {
   theme: 'dark' | 'light'
@@ -14,6 +15,8 @@ interface HeaderProps {
 }
 
 export default function Header({ theme, setTheme, isSettingsOpen, setIsSettingsOpen, isDeployOpen, setIsDeployOpen }: HeaderProps) {
+  const [isColorControlsOpen, setIsColorControlsOpen] = useState(false);
+
   return (
     <div className="flex items-center justify-between p-2 border-b bg-[#141414]">
       <div className="flex items-center space-x-2">
@@ -39,6 +42,15 @@ export default function Header({ theme, setTheme, isSettingsOpen, setIsSettingsO
         >
           <Rocket className="h-4 w-4 mr-2" />
           Deploy
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setIsColorControlsOpen(true)}
+          className="text-gray-300 hover:text-purple-300 hover:bg-purple-900/20"
+        >
+          <Palette className="h-4 w-4 mr-2" />
+          Colors
         </Button>
         <Button 
           variant="ghost" 
@@ -72,7 +84,7 @@ export default function Header({ theme, setTheme, isSettingsOpen, setIsSettingsO
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <SettingsModal isOpen={isSettingsOpen} setIsOpen={setIsSettingsOpen} setGlobalSettings={() => {}} />
+      <NotebookColorControls isOpen={isColorControlsOpen} onClose={() => setIsColorControlsOpen(false)} />
     </div>
   )
 }
