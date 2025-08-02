@@ -18,6 +18,7 @@ import { TraceView } from "./TraceView";
 import styles from './MarkdownViewer.module.css';
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Filter, Plus, FolderPlus, PenSquare, GitBranch, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTrace } from '@/contexts/TraceContext';
@@ -1064,30 +1065,55 @@ export default function GitDiffViewer() {
                         </span>
                       </h3>
                       {mode === 'edit' && (
-                        <div className="space-x-1 flex items-center">
-                          <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
-                            <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
-                              <Filter className={cn(
-                                "h-4 w-4",
-                                filterOption !== 'all' && "fill-current"
-                              )} />
-                              <span className="sr-only">Filter files</span>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Show all</SelectItem>
-                              <SelectItem value="md">Show .md</SelectItem>
-                              <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button variant="ghost" size="icon" onClick={startNewFile}>
-                            <Plus className="h-4 w-4" />
-                            <span className="sr-only">New File</span>
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={startNewFolder}>
-                            <FolderPlus className="h-4 w-4" />
-                            <span className="sr-only">New Folder</span>
-                          </Button>
-                        </div>
+                        <TooltipProvider>
+                          <div className="space-x-1 flex items-center">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
+                                  <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
+                                    <Filter className={cn(
+                                      "h-4 w-4",
+                                      filterOption !== 'all' && "fill-current"
+                                    )} />
+                                    <span className="sr-only">Filter files</span>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">Show all</SelectItem>
+                                    <SelectItem value="md">Show .md</SelectItem>
+                                    <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="bg-blue-900 border-blue-800 text-white">
+                                <p>Filter by type</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={startNewFile}>
+                                  <Plus className="h-4 w-4" />
+                                  <span className="sr-only">New File</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="bg-blue-900 border-blue-800 text-white">
+                                <p>Create new file</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={startNewFolder}>
+                                  <FolderPlus className="h-4 w-4" />
+                                  <span className="sr-only">New Folder</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="bg-blue-900 border-blue-800 text-white">
+                                <p>Create new folder</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       )}
                     </div>
                     <div className="flex-1 overflow-hidden">
