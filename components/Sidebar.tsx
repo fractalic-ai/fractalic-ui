@@ -99,11 +99,11 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, cl
               className={`w-12 h-12 ${mode === 'marketplace' ? 'text-white' : 'text-gray-400'}`}
             >
               <ShoppingBag className="h-6 w-6" />
-              <span className="sr-only">MCP Marketplace</span>
+              <span className="sr-only">Tools & MCPs Marketplace</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-blue-900 border-blue-800 text-white">
-            <p>MCP Marketplace</p>
+            <p>Tools & MCPs Marketplace</p>
           </TooltipContent>
         </Tooltip>
       </div>

@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 import Uptime from "./Uptime";
-import MCPMarketplace from './MCPMarketplace';
+import ToolsMarketplace from './ToolsMarketplace';
 import { AddServerDialog } from './AddServerDialog';
 import { 
   Server, 
@@ -1754,7 +1754,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           </div>
           {/* Marketplace Content */}
           <div className="h-[calc(100%-120px)]">
-            <MCPMarketplace />
+            <ToolsMarketplace />
           </div>
         </div>
       </div>

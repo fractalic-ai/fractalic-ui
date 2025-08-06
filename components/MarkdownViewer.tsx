@@ -144,6 +144,22 @@ const customCSS = `
   .markdown-unordered-list .markdown-unordered-list .markdown-unordered-list {
     list-style-type: square;
   }
+  
+  /* Tools Marketplace README specific styles */
+  .tools-marketplace-readme .markdown-scroll-area {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  
+  .tools-marketplace-readme .markdown-scroll-area > div {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  
+  .tools-marketplace-readme .prose {
+    background: transparent !important;
+    padding: 0 !important;
+  }
 `;
 
 // Style injector component
@@ -279,12 +295,26 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       className="h-full w-full relative pb-12 markdown-scroll-area" 
       scrollHideDelay={0}
       style={{ 
-        position: "relative"
+        position: "relative",
+        ...(className?.includes('tools-marketplace-readme') ? {
+          background: 'transparent',
+          padding: 0
+        } : {})
       }}
     >
       <StyleInjector />
-      <div ref={mermaidRef} className={`${styles.markdownRoot} prose prose-invert max-w-none`}>
-        <div className={`${styles.markdownContent} ${className}`}>
+      <div ref={mermaidRef} className={`${styles.markdownRoot} prose prose-invert max-w-none`} style={{
+        ...(className?.includes('tools-marketplace-readme') ? {
+          background: 'transparent',
+          padding: 0
+        } : {})
+      }}>
+        <div className={`${styles.markdownContent} ${className}`} style={{
+          ...(className?.includes('tools-marketplace-readme') ? {
+            background: 'transparent',
+            padding: 0
+          } : {})
+        }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeRaw]}

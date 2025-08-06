@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useTrace } from '@/contexts/TraceContext';
 import ToolsManager from './ToolsManager';
 import MCPManager from './MCPManager';
-import MCPMarketplace from './MCPMarketplace';
+import ToolsMarketplace from './ToolsMarketplace';
 import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
@@ -266,6 +266,20 @@ export default function GitDiffViewer() {
   const handleFileSelect = useCallback(async (file: any) => {
     try {
       console.log('[GitDiffViewer] handleFileSelect triggered for:', file.path);
+      
+      // For marketplace mode, we only need to set the current file path for installation context
+      if (mode === 'marketplace') {
+        setSelectedFile(file);
+        setCurrentFilePath(file.path);
+        setSelectedItem(file.path);
+        
+        const fileDir = file.path.split('/').slice(0, -1).join('/') || '/';
+        console.log(`[GitDiffViewer] Updating ${mode} path to:`, fileDir);
+        setCurrentEditPath(fileDir);
+        return;
+      }
+      
+      // For other modes, fetch file content from backend
       const response = await fetch(
         `${getApiUrl('backend', config)}/get_file_content_disk/?path=${encodeURIComponent(file.path)}`
       );
@@ -1039,7 +1053,7 @@ export default function GitDiffViewer() {
           className="py-2"
         />
         {mode === 'mcp' && <MCPManager />}
-        {mode === 'marketplace' && <MCPMarketplace />}
+        {mode === 'marketplace' && <ToolsMarketplace currentFilePath={currentFilePath} />}
         {mode !== 'mcp' && mode !== 'marketplace' && (
           <ResizablePanelGroup
             direction="horizontal"
@@ -1069,20 +1083,22 @@ export default function GitDiffViewer() {
                           <div className="space-x-1 flex items-center">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
-                                  <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
-                                    <Filter className={cn(
-                                      "h-4 w-4",
-                                      filterOption !== 'all' && "fill-current"
-                                    )} />
-                                    <span className="sr-only">Filter files</span>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">Show all</SelectItem>
-                                    <SelectItem value="md">Show .md</SelectItem>
-                                    <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <div>
+                                  <Select value={filterOption} onValueChange={(value: FilterOption) => setFilterOption(value)}>
+                                    <SelectTrigger className="w-8 h-8 p-0 border-0 hover:border-0 focus:border-0 focus:ring-0 [&>svg:not(.lucide)]:hidden flex items-center justify-center">
+                                      <Filter className={cn(
+                                        "h-4 w-4",
+                                        filterOption !== 'all' && "fill-current"
+                                      )} />
+                                      <span className="sr-only">Filter files</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">Show all</SelectItem>
+                                      <SelectItem value="md">Show .md</SelectItem>
+                                      <SelectItem value="md-ctx">Show .md & .ctx</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </TooltipTrigger>
                               <TooltipContent side="bottom" className="bg-blue-900 border-blue-800 text-white">
                                 <p>Filter by type</p>
