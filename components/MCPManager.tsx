@@ -38,7 +38,8 @@ import {
   Plus,
   Trash2,
   MessageSquare,
-  FileText
+  FileText,
+  Shield
 } from 'lucide-react';
 
 // New Complete Status Response Types
@@ -737,7 +738,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
 
       {/* Server Details */}
       <div className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card className="border-0 bg-[#1e1e1e] shadow-xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg text-white flex items-center gap-2">
@@ -747,47 +748,37 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-gray-400">Process ID</span>
-                <span className="font-mono text-white">{server.pid || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
                 <span className="text-gray-400">Transport</span>
                 <span className="font-mono text-white">{server.transport}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-400">Status</span>
                 <span className={`font-medium ${
-                  server.enabled && server.status === 'enabled' ? 'text-green-400' : 
-                  'text-gray-400'
+                  server.enabled && server.status === 'connected' ? 'text-green-400' : 
+                  server.status === 'error' ? 'text-red-400' :
+                  server.status === 'oauth_required' ? 'text-yellow-400' :
+                  server.enabled ? 'text-blue-400' : 'text-gray-400'
                 }`}>
-                  {server.enabled && server.status === 'enabled' ? 'Ready' : 'Disabled'}
+                  {server.status === 'connected' ? 'Connected' :
+                   server.status === 'error' ? 'Error' :
+                   server.status === 'oauth_required' ? 'OAuth Required' :
+                   server.enabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
-              {/* In per-session architecture, 'connected' is always false and not meaningful */}
-              {server.connected !== undefined && false && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Enabled</span>
+                <span className={`font-medium ${server.enabled ? 'text-green-400' : 'text-red-400'}`}>
+                  {server.enabled ? 'Yes' : 'No'}
+                </span>
+              </div>
+              {server.url && (
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Connected</span>
-                  <span className={`font-medium ${server.connected ? 'text-green-400' : 'text-red-400'}`}>
-                    {server.connected ? 'Yes' : 'No'}
+                  <span className="text-gray-400">Endpoint URL</span>
+                  <span className="font-mono text-white text-xs truncate max-w-40" title={server.url}>
+                    {server.url}
                   </span>
                 </div>
               )}
-              {server.enabled !== undefined && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Enabled</span>
-                  <span className={`font-medium ${server.enabled ? 'text-green-400' : 'text-red-400'}`}>
-                    {server.enabled ? 'Yes' : 'No'}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Retries</span>
-                <span className="font-mono text-white">{server.retries}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Restarts</span>
-                <span className="font-mono text-white">{server.restarts}</span>
-              </div>
             </CardContent>
           </Card>
 
@@ -800,105 +791,106 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-gray-400">Tool Count</span>
-                <span className="font-mono text-white">{server.tool_count ?? 'N/A'}</span>
+                <span className="text-gray-400">Tools</span>
+                <span className="font-mono text-white">{server.tool_count ?? 0}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-400">Token Count</span>
-                <span className="font-mono text-white">{server.token_count ?? 'N/A'}</span>
+                <span className="text-gray-400">Prompts</span>
+                <span className="font-mono text-white">{server.prompt_count ?? 0}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-400">Last Output Renewal</span>
-                <span className="font-mono text-white">
-                  {server.last_output_renewal && !isNaN(server.last_output_renewal) && server.last_output_renewal > 0
-                    ? new Date(server.last_output_renewal * 1000).toLocaleTimeString()
-                    : 'N/A'}
-                </span>
+                <span className="text-gray-400">Resources</span>
+                <span className="font-mono text-white">{server.resource_count ?? 0}</span>
               </div>
-              {server.has_oauth && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">OAuth Status</span>
-                    <div className="flex items-center gap-2">
-                      {server.oauth?.has_access_token ? (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-green-400">Active</span>
-                          {server.oauth.refresh_needed && (
-                            <span className="text-xs text-yellow-400 bg-yellow-400/20 px-1 rounded">
-                              Refresh Needed
-                            </span>
-                          )}
-                        </div>
-                      ) : server.oauth?.client_configured ? (
-                        <span className="font-medium text-yellow-400">Setup Required</span>
-                      ) : (
-                        <span className="font-medium text-blue-400">Enabled</span>
-                      )}
-                      {!server.oauth?.has_access_token && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs px-2 py-1 h-6"
-                          onClick={() => handleOAuthStart(server.name)}
-                        >
-                          Setup
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {server.oauth && (
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                      {server.oauth.has_access_token && (
-                        <>
-                          <span className="text-gray-400">Token Expires</span>
-                          <span className={`font-mono ${server.oauth.refresh_needed ? 'text-yellow-400' : 'text-white'}`}>
-                            {server.oauth.access_token_remaining_seconds !== undefined 
-                              ? formatTimeRemaining(server.oauth.access_token_remaining_seconds)
-                              : 'Unknown'}
-                          </span>
-                        </>
-                      )}
-                      
-                      {server.oauth.access_token_obtained_at && (
-                        <>
-                          <span className="text-gray-400">Token Obtained</span>
-                          <span className="font-mono text-white">
-                            {formatTimestamp(server.oauth.access_token_obtained_at)}
-                          </span>
-                        </>
-                      )}
-                      
-                      <span className="text-gray-400">Client Config</span>
-                      <span className={`font-medium ${server.oauth.client_configured ? 'text-green-400' : 'text-red-400'}`}>
-                        {server.oauth.client_configured ? 'Configured' : 'Missing'}
-                      </span>
-                      
-                      <span className="text-gray-400">Provider Config</span>
-                      <span className={`font-medium ${server.oauth.provider_configured ? 'text-green-400' : 'text-red-400'}`}>
-                        {server.oauth.provider_configured ? 'Configured' : 'Missing'}
-                      </span>
-                      
-                      {server.oauth.has_refresh_token && (
-                        <>
-                          <span className="text-gray-400">Refresh Token</span>
-                          <span className="font-medium text-green-400">Available</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              {server.url && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Endpoint URL</span>
-                  <span className="font-mono text-white text-xs truncate max-w-40" title={server.url}>
-                    {server.url}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Tokens</span>
+                <span className="font-mono text-white">{server.token_count ?? 0}</span>
+              </div>
             </CardContent>
           </Card>
+
+          {server.has_oauth && (
+            <Card className="border-0 bg-[#1e1e1e] shadow-xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg text-white flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-green-400" />
+                  OAuth Authentication
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Status</span>
+                  <div className="flex items-center gap-2">
+                    {server.oauth?.has_access_token ? (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-400">Active</span>
+                        {server.oauth.refresh_needed && (
+                          <span className="text-xs text-yellow-400 bg-yellow-400/20 px-1 rounded">
+                            Refresh Needed
+                          </span>
+                        )}
+                      </div>
+                    ) : server.oauth?.client_configured ? (
+                      <span className="font-medium text-yellow-400">Setup Required</span>
+                    ) : (
+                      <span className="font-medium text-blue-400">Available</span>
+                    )}
+                    {!server.oauth?.has_access_token && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs px-2 py-1 h-6"
+                        onClick={() => handleOAuthStart(server.name)}
+                      >
+                        Setup
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {server.oauth?.has_access_token && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Token Expires</span>
+                    <span className={`font-mono text-sm ${server.oauth.refresh_needed ? 'text-yellow-400' : 'text-white'}`}>
+                      {server.oauth.access_token_remaining_seconds !== undefined 
+                        ? formatTimeRemaining(server.oauth.access_token_remaining_seconds)
+                        : 'Unknown'}
+                    </span>
+                  </div>
+                )}
+                
+                {server.oauth?.access_token_obtained_at && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Token Obtained</span>
+                    <span className="font-mono text-white text-xs">
+                      {formatTimestamp(server.oauth.access_token_obtained_at)}
+                    </span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Client Config</span>
+                  <span className={`font-medium ${server.oauth?.client_configured ? 'text-green-400' : 'text-red-400'}`}>
+                    {server.oauth?.client_configured ? 'Configured' : 'Missing'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Provider Config</span>
+                  <span className={`font-medium ${server.oauth?.provider_configured ? 'text-green-400' : 'text-red-400'}`}>
+                    {server.oauth?.provider_configured ? 'Configured' : 'Missing'}
+                  </span>
+                </div>
+                
+                {server.oauth?.has_refresh_token && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Refresh Token</span>
+                    <span className="font-medium text-green-400">Available</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Terminal Output Section (in details panel) */}
