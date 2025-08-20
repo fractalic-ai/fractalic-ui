@@ -41,43 +41,79 @@ import {
   FileText
 } from 'lucide-react';
 
-// SDK V2 Types - Updated to match actual API schema
-interface StatusResponseV2 {
-  services: Record<string, ServiceDetails>;
+// New Complete Status Response Types
+interface CompleteStatusResponse {
+  complete_data_included: boolean;
+  mcp_version: string;
+  oauth_enabled: boolean;
+  total_services: number;
+  enabled_services: number;
+  total_tools: number;
+  total_prompts: number;
+  total_resources: number;
+  total_tokens: number;
+  services: Record<string, CompleteServiceDetails>;
 }
 
-interface ServiceDetails {
+interface OAuthInfo {
+  has_access_token: boolean;
+  has_refresh_token: boolean;
+  access_token_obtained_at?: number;
+  access_token_expires_in?: number;
+  access_token_remaining_seconds?: number;
+  refresh_token_obtained_at?: number;
+  last_refresh_at?: number;
+  refresh_needed: boolean;
+  client_configured: boolean;
+  provider_configured: boolean;
+}
+
+interface CompleteServiceDetails {
+  status: "connected" | "error" | "disabled" | "oauth_required";
+  connected: boolean;
   enabled: boolean;
   transport: "stdio" | "sse" | "http";
-  oauth_required?: boolean;
-  oauth_configured?: boolean;
-  tools_count?: number;
+  has_oauth: boolean;
+  oauth?: OAuthInfo;
+  url?: string;
+  command?: string;
+  tool_count: number;
+  tools: MCPTool[];
+  prompt_count: number;
+  prompts: MCPPrompt[];
+  resource_count: number;
+  resources: MCPResource[];
+  capabilities?: {
+    tools?: { list: boolean; call: boolean };
+    prompts?: { list: boolean };
+    resources?: { list: boolean; read: boolean };
+    logging?: { level: string };
+    extra?: Record<string, any>;
+  };
+  token_count: number;
 }
 
-// Legacy Types (maintain compatibility)
+// Updated Server interface - removed deprecated fields
 interface MCPServer {
   name: string;
-  state: string;
-  pid: number | null;
-  transport: string;
-  retries: number;
-  uptime: number | null;
-  healthy: boolean;
-  restarts: number;
-  last_error: string | null;
-  stdout: any[];
-  stderr: any[];
-  last_output_renewal: number | null;
-  tool_count?: number;
-  token_count?: number;
-  // New SDK V2 fields (optional for backward compatibility)
-  status?: "enabled" | "disabled";
-  enabled?: boolean;
-  connected?: boolean;
-  has_oauth?: boolean;
+  status: "connected" | "error" | "disabled" | "oauth_required";
+  connected: boolean;
+  enabled: boolean;
+  transport: "stdio" | "sse" | "http";
+  has_oauth: boolean;
+  oauth?: OAuthInfo;
+  url?: string;
+  command?: string;
+  tool_count: number;
+  tools: MCPTool[];
+  prompt_count: number;
+  prompts: MCPPrompt[];
+  resource_count: number;
+  resources: MCPResource[];
+  token_count: number;
+  capabilities?: CompleteServiceDetails['capabilities'];
   oauth_configured?: boolean;
-  url?: string | null;
-  command?: string[] | null;
+  healthy?: boolean;
 }
 
 interface MCPTool {
@@ -150,11 +186,22 @@ const getStateIcon = (state: string) => {
   }
 };
 
+const formatTimeRemaining = (seconds: number): string => {
+  if (seconds <= 0) return 'Expired';
+  if (seconds < 60) return `${Math.floor(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+};
+
+const formatTimestamp = (timestamp: number): string => {
+  return new Date(timestamp * 1000).toLocaleString();
+};
+
 // Server Card Component - Memoized to prevent unnecessary re-renders
 const ServerCard = React.memo(function ServerCard({ 
   server, 
   isSelected, 
-  onSelect 
+  onSelect
 }: {
   server: MCPServer;
   isSelected: boolean;
@@ -191,14 +238,15 @@ const ServerCard = React.memo(function ServerCard({
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-semibold text-white truncate">{server.name}</h3>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                  server.enabled && server.status === 'enabled' ? 'bg-green-500/20 text-green-400' :
+                  server.connected && server.status === 'connected' ? 'bg-green-500/20 text-green-400' :
                   server.status === 'disabled' || !server.enabled ? 'bg-gray-500/20 text-gray-400' :
-                  server.state === 'errored' ? 'bg-red-500/20 text-red-400' :
-                  'bg-yellow-500/20 text-yellow-400'
+                  server.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                  server.status === 'oauth_required' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-blue-500/20 text-blue-400'
                 }`}>
-                  {server.enabled && server.status === 'enabled' ? 'ENABLED' :
+                  {server.connected && server.status === 'connected' ? 'CONNECTED' :
                    server.status === 'disabled' || !server.enabled ? 'DISABLED' :
-                   server.state.toUpperCase()}
+                   server.status.toUpperCase()}
                 </span>
               </div>
             </div>
@@ -207,29 +255,38 @@ const ServerCard = React.memo(function ServerCard({
         
         <div className="text-xs text-gray-400 space-y-1">
           <div className="flex justify-between">
-            <span>PID:</span>
-            <span className="font-mono">{server.pid || 'N/A'}</span>
+            <span>Tools:</span>
+            <span className="font-mono">{server.tool_count}</span>
           </div>
           <div className="flex justify-between">
-            <span>Uptime:</span>
-            <Uptime value={server.uptime} />
+            <span>Tokens:</span>
+            <span className="font-mono text-blue-400">{server.token_count.toLocaleString()}</span>
           </div>
-          {server.tool_count !== undefined && (
-            <div className="flex justify-between">
-              <span>Tools:</span>
-              <span className="font-mono">{server.tool_count}</span>
-            </div>
-          )}
-          {server.token_count !== undefined && (
-            <div className="flex justify-between">
-              <span>Tokens:</span>
-              <span className="font-mono text-blue-400">{server.token_count.toLocaleString()}</span>
-            </div>
-          )}
+          <div className="flex justify-between">
+            <span>Prompts:</span>
+            <span className="font-mono">{server.prompt_count}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Resources:</span>
+            <span className="font-mono">{server.resource_count}</span>
+          </div>
           {server.has_oauth && (
             <div className="flex justify-between">
               <span>OAuth:</span>
-              <span className="text-xs text-blue-400 font-medium">Enabled</span>
+              <div className="flex items-center gap-1">
+                {server.oauth?.has_access_token ? (
+                  <>
+                    <span className="text-xs text-green-400 font-medium">Active</span>
+                    {server.oauth.refresh_needed && (
+                      <span className="text-xs text-yellow-400">•</span>
+                    )}
+                  </>
+                ) : server.oauth?.client_configured ? (
+                  <span className="text-xs text-yellow-400 font-medium">Setup</span>
+                ) : (
+                  <span className="text-xs text-blue-400 font-medium">Enabled</span>
+                )}
+              </div>
             </div>
           )}
           {server.url && (
@@ -251,14 +308,17 @@ const ServerCard = React.memo(function ServerCard({
   
   return (
     prevServer.name === nextServer.name &&
-    prevServer.state === nextServer.state &&
-    prevServer.pid === nextServer.pid &&
-    prevServer.healthy === nextServer.healthy &&
-    prevServer.uptime === nextServer.uptime &&
+    prevServer.status === nextServer.status &&
+    prevServer.connected === nextServer.connected &&
+    prevServer.enabled === nextServer.enabled &&
     prevServer.tool_count === nextServer.tool_count &&
-    prevServer.retries === nextServer.retries &&
-    prevServer.restarts === nextServer.restarts &&
-    prevServer.last_error === nextServer.last_error &&
+    prevServer.token_count === nextServer.token_count &&
+    prevServer.prompt_count === nextServer.prompt_count &&
+    prevServer.resource_count === nextServer.resource_count &&
+    prevServer.has_oauth === nextServer.has_oauth &&
+    prevServer.oauth?.has_access_token === nextServer.oauth?.has_access_token &&
+    prevServer.oauth?.refresh_needed === nextServer.oauth?.refresh_needed &&
+    prevServer.oauth?.client_configured === nextServer.oauth?.client_configured &&
     prevProps.isSelected === nextProps.isSelected
   );
 });
@@ -497,12 +557,6 @@ const ServerList = React.memo(function ServerList({
 // Server Details Panel Component - Memoized
 const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   server,
-  tools,
-  prompts,
-  resources,
-  toolsLoading,
-  promptsLoading,
-  resourcesLoading,
   actionLoading,
   toolCardState,
   onAction,
@@ -511,16 +565,10 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onToolExpand,
   onParamChange,
   initialLoading,
-  fetchStatus,
+  fetchCompleteStatus,
   config
 }: {
   server: MCPServer;
-  tools: MCPTool[];
-  prompts: MCPPrompt[];
-  resources: MCPResource[];
-  toolsLoading: boolean;
-  promptsLoading: boolean;
-  resourcesLoading: boolean;
   actionLoading: string | null;
   toolCardState: Record<string, { expanded: boolean; paramValues: Record<string, any> }>;
   onAction: (action: 'start' | 'stop', serverName: string) => void;
@@ -529,7 +577,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onToolExpand: (toolName: string, expanded: boolean) => void;
   onParamChange: (toolName: string, paramName: string, value: any) => void;
   initialLoading: boolean;
-  fetchStatus: () => void;
+  fetchCompleteStatus: () => void;
   config: any;
 }) {
   const [showOutput, setShowOutput] = useState(false);
@@ -640,7 +688,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                 )}
               </Button>
               <Button
-                onClick={fetchStatus}
+                onClick={fetchCompleteStatus}
                 disabled={initialLoading}
                 size="sm"
                 variant="outline"
@@ -768,23 +816,77 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                 </span>
               </div>
               {server.has_oauth && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">OAuth</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-blue-400">
-                      {server.oauth_configured ? 'Configured' : 'Required'}
-                    </span>
-                    {!server.oauth_configured && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs px-2 py-1 h-6"
-                        onClick={() => handleOAuthStart(server.name)}
-                      >
-                        Setup
-                      </Button>
-                    )}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">OAuth Status</span>
+                    <div className="flex items-center gap-2">
+                      {server.oauth?.has_access_token ? (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-green-400">Active</span>
+                          {server.oauth.refresh_needed && (
+                            <span className="text-xs text-yellow-400 bg-yellow-400/20 px-1 rounded">
+                              Refresh Needed
+                            </span>
+                          )}
+                        </div>
+                      ) : server.oauth?.client_configured ? (
+                        <span className="font-medium text-yellow-400">Setup Required</span>
+                      ) : (
+                        <span className="font-medium text-blue-400">Enabled</span>
+                      )}
+                      {!server.oauth?.has_access_token && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs px-2 py-1 h-6"
+                          onClick={() => handleOAuthStart(server.name)}
+                        >
+                          Setup
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                  
+                  {server.oauth && (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                      {server.oauth.has_access_token && (
+                        <>
+                          <span className="text-gray-400">Token Expires</span>
+                          <span className={`font-mono ${server.oauth.refresh_needed ? 'text-yellow-400' : 'text-white'}`}>
+                            {server.oauth.access_token_remaining_seconds !== undefined 
+                              ? formatTimeRemaining(server.oauth.access_token_remaining_seconds)
+                              : 'Unknown'}
+                          </span>
+                        </>
+                      )}
+                      
+                      {server.oauth.access_token_obtained_at && (
+                        <>
+                          <span className="text-gray-400">Token Obtained</span>
+                          <span className="font-mono text-white">
+                            {formatTimestamp(server.oauth.access_token_obtained_at)}
+                          </span>
+                        </>
+                      )}
+                      
+                      <span className="text-gray-400">Client Config</span>
+                      <span className={`font-medium ${server.oauth.client_configured ? 'text-green-400' : 'text-red-400'}`}>
+                        {server.oauth.client_configured ? 'Configured' : 'Missing'}
+                      </span>
+                      
+                      <span className="text-gray-400">Provider Config</span>
+                      <span className={`font-medium ${server.oauth.provider_configured ? 'text-green-400' : 'text-red-400'}`}>
+                        {server.oauth.provider_configured ? 'Configured' : 'Missing'}
+                      </span>
+                      
+                      {server.oauth.has_refresh_token && (
+                        <>
+                          <span className="text-gray-400">Refresh Token</span>
+                          <span className="font-medium text-green-400">Available</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {server.url && (
@@ -889,8 +991,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
             >
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
-                Tools ({tools.length})
-                {toolsLoading && <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>}
+                Tools ({server.tools?.length || 0})
               </div>
             </button>
             <button
@@ -903,8 +1004,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
             >
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
-                Prompts ({prompts.length})
-                {promptsLoading && <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>}
+                Prompts ({server.prompts?.length || 0})
               </div>
             </button>
             <button
@@ -917,8 +1017,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
             >
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Resources ({resources.length})
-                {resourcesLoading && <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></div>}
+                Resources ({server.resources?.length || 0})
               </div>
             </button>
           </div>
@@ -927,16 +1026,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
         {/* Tab Content */}
         {activeTab === 'tools' && (
           <div>
-            {toolsLoading ? (
-              <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                <CardContent className="p-8 text-center">
-                  <div className="flex items-center justify-center gap-3 text-gray-400">
-                    <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading tools...</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : !tools || tools.length === 0 ? (
+            {!server.tools || server.tools.length === 0 ? (
               <Card className="border-0 bg-[#1e1e1e] shadow-xl">
                 <CardContent className="p-8 text-center">
                   <div className="flex flex-col items-center justify-center text-gray-400">
@@ -948,7 +1038,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               </Card>
             ) : (
               <div className="space-y-4">
-                {tools.map((tool, index) => (
+                {server.tools.map((tool, index) => (
                   <ToolCard
                     key={tool.name}
                     tool={tool}
@@ -967,16 +1057,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
 
         {activeTab === 'prompts' && (
           <div>
-            {promptsLoading ? (
-              <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                <CardContent className="p-8 text-center">
-                  <div className="flex items-center justify-center gap-3 text-gray-400">
-                    <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading prompts...</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : !prompts || prompts.length === 0 ? (
+            {!server.prompts || server.prompts.length === 0 ? (
               <Card className="border-0 bg-[#1e1e1e] shadow-xl">
                 <CardContent className="p-8 text-center">
                   <div className="flex flex-col items-center justify-center text-gray-400">
@@ -988,7 +1069,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               </Card>
             ) : (
               <div className="space-y-4">
-                {prompts.map((prompt, index) => (
+                {server.prompts.map((prompt, index) => (
                   <Card key={prompt.name} className="border-0 bg-[#1e1e1e] shadow-xl">
                     <CardHeader>
                       <CardTitle className="text-lg text-white flex items-center gap-2">
@@ -1030,16 +1111,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
 
         {activeTab === 'resources' && (
           <div>
-            {resourcesLoading ? (
-              <Card className="border-0 bg-[#1e1e1e] shadow-xl">
-                <CardContent className="p-8 text-center">
-                  <div className="flex items-center justify-center gap-3 text-gray-400">
-                    <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Loading resources...</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : !resources || resources.length === 0 ? (
+            {!server.resources || server.resources.length === 0 ? (
               <Card className="border-0 bg-[#1e1e1e] shadow-xl">
                 <CardContent className="p-8 text-center">
                   <div className="flex flex-col items-center justify-center text-gray-400">
@@ -1051,7 +1123,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               </Card>
             ) : (
               <div className="space-y-4">
-                {resources.map((resource, index) => (
+                {server.resources.map((resource, index) => (
                   <Card key={resource.uri} className="border-0 bg-[#1e1e1e] shadow-xl">
                     <CardHeader>
                       <CardTitle className="text-lg text-white flex items-center gap-2">
@@ -1499,12 +1571,14 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const { config } = useAppConfig();
   const [servers, setServers] = useState<Record<string, MCPServer>>({});
   const [selectedServerName, setSelectedServerName] = useState<string | null>(null);
-  const [tools, setTools] = useState<MCPTool[]>([]);
-  const [prompts, setPrompts] = useState<MCPPrompt[]>([]);
-  const [resources, setResources] = useState<MCPResource[]>([]);
-  const [toolsLoading, setToolsLoading] = useState(false);
-  const [promptsLoading, setPromptsLoading] = useState(false);
-  const [resourcesLoading, setResourcesLoading] = useState(false);
+  const [globalStats, setGlobalStats] = useState<{
+    total_services: number;
+    enabled_services: number;
+    total_tools: number;
+    total_prompts: number;
+    total_resources: number;
+    total_tokens: number;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [toolCardState, setToolCardState] = useState<Record<string, { expanded: boolean; paramValues: Record<string, any> }>>({});
@@ -1536,25 +1610,43 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     return selectedServerName ? servers[selectedServerName] : null;
   }, [selectedServerName, servers]);
 
-  // Memoize server statistics
+  // Memoize server statistics - use global stats if available, otherwise calculate
   const serverStats = useMemo(() => {
+    if (globalStats) {
+      const serversArray = Object.values(servers);
+      const connectedServers = serversArray.filter(server => server.connected).length;
+      const oauthEnabledServers = serversArray.filter(server => server.has_oauth).length;
+      
+      return {
+        total: globalStats.total_services,
+        running: connectedServers,
+        totalTokens: globalStats.total_tokens,
+        totalTools: globalStats.total_tools,
+        totalPrompts: globalStats.total_prompts,
+        totalResources: globalStats.total_resources,
+        oauthEnabled: oauthEnabledServers
+      };
+    }
+    
+    // Fallback calculation if global stats not available
     const serversArray = Object.values(servers);
-    // In per-session architecture, 'running' means enabled, not connected
-    const runningServers = serversArray.filter(server => 
-      server.state === 'running' || server.enabled
-    );
-    const totalTokens = runningServers.reduce((sum, server) => sum + (server.token_count || 0), 0);
-    const totalTools = runningServers.reduce((sum, server) => sum + (server.tool_count || 0), 0);
+    const connectedServers = serversArray.filter(server => server.connected);
+    const totalTokens = connectedServers.reduce((sum, server) => sum + (server.token_count || 0), 0);
+    const totalTools = connectedServers.reduce((sum, server) => sum + (server.tool_count || 0), 0);
+    const totalPrompts = connectedServers.reduce((sum, server) => sum + (server.prompt_count || 0), 0);
+    const totalResources = connectedServers.reduce((sum, server) => sum + (server.resource_count || 0), 0);
     const oauthEnabledServers = serversArray.filter(server => server.has_oauth).length;
     
     return {
       total: serversArray.length,
-      running: runningServers.length,
+      running: connectedServers.length,
       totalTokens,
       totalTools,
+      totalPrompts,
+      totalResources,
       oauthEnabled: oauthEnabledServers
     };
-  }, [servers]);
+  }, [servers, globalStats]);
 
   // Memoize filteredServers only (not the rendered JSX)
   const filteredServers = useMemo(() => {
@@ -1610,10 +1702,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       
       if (!wouldStateChange) {
         // Return the existing object to maintain referential equality
-        console.log(`Server ${name}: No state change, reusing existing object`);
         return existingServer;
-      } else {
-        console.log(`Server ${name}: State changed, creating new object`);
       }
     }
 
@@ -1632,8 +1721,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       stderr: [], // Not available in SDK V2
       last_output_renewal: null, // Not available in SDK V2
       // Preserve existing counts if available, otherwise use defaults
-      tool_count: existingServer?.tool_count ?? serviceWithDefaults.tools_count,
-      token_count: existingServer?.token_count ?? 0,
+      tool_count: existingServer?.tool_count ?? serviceWithDefaults.tools_count ?? 0,
+      token_count: existingServer?.token_count ?? serviceWithDefaults.token_count ?? 0,
       // Include new SDK V2 fields
       status: serviceWithDefaults.enabled ? 'enabled' : 'disabled',
       enabled: serviceWithDefaults.enabled,
@@ -1645,8 +1734,34 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     };
   };
 
-  // Optimized fetchStatus with change detection and SDK V2 support
-  const fetchStatus = useCallback(async (isInitial = false) => {
+
+  // Convert complete service to MCPServer format
+  const convertCompleteServiceToServer = (name: string, service: CompleteServiceDetails): MCPServer => {
+    return {
+      name,
+      status: service.status,
+      connected: service.connected,
+      enabled: service.enabled,
+      transport: service.transport,
+      has_oauth: service.has_oauth,
+      oauth: service.oauth,
+      url: service.url,
+      command: service.command,
+      tool_count: service.tool_count,
+      tools: service.tools || [],
+      prompt_count: service.prompt_count,
+      prompts: service.prompts || [],
+      resource_count: service.resource_count,
+      resources: service.resources || [],
+      token_count: service.token_count,
+      capabilities: service.capabilities,
+      oauth_configured: service.oauth?.client_configured && service.oauth?.provider_configured,
+      healthy: service.connected && service.status === 'connected',
+    };
+  };
+
+  // Fetch complete status with all data in one request
+  const fetchCompleteStatus = useCallback(async (isInitial = false) => {
     // Don't attempt to fetch if MCP Manager API is not responsive
     if (!isInitial && mcpManagerStatus?.status === 'running_not_responsive') {
       return;
@@ -1655,86 +1770,53 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     if (isInitial) setInitialLoading(true);
     loadingRef.current = true;
     errorRef.current = null;
+    
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const response = await fetch(`${getApiUrl('mcp_manager', config)}/status`, {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/status/complete`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
       
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
+      const data: CompleteStatusResponse = await response.json();
       
-      let serversWithNames: Record<string, MCPServer>;
-      
-      if (isSDKV2Response(data)) {
-        // SDK V2 format - convert services to legacy server format
-        try {
-          if (!data.services || typeof data.services !== 'object') {
-            throw new Error('Invalid SDK V2 response: missing or invalid services field');
-          }
-
-          serversWithNames = Object.fromEntries(
-            Object.entries(data.services)
-              .filter(([name, service]) => {
-                // Validate each service entry
-                if (!name || typeof service !== 'object') {
-                  console.warn(`Skipping invalid service entry: ${name}`, service);
-                  return false;
-                }
-                return true;
-              })
-              .map(([name, service]) => [
-                name,
-                convertServiceToServer(name, service as ServiceDetails, servers[name])
-              ])
-          );
-          
-          // Store additional SDK V2 metadata for potential UI use
-          if (isInitial) {
-            const enabledCount = Object.values(data.services).filter((s: any) => s.enabled).length;
-            console.log('SDK V2 Status:', {
-              total_services: Object.keys(data.services).length,
-              enabled_services: enabledCount
-            });
-          }
-        } catch (conversionError) {
-          console.error('Error converting SDK V2 response:', conversionError);
-          // Fallback to empty servers if conversion fails
-          serversWithNames = {};
-        }
-      } else {
-        // Legacy format - use existing logic with additional validation
-        try {
-          if (!data || typeof data !== 'object') {
-            throw new Error('Invalid legacy response: not an object');
-          }
-
-          serversWithNames = Object.fromEntries(
-            Object.entries(data)
-              .filter(([name, server]) => {
-                // Validate each server entry
-                if (!name || typeof server !== 'object') {
-                  console.warn(`Skipping invalid server entry: ${name}`, server);
-                  return false;
-                }
-                return true;
-              })
-              .map(([name, server]: [string, any]) => [
-                name,
-                { ...server, name }
-              ])
-          );
-        } catch (legacyError) {
-          console.error('Error processing legacy response:', legacyError);
-          // Fallback to empty servers if processing fails
-          serversWithNames = {};
-        }
+      // Validate response structure
+      if (!data.complete_data_included || !data.services || typeof data.services !== 'object') {
+        throw new Error('Invalid complete status response');
       }
+
+      // Store global statistics
+      setGlobalStats({
+        total_services: data.total_services,
+        enabled_services: data.enabled_services,
+        total_tools: data.total_tools,
+        total_prompts: data.total_prompts,
+        total_resources: data.total_resources,
+        total_tokens: data.total_tokens,
+      });
+
+      // Convert services to server format
+      const serversWithNames = Object.fromEntries(
+        Object.entries(data.services)
+          .filter(([name, service]) => {
+            // Validate each service entry
+            if (!name || typeof service !== 'object') {
+              console.warn(`Skipping invalid service entry: ${name}`, service);
+              return false;
+            }
+            return true;
+          })
+          .map(([name, service]) => [
+            name,
+            convertCompleteServiceToServer(name, service as CompleteServiceDetails)
+          ])
+      );
+      
+      // Update servers with referential equality preservation
       setServers(prevServers => {
-        // Check if server list has changed
         const prevKeys = Object.keys(prevServers);
         const newKeys = Object.keys(serversWithNames);
         
@@ -1742,7 +1824,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         const serverListChanged = prevKeys.length !== newKeys.length || 
           !newKeys.every(key => key in prevServers);
         
-        // If server list hasn't changed, check individual servers
         if (!serverListChanged) {
           // Deep equality check to prevent unnecessary updates
           let hasChanged = false;
@@ -1751,111 +1832,60 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
             const prev = prevServers[key];
             const current = serversWithNames[key];
             
-            // Compare only the fields that matter for UI rendering
+            // Compare critical fields for changes
             const fieldsChanged = 
-              prev.state !== current.state ||
-              prev.pid !== current.pid ||
-              prev.healthy !== current.healthy ||
-              prev.uptime !== current.uptime ||
+              prev.status !== current.status ||
+              prev.connected !== current.connected ||
+              prev.enabled !== current.enabled ||
               prev.tool_count !== current.tool_count ||
               prev.token_count !== current.token_count ||
-              prev.retries !== current.retries ||
-              prev.restarts !== current.restarts ||
-              prev.last_error !== current.last_error ||
-              // Include new SDK V2 fields in comparison
-              prev.status !== current.status ||
-              prev.enabled !== current.enabled ||
-              prev.connected !== current.connected ||
-              prev.has_oauth !== current.has_oauth;
+              prev.prompt_count !== current.prompt_count ||
+              prev.resource_count !== current.resource_count ||
+              prev.has_oauth !== current.has_oauth ||
+              prev.oauth?.has_access_token !== current.oauth?.has_access_token ||
+              prev.oauth?.has_refresh_token !== current.oauth?.has_refresh_token ||
+              prev.oauth?.access_token_remaining_seconds !== current.oauth?.access_token_remaining_seconds ||
+              prev.oauth?.refresh_needed !== current.oauth?.refresh_needed ||
+              prev.oauth?.client_configured !== current.oauth?.client_configured ||
+              prev.oauth?.provider_configured !== current.oauth?.provider_configured;
             
             if (fieldsChanged) {
               hasChanged = true;
-              break; // Early exit if we found a change
+              break;
             }
           }
           
-          // If nothing changed, return the exact same reference
           if (!hasChanged) {
-            console.log('No changes detected in servers, returning same reference');
             return prevServers;
-          } else {
-            console.log('Changes detected in servers, updating state');
           }
         }
         
-        // Only create new objects if something actually changed
-        const updatedServers: Record<string, MCPServer> = {};
-        for (const key of newKeys) {
-          const prev = prevServers[key];
-          const current = serversWithNames[key];
-
-          if (!prev) {
-            // Only add new server if it did not exist before
-            updatedServers[key] = current;
-          } else {
-            // Compare again to decide whether to reuse or update
-            const fieldsChanged = 
-              prev.state !== current.state ||
-              prev.pid !== current.pid ||
-              prev.healthy !== current.healthy ||
-              prev.uptime !== current.uptime ||
-              prev.tool_count !== current.tool_count ||
-              prev.token_count !== current.token_count ||
-              prev.retries !== current.retries ||
-              prev.restarts !== current.restarts ||
-              prev.last_error !== current.last_error ||
-              // Include new SDK V2 fields in comparison
-              prev.status !== current.status ||
-              prev.enabled !== current.enabled ||
-              prev.connected !== current.connected ||
-              prev.has_oauth !== current.has_oauth;
-
-            if (fieldsChanged) {
-              // Merge but preserve token_count and tool_count from prev if current doesn't have them
-              updatedServers[key] = { 
-                ...prev, 
-                ...current,
-                // Preserve counts if the new data doesn't have them
-                tool_count: current.tool_count ?? prev.tool_count,
-                token_count: current.token_count ?? prev.token_count
-              };
-            } else {
-              updatedServers[key] = prev;
-            }
-          }
-        }
-        
-        return updatedServers;
+        return serversWithNames;
       });
         
       // Auto-select first server if none selected OR if current selection no longer exists
       setSelectedServerName(prevSelected => {
         const availableServers = Object.keys(serversWithNames);
         
-        // If no server is selected and servers are available, select the first one
         if (!prevSelected && availableServers.length > 0) {
           return availableServers[0];
         }
         
-        // If current selection still exists, keep it
-        if (prevSelected && availableServers.includes(prevSelected)) {
-          return prevSelected;
+        if (prevSelected && !availableServers.includes(prevSelected)) {
+          return availableServers.length > 0 ? availableServers[0] : null;
         }
         
-        // If current selection no longer exists, select first available or null
-        return availableServers.length > 0 ? availableServers[0] : null;
+        return prevSelected;
       });
-      
       
       loadingRef.current = false;
       errorRef.current = null;
     } catch (e: any) {
-      // If MCP Manager is stopped, clear servers list
       if (e.message?.includes('Failed to fetch') || e.message?.includes('Connection refused') || e.message?.includes('ECONNREFUSED')) {
         console.log('MCP Manager appears to be stopped, clearing servers list');
         setServers({});
         setSelectedServerName(null);
-        setTools([]);
+        setGlobalStats(null);
       }
       
       if (isInitial) {
@@ -1868,89 +1898,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     }
   }, [config, mcpManagerStatus?.status]);
 
-  const fetchTools = useCallback(async (serverName: string) => {
-    setToolsLoading(true);
-    try {
-      // Use the new per-service endpoint structure
-      const response = await fetch(`${getApiUrl('mcp_manager', config)}/tools/${serverName}`);
-      if (!response.ok) throw new Error('Failed to fetch tools');
-      const data = await response.json();
-      
-      // Check for auth pending or other errors
-      if (data.tools_error) {
-        console.warn(`Tools error for ${serverName}:`, data.tools_error);
-        if (data.tools_error === 'auth_pending') {
-          // Could show auth required UI here
-          toast({
-            title: "Authentication Required",
-            description: `Server "${serverName}" requires OAuth authentication to access tools.`,
-            variant: "default",
-          });
-        }
-        setTools([]);
-      } else {
-        setTools(data.tools || []);
-        
-        // Always update server with tool count (at minimum from tools array length)
-        setServers(prevServers => {
-          if (prevServers[serverName]) {
-            return {
-              ...prevServers,
-              [serverName]: {
-                ...prevServers[serverName],
-                tool_count: data.tool_count || data.tools?.length || 0,
-                token_count: data.token_count || 0
-              }
-            };
-          }
-          return prevServers;
-        });
-      }
-    } catch (err) {
-      setTools([]);
-      console.error('Failed to fetch tools:', err);
-    } finally {
-      setToolsLoading(false);
-    }
-  }, [config, toast]);
-
-  const fetchPrompts = useCallback(async (serverName: string) => {
-    setPromptsLoading(true);
-    try {
-      // Get all prompts first (since there's no per-service endpoint)
-      const response = await fetch(`${getApiUrl('mcp_manager', config)}/list_prompts`);
-      if (!response.ok) throw new Error('Failed to fetch prompts');
-      const data = await response.json();
-      
-      // Extract prompts for the specific server
-      const serverPrompts = data.prompts?.[serverName] || [];
-      setPrompts(serverPrompts);
-    } catch (err) {
-      setPrompts([]);
-      console.error('Failed to fetch prompts:', err);
-    } finally {
-      setPromptsLoading(false);
-    }
-  }, [config]);
-
-  const fetchResources = useCallback(async (serverName: string) => {
-    setResourcesLoading(true);
-    try {
-      // Get all resources first (since there's no per-service endpoint)
-      const response = await fetch(`${getApiUrl('mcp_manager', config)}/list_resources`);
-      if (!response.ok) throw new Error('Failed to fetch resources');
-      const data = await response.json();
-      
-      // Extract resources for the specific server
-      const serverResources = data.resources?.[serverName] || [];
-      setResources(serverResources);
-    } catch (err) {
-      setResources([]);
-      console.error('Failed to fetch resources:', err);
-    } finally {
-      setResourcesLoading(false);
-    }
-  }, [config]);
+  // No individual fetch functions needed - all data comes from fetchCompleteStatus
 
   const handleAction = useCallback(async (action: 'start' | 'stop', serverName: string) => {
     setActionLoading(action + serverName);
@@ -1962,17 +1910,15 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         body: JSON.stringify({ enabled: action === 'start' })
       });
       if (!response.ok) throw new Error(`Failed to ${action} server`);
-      await fetchStatus();
+      await fetchCompleteStatus();
       // Refetch tools for currently selected server
-      if (selectedServerName) {
-        fetchTools(selectedServerName);
-      }
+      // No need to fetch tools separately, fetchCompleteStatus gets everything
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${action} server`);
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools, selectedServerName, config]);
+  }, [fetchCompleteStatus, selectedServerName, config]);
 
   const handleRestart = useCallback(async (serverName: string) => {
     setActionLoading('restart' + serverName);
@@ -1994,17 +1940,14 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         body: JSON.stringify({ enabled: true })
       });
       if (!responseOn.ok) throw new Error('Failed to start server for restart');
-      await fetchStatus();
-      // Refetch tools for currently selected server
-      if (selectedServerName) {
-        fetchTools(selectedServerName);
-      }
+      await fetchCompleteStatus();
+      // No need to fetch tools separately, fetchCompleteStatus gets everything
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restart server');
     } finally {
       setActionLoading(null);
     }
-  }, [fetchStatus, fetchTools, selectedServerName, config]);
+  }, [fetchCompleteStatus, selectedServerName, config]);
 
   const handleToolExpand = useCallback((toolName: string, expanded: boolean) => {
     setToolCardState(prev => ({
@@ -2129,7 +2072,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       });
       
       // Refresh server status to show the new server
-      await fetchStatus();
+      await fetchCompleteStatus();
       
     } catch (error) {
       console.error('Failed to add server:', error);
@@ -2142,7 +2085,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         variant: "destructive",
       });
     }
-  }, [fetchStatus, config]);
+  }, [fetchCompleteStatus, config]);
 
   // Handle deleting a server
   const handleDeleteServer = useCallback(async (serverName: string) => {
@@ -2176,11 +2119,10 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       // If the deleted server was selected, clear the selection
       if (selectedServerName === serverName) {
         setSelectedServerName(null);
-        setTools([]);
       }
       
       // Refresh server status to remove the deleted server
-      await fetchStatus();
+      await fetchCompleteStatus();
       
     } catch (error) {
       console.error('Failed to delete server:', error);
@@ -2192,7 +2134,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         variant: "destructive",
       });
     }
-  }, [fetchStatus, selectedServerName, toast, config]);
+  }, [fetchCompleteStatus, selectedServerName, toast, config]);
 
   // Check MCP Manager status by trying to reach it on port 5859 (source of truth)
   const checkMcpManagerStatus = useCallback(async () => {
@@ -2209,44 +2151,44 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       if (response.ok) {
         const data = await response.json();
         
-        // MCP Manager is running and responsive
-        if (mcpManagerStatus?.status !== 'running') {
+        // Only update state if it actually changed
+        if (mcpManagerStatus?.status !== 'running' || !mcpManagerStatus?.api_responsive) {
           console.log('MCP Manager is running and responsive');
+          setMcpManagerStatus({
+            status: 'running',
+            api_responsive: true,
+            exit_code: undefined,
+            last_pid: undefined
+          });
+          setMcpManagerRunning(true);
         }
-        
-        setMcpManagerStatus({
-          status: 'running',
-          api_responsive: true,
-          exit_code: undefined,
-          last_pid: undefined
-        });
-        setMcpManagerRunning(true);
         
       } else {
         // Got a response but not OK - MCP manager might be starting up
-        if (mcpManagerStatus?.status !== 'running_not_responsive') {
+        if (mcpManagerStatus?.status !== 'running_not_responsive' || mcpManagerStatus?.api_responsive !== false) {
           console.log('MCP Manager running but not ready');
+          setMcpManagerStatus({
+            status: 'running_not_responsive',
+            api_responsive: false,
+            exit_code: undefined,
+            last_pid: undefined
+          });
+          setMcpManagerRunning(true);
         }
-        setMcpManagerStatus({
-          status: 'running_not_responsive',
-          api_responsive: false,
-          exit_code: undefined,
-          last_pid: undefined
-        });
-        setMcpManagerRunning(true);
       }
     } catch (error) {
       // Can't reach port 5859 - MCP Manager is not running
-      if (mcpManagerStatus?.status !== 'not_started') {
+      // Only update if state actually changed
+      if (mcpManagerStatus?.status !== 'not_started' || mcpManagerStatus?.api_responsive !== false) {
         console.log('MCP Manager is not running (port 5859 unreachable)');
+        setMcpManagerRunning(false);
+        setMcpManagerStatus({
+          status: 'not_started',
+          api_responsive: false
+        });
       }
-      setMcpManagerRunning(false);
-      setMcpManagerStatus({
-        status: 'not_started',
-        api_responsive: false
-      });
     }
-  }, [config, mcpManagerStatus?.status]);
+  }, [config, mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
 
   // Handle MCP Manager start/stop
   const handleMcpManagerAction = useCallback(async (action: 'start' | 'stop') => {
@@ -2275,7 +2217,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         // Immediately clear servers list and selection when stopping
         setServers({});
         setSelectedServerName(null);
-        setTools([]);
         // Update status immediately
         setTimeout(() => {
           checkMcpManagerStatus();
@@ -2286,7 +2227,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           await checkMcpManagerStatus();
           // Also refresh server status after MCP Manager is responsive
           setTimeout(() => {
-            fetchStatus();
+            fetchCompleteStatus();
           }, 2000); // Additional delay for servers to initialize
         }, 1000);
       }
@@ -2307,7 +2248,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     } finally {
       setMcpManagerLoading(false);
     }
-  }, [toast, fetchStatus, checkMcpManagerStatus, config]);
+  }, [toast, fetchCompleteStatus, checkMcpManagerStatus, config]);
 
   // Initial fetch on mount - check MCP manager first
   useEffect(() => {
@@ -2318,25 +2259,28 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   useEffect(() => {
     if (mcpManagerStatus?.status === 'running' && mcpManagerStatus?.api_responsive) {
       // MCP manager is running and responsive, fetch server status
-      fetchStatus(true);
+      fetchCompleteStatus(true);
     } else if (mcpManagerStatus?.status === 'not_started') {
       // MCP manager is not running, stop initial loading
       setInitialLoading(false);
     }
-  }, [mcpManagerStatus?.status, mcpManagerStatus?.api_responsive, fetchStatus]);
+  }, [mcpManagerStatus?.status, mcpManagerStatus?.api_responsive, fetchCompleteStatus]);
 
-  // Fetch tools, prompts, and resources when selectedServerName changes
+  // No need to fetch additional data - all data is embedded in server objects
+  // Tools, prompts, and resources are available directly from selectedServer
+
+  // Use refs to maintain stable references for polling functions
+  const fetchCompleteStatusRef = useRef(fetchCompleteStatus);
+  const checkMcpManagerStatusRef = useRef(checkMcpManagerStatus);
+  
+  // Update refs when functions change
   useEffect(() => {
-    if (selectedServerName) {
-      fetchTools(selectedServerName);
-      fetchPrompts(selectedServerName);
-      fetchResources(selectedServerName);
-    } else {
-      setTools([]);
-      setPrompts([]);
-      setResources([]);
-    }
-  }, [selectedServerName, fetchTools, fetchPrompts, fetchResources]);
+    fetchCompleteStatusRef.current = fetchCompleteStatus;
+  }, [fetchCompleteStatus]);
+  
+  useEffect(() => {
+    checkMcpManagerStatusRef.current = checkMcpManagerStatus;
+  }, [checkMcpManagerStatus]);
 
   // Poll server status with intelligent intervals based on MCP Manager state
   useEffect(() => {
@@ -2355,28 +2299,26 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
 
     const poll = () => {
       // Always check MCP Manager status, but reduce logging noise
-      checkMcpManagerStatus();
+      checkMcpManagerStatusRef.current();
       
       // Only fetch server status if MCP Manager is API responsive
       if (mcpManagerStatus?.status === 'running' && mcpManagerStatus?.api_responsive) {
-        fetchStatus();
+        fetchCompleteStatusRef.current();
       } else if (mcpManagerStatus?.status === 'not_started' || mcpManagerStatus?.status === 'terminated') {
         // Clear servers list if MCP Manager is not running
         setServers(prev => Object.keys(prev).length > 0 ? {} : prev);
         setSelectedServerName(prev => prev ? null : prev);
-        setTools(prev => prev.length > 0 ? [] : prev);
       }
       // For 'running_not_responsive', just wait - don't try to fetch server status
     };
 
-    // Initial poll
-    poll();
-
-    // Set up interval with dynamic timing
-    const interval = setInterval(poll, getPollingInterval());
+    // Don't poll immediately - wait for the interval
+    // This prevents double-fetching when status changes
+    const intervalTime = getPollingInterval();
+    const interval = setInterval(poll, intervalTime);
     
     return () => clearInterval(interval);
-  }, [fetchStatus, checkMcpManagerStatus, mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
+  }, [mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
 
   // If marketplace is active, render it with full space and its own header
   if (showMarketplace) {
@@ -2597,12 +2539,6 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
               <ScrollArea className="h-full">
                 <ServerDetailsPanel
                   server={selectedServer}
-                  tools={tools}
-                  prompts={prompts}
-                  resources={resources}
-                  toolsLoading={toolsLoading}
-                  promptsLoading={promptsLoading}
-                  resourcesLoading={resourcesLoading}
                   actionLoading={actionLoading}
                   toolCardState={toolCardState}
                   onAction={handleAction}
@@ -2611,7 +2547,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   onToolExpand={handleToolExpand}
                   onParamChange={handleParamChange}
                   initialLoading={initialLoading}
-                  fetchStatus={fetchStatus}
+                  fetchCompleteStatus={fetchCompleteStatus}
                   config={config}
                 />
               </ScrollArea>
