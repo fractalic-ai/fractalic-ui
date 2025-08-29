@@ -621,18 +621,21 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
               <h1 className="text-3xl font-bold text-white mb-2">{server.name}</h1>
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  {server.enabled && server.status === 'enabled' ? 
+                  {server.enabled && server.connected ? 
                     <CheckCircle className="h-4 w-4 text-green-400" /> :
-                    getStateIcon(server.state)}
+                    getStateIcon(server.enabled && server.connected ? 'running' : 
+                      server.status === 'error' ? 'errored' : 'stopped')}
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    server.enabled && server.status === 'enabled' ? 'bg-green-500/20 text-green-400' :
+                    server.enabled && server.connected ? 'bg-green-500/20 text-green-400' :
                     server.status === 'disabled' || !server.enabled ? 'bg-gray-500/20 text-gray-400' :
-                    server.state === 'errored' ? 'bg-red-500/20 text-red-400' :
+                    server.status === 'error' ? 'bg-red-500/20 text-red-400' :
                     'bg-yellow-500/20 text-yellow-400'
                   }`}>
-                    {server.enabled && server.status === 'enabled' ? 'ENABLED' :
+                    {server.enabled && server.connected ? 'CONNECTED' :
                      server.status === 'disabled' || !server.enabled ? 'DISABLED' :
-                     server.state.toUpperCase()}
+                     server.status === 'error' ? 'ERROR' :
+                     server.status === 'oauth_required' ? 'OAUTH REQUIRED' :
+                     server.status?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-400">
@@ -1434,131 +1437,6 @@ const parseMarkdownToMCPLibraries = (markdown: string): MCPLibrary[] => {
   return libraries;
 };
 
-// Fallback hardcoded libraries in case fetching fails
-const FALLBACK_MCP_LIBRARIES: MCPLibrary[] = [
-  {
-    name: "Tavily MCP Server",
-    id: "tavily-mcp-server",
-    description: "Enable real-time web search and data extraction capabilities for LLMs. Integrates Tavily's advanced search API for up-to-date information.",
-    category: "Web Search",
-    install: "npx @tavily-ai/tavily-mcp@latest",
-    docs: "https://github.com/tavily-ai/tavily-mcp",
-    icon: "https://github.com/tavily-ai.png?size=40",
-    author: "tavily-ai",
-    repository: "tavily-mcp",
-    tags: ["search", "web", "api"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "tavily-mcp-server": {
-          command: "npx",
-          args: ["@tavily-ai/tavily-mcp@latest"],
-          env: {
-            TAVILY_API_KEY: "your-tavily-api-key-here"
-          }
-        }
-      }
-    }
-  },
-  {
-    name: "Exa Search MCP Server",
-    id: "exa-mcp-server",
-    description: "Fast, intelligent web search and crawling. Exa combines embeddings and traditional search to deliver the best results for LLMs.",
-    category: "Web Search",
-    install: "npx exa-mcp-server@latest",
-    docs: "https://github.com/exa-ai/exa-mcp-server",
-    icon: "https://github.com/exa-ai.png?size=40",
-    author: "exa-ai",
-    repository: "exa-mcp-server",
-    tags: ["search", "embeddings", "crawling"],
-    version: "latest",
-    license: "Apache-2.0",
-    config: {
-      mcpServers: {
-        "exa-mcp-server": {
-          command: "npx",
-          args: ["exa-mcp-server@latest"],
-          env: {
-            EXA_API_KEY: "your-exa-api-key-here"
-          }
-        }
-      }
-    }
-  },
-  {
-    name: "Filesystem MCP Server",
-    id: "filesystem-mcp-server",
-    description: "Secure file system operations for LLMs. Read, write, and manage files with built-in safety restrictions.",
-    category: "File System",
-    install: "@modelcontextprotocol/server-filesystem",
-    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
-    icon: "https://github.com/modelcontextprotocol.png?size=40",
-    author: "modelcontextprotocol",
-    repository: "servers",
-    tags: ["filesystem", "files", "security"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "filesystem": {
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"],
-          env: {}
-        }
-      }
-    }
-  },
-  {
-    name: "GitHub MCP Server",
-    id: "github-mcp-server",
-    description: "Integrate with GitHub repositories. Search code, create issues, manage pull requests, and access repository information.",
-    category: "Development",
-    install: "@modelcontextprotocol/server-github",
-    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
-    icon: "https://github.com/modelcontextprotocol.png?size=40",
-    author: "modelcontextprotocol",
-    repository: "servers",
-    tags: ["github", "git", "development"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "github": {
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-github"],
-          env: {
-            GITHUB_PERSONAL_ACCESS_TOKEN: "your-github-token-here"
-          }
-        }
-      }
-    }
-  },
-  {
-    name: "SQLite MCP Server",
-    id: "sqlite-mcp-server",
-    description: "Execute SQL queries against SQLite databases. Perfect for data analysis and database management tasks.",
-    category: "Database",
-    install: "@modelcontextprotocol/server-sqlite",
-    docs: "https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite",
-    icon: "https://github.com/modelcontextprotocol.png?size=40",
-    author: "modelcontextprotocol",
-    repository: "servers",
-    tags: ["database", "sql", "sqlite"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "sqlite": {
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-sqlite", "/path/to/database.db"],
-          env: {}
-        }
-      }
-    }
-  }
-];
-
 const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const { config } = useAppConfig();
   const [servers, setServers] = useState<Record<string, MCPServer>>({});
@@ -1649,7 +1527,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     const filterLower = searchFilter.toLowerCase();
     return serversArray.filter(server => 
       server.name?.toLowerCase().includes(filterLower) ||
-      server.state?.toLowerCase().includes(filterLower)
+      server.status?.toLowerCase().includes(filterLower)
     );
   }, [servers, searchFilter]);
 
@@ -1659,6 +1537,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   // State for initial load/fatal error
   const [initialLoading, setInitialLoading] = useState(true);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  // Track if MCP Manager is in startup phase
+  const [isStartingUp, setIsStartingUp] = useState(false);
 
   // Helper function to check if response is SDK V2 format
   const isSDKV2Response = (data: any): data is StatusResponseV2 => {
@@ -1676,16 +1556,11 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       tools_count: service.tools_count ?? 0,
       ...service
     };
-
-    // State is based on 'enabled' field
-    const getState = () => {
-      return serviceWithDefaults.enabled ? 'running' : 'stopped';
-    };
     
     // If we have an existing server and only counts/non-critical fields would change, return the existing object
     if (existingServer) {
       const wouldStateChange = 
-        existingServer.state !== getState() ||
+        existingServer.status !== (serviceWithDefaults.enabled ? 'connected' : 'disabled') ||
         existingServer.enabled !== serviceWithDefaults.enabled ||
         existingServer.healthy !== serviceWithDefaults.enabled ||
         existingServer.transport !== serviceWithDefaults.transport ||
@@ -1700,29 +1575,24 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
 
     return {
       name,
-      // Map SDK V2 fields to legacy fields
-      state: getState(),
-      pid: null, // Not available in SDK V2
-      transport: serviceWithDefaults.transport,
-      retries: 0, // Not available in SDK V2
-      uptime: null, // Not available in SDK V2
-      healthy: serviceWithDefaults.enabled,
-      restarts: 0, // Not available in SDK V2
-      last_error: null, // Not available in SDK V2
-      stdout: [], // Not available in SDK V2
-      stderr: [], // Not available in SDK V2
-      last_output_renewal: null, // Not available in SDK V2
-      // Preserve existing counts if available, otherwise use defaults
-      tool_count: existingServer?.tool_count ?? serviceWithDefaults.tools_count ?? 0,
-      token_count: existingServer?.token_count ?? serviceWithDefaults.token_count ?? 0,
-      // Include new SDK V2 fields
-      status: serviceWithDefaults.enabled ? 'enabled' : 'disabled',
-      enabled: serviceWithDefaults.enabled,
+      // Map SDK V2 fields to MCPServer format
+      status: serviceWithDefaults.enabled ? 'connected' : 'disabled',
       connected: false, // Per-session architecture
+      enabled: serviceWithDefaults.enabled,
+      transport: serviceWithDefaults.transport,
       has_oauth: serviceWithDefaults.oauth_required || serviceWithDefaults.oauth_configured || false,
       oauth_configured: serviceWithDefaults.oauth_configured,
       url: null,
       command: null,
+      // Preserve existing counts if available, otherwise use defaults
+      tool_count: existingServer?.tool_count ?? serviceWithDefaults.tools_count ?? 0,
+      token_count: existingServer?.token_count ?? serviceWithDefaults.token_count ?? 0,
+      tools: [],
+      prompt_count: 0,
+      prompts: [],
+      resource_count: 0,
+      resources: [],
+      healthy: serviceWithDefaults.enabled,
     };
   };
 
@@ -2128,8 +1998,19 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     }
   }, [fetchCompleteStatus, selectedServerName, toast, config]);
 
+  // Add ref to track if status check is in progress
+  const statusCheckInProgress = useRef(false);
+
   // Check MCP Manager status by trying to reach it on port 5859 (source of truth)
   const checkMcpManagerStatus = useCallback(async () => {
+    // Prevent concurrent status checks
+    if (statusCheckInProgress.current) {
+      console.log('Status check already in progress, skipping...');
+      return;
+    }
+    
+    statusCheckInProgress.current = true;
+    
     try {
       // Try to reach MCP manager directly on port 5859 with timeout
       const controller = new AbortController();
@@ -2143,22 +2024,22 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       if (response.ok) {
         const data = await response.json();
         
-        // Only update state if it actually changed
+        // Only update if state actually changed to prevent unnecessary re-renders
         if (mcpManagerStatus?.status !== 'running' || !mcpManagerStatus?.api_responsive) {
           console.log('MCP Manager is running and responsive');
+          setMcpManagerRunning(true);
           setMcpManagerStatus({
             status: 'running',
             api_responsive: true,
             exit_code: undefined,
             last_pid: undefined
           });
-          setMcpManagerRunning(true);
         }
-        
       } else {
-        // Got a response but not OK - MCP manager might be starting up
-        if (mcpManagerStatus?.status !== 'running_not_responsive' || mcpManagerStatus?.api_responsive !== false) {
-          console.log('MCP Manager running but not ready');
+        // HTTP error response - MCP Manager is running but API not fully ready
+        if (mcpManagerStatus?.status !== 'running_not_responsive') {
+          console.log('MCP Manager is running but API not responsive');
+          setMcpManagerRunning(true);
           setMcpManagerStatus({
             status: 'running_not_responsive',
             api_responsive: false,
@@ -2179,12 +2060,18 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           api_responsive: false
         });
       }
+    } finally {
+      statusCheckInProgress.current = false;
     }
   }, [config, mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
 
   // Handle MCP Manager start/stop
   const handleMcpManagerAction = useCallback(async (action: 'start' | 'stop') => {
     setMcpManagerLoading(true);
+    if (action === 'start') {
+      setIsStartingUp(true);
+    }
+    
     try {
       const response = await fetch(`${getApiUrl('backend', config)}/mcp/${action}`, {
         method: 'POST',
@@ -2206,6 +2093,8 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
       
       // Handle different actions
       if (action === 'stop') {
+        // Clear startup state immediately on stop
+        setIsStartingUp(false);
         // Immediately clear servers list and selection when stopping
         setServers({});
         setSelectedServerName(null);
@@ -2214,18 +2103,57 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
           checkMcpManagerStatus();
         }, 500);
       } else {
-        // For start action, refresh status after a delay
+        // For start action, wait longer and use retry logic
         setTimeout(async () => {
-          await checkMcpManagerStatus();
-          // Also refresh server status after MCP Manager is responsive
-          setTimeout(() => {
-            fetchCompleteStatus();
-          }, 2000); // Additional delay for servers to initialize
-        }, 1000);
+          // Retry status check up to 5 times with increasing delays
+          let retryCount = 0;
+          const maxRetries = 5;
+          const checkWithRetry = async (): Promise<void> => {
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 3000);
+              
+              const response = await fetch(`${getApiUrl('mcp_manager', config)}/status`, {
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+              
+              if (response.ok) {
+                // Success! Now do the normal status check
+                console.log('MCP Manager is ready, completing startup sequence');
+                setIsStartingUp(false);
+                await checkMcpManagerStatus();
+                setTimeout(() => {
+                  fetchCompleteStatus();
+                }, 1000);
+                return;
+              }
+              throw new Error(`HTTP ${response.status}`);
+              
+            } catch (error) {
+              retryCount++;
+              if (retryCount < maxRetries) {
+                console.log(`MCP Manager not ready yet, retry ${retryCount}/${maxRetries} in ${retryCount * 1000}ms...`);
+                setTimeout(checkWithRetry, retryCount * 1000); // Increasing delay: 1s, 2s, 3s, 4s
+              } else {
+                console.log('MCP Manager failed to start after max retries, doing final status check');
+                setIsStartingUp(false);
+                await checkMcpManagerStatus();
+              }
+            }
+          };
+          
+          await checkWithRetry();
+        }, 2000); // Start checking after 2 seconds instead of 1
       }
       
     } catch (error) {
       console.error(`Failed to ${action} MCP Manager:`, error);
+      
+      // Clear startup state on error
+      if (action === 'start') {
+        setIsStartingUp(false);
+      }
       
       toast({
         title: `Failed to ${action === 'start' ? 'Start' : 'Stop'} MCP Manager`,
@@ -2279,17 +2207,23 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     const getPollingInterval = () => {
       if (mcpManagerStatus?.status === 'running_not_responsive') {
         // During startup, poll more frequently to catch when API becomes responsive
-        return 3000; // 3 seconds
+        return 5000; // 5 seconds (was 3)
       } else if (mcpManagerStatus?.status === 'running' && mcpManagerStatus?.api_responsive) {
         // Slower polling when everything is working to reduce load
-        return 8000; // 8 seconds
+        return 15000; // 15 seconds (was 8)
       } else {
         // Slower polling for stopped/terminated states
-        return 15000; // 15 seconds
+        return 30000; // 30 seconds (was 15)
       }
     };
 
     const poll = () => {
+      // Skip polling during startup phase to avoid conflicts
+      if (isStartingUp) {
+        console.log('Skipping poll during startup phase');
+        return;
+      }
+      
       // Always check MCP Manager status, but reduce logging noise
       checkMcpManagerStatusRef.current();
       
@@ -2310,7 +2244,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     const interval = setInterval(poll, intervalTime);
     
     return () => clearInterval(interval);
-  }, [mcpManagerStatus?.status, mcpManagerStatus?.api_responsive]);
+  }, [mcpManagerStatus?.status, mcpManagerStatus?.api_responsive, isStartingUp]);
 
   // If marketplace is active, render it with full space and its own header
   if (showMarketplace) {
