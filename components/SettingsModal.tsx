@@ -1,4 +1,4 @@
-//TODO: #1 For selected active record we should save to settings a model name, not a provider name
+//TODO: #1 Settings now correctly save model name as key, allowing multiple entries with same provider
 import React, { useState, useId, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,29 +27,11 @@ import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 interface SettingsModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  // Optionally pass settings to other components
+ntgth  // Optionally pass settings to other components
   setGlobalSettings: (settings: any) => void;
 }
 
-// Remove static allModels array, keep for fallback only
-const allModels = [
-  "gpt-4o",
-  "gpt-4-turbo",
-  "gpt-4",
-  "gpt-3.5-turbo",
-  "gpt-3.5-turbo-16k",
-  "text-davinci-003",
-  "text-ada-001",
-  "claude-3-opus-20240229",
-  "claude-3-sonnet-20240229",
-  "claude-3-haiku-20240307",
-  "claude-2.1",
-  "claude-2.0",
-  "llama3-70b-8192",
-  "llama3-8b-8192",
-  "mixtral-8x7b-32768",
-  "gemma-7b-it"
-];
+// Models are loaded dynamically from LiteLLM registry
 
 interface ProviderSettings {
   apiKey: string;
@@ -205,9 +187,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
 
   // Filter model options based on input value (substring match, case-insensitive)
   const filteredModelOptions = useMemo(() => {
-    const options = fetchedModels.length > 0
-      ? fetchedModels
-      : allModels.map(m => ({ model: m, provider: "" }));
+    const options = fetchedModels.length > 0 ? fetchedModels : [];
     if (!modelInputValue) return options;
   
     // Treat every space as "*" (wildcard for any text)
@@ -301,7 +281,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
     }
   };
 
-  // When saving settings, use provider field as TOML block key if available
+  // When saving settings, use full model name as TOML block key to allow multiple entries per provider
   const handleSaveSettings = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -320,22 +300,14 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
       if (isNaN(updatedSettings[provider].contextSize)) updatedSettings[provider].contextSize = 4096;
     });
 
-    // Build filteredSettings using provider field as key if available
+    // Build filteredSettings using full model name as key (same as defaultProvider field)
     const filteredSettings: Record<string, ProviderSettings> = {};
     providers.forEach(p => {
       const s = updatedSettings[p.id];
       if (s) {
-        // Try to get provider from fetchedModels based on model
-        let providerKey = "";
-        if (s.model && fetchedModels.length > 0) {
-          const match = fetchedModels.find(m => m.model === s.model);
-          if (match && match.provider) {
-            providerKey = match.provider;
-          }
-        }
-        // Fallback to model or id if provider not found
-        if (!providerKey) providerKey = s.model || p.id || "No model selected";
-        filteredSettings[providerKey] = s;
+        // Use full model name as key to allow multiple entries with same provider
+        const modelKey = s.model || p.id || "No model selected";
+        filteredSettings[modelKey] = s;
       }
     });
 
@@ -583,10 +555,7 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
                           Model
                           {(() => {
                             // Find provider for current modelInputValue
-                            const match = (fetchedModels.length > 0
-                              ? fetchedModels
-                              : allModels.map(m => ({model: m, provider: ""}))
-                            ).find(opt => opt.model === modelInputValue);
+                            const match = fetchedModels.find(opt => opt.model === modelInputValue);
                             if (match && match.provider) {
                               return (
                                 <span className="ml-2 text-sm">
