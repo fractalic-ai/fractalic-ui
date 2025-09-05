@@ -130,6 +130,12 @@ export const operationSchema = {
         enum: ['false', 'true'],
         default: 'false',
         description: "If true, operation will be executed only once"
+      },
+      context: {
+        type: "string",
+        enum: ["auto", "none"],
+        default: "auto",
+        description: "Context assembly mode: auto (default) includes preceding blocks when only prompt is provided; none disables implicit preceding-context injection."
       }
     },
     anyOf: [

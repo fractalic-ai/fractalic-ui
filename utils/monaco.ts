@@ -20,7 +20,7 @@ export function registerFractalicLanguage(monaco: any) {
         [/^@(llm|shell|import|run|return|goto)\b/, "operation-keyword"],
 
         // Field names - Capture name and colon together
-        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to|stop-sequences|tools|tools-turns-max|run-once)(:)/,
+        [/^(\s*-?\s*)(prompt|block|file|media|provider|model|temperature|save-to-file|use-header|mode|to|stop-sequences|tools|tools-turns-max|run-once|context)(:)/,
           ["white", "field-name", "punctuation.colon"]],
 
         // String values (double and single quoted)
@@ -48,8 +48,8 @@ export function registerFractalicLanguage(monaco: any) {
         // REVISED: Markdown link syntax - Capture brackets/parens
         [/(\[)([^\]]+)(\]\()([^)]+)(\))/, ["punctuation.bracket", "link", "punctuation.link", "url", "punctuation.bracket"]],
 
-        // REVISED: Simple literal values (numbers, true/false) after a colon - Make inner group non-capturing
-        [/(:\s+)(\d+(?:\.\d+)?|true|false)\b/, ["punctuation.colon", "literal-value"]],
+        // REVISED: Simple literal values (numbers, true/false, auto/none) after a colon - Make inner group non-capturing
+        [/(:\s+)(\d+(?:\.\d+)?|true|false|auto|none)\b/, ["punctuation.colon", "literal-value"]],
 
         // Default text (catch-all)
         [/[a-zA-Z_]\w*/, "identifier"],
@@ -241,7 +241,8 @@ export function registerFractalicHoverProvider(monaco: any) {
               { name: "stop-sequences", required: "No", description: "Array of strings where the model should stop generation" },
               { name: "tools", required: "No", description: "Tools to use: 'none' (default), 'all', single tool name, or array of tool names" },
               { name: "tools-turns-max", required: "No", description: "Maximum number of tool calls allowed for this operation" },
-              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" }
+              { name: "run-once", required: "No", description: "Whether this operation should only run once (boolean)" },
+              { name: "context", required: "No", description: "Context assembly mode: auto (default) includes preceding blocks when only prompt is provided; none disables implicit preceding-context injection." }
             ],
             note: "* Either prompt or block must be provided"
           },
@@ -373,6 +374,7 @@ function getSuggestionsForOperation(operation: string, range: any, monaco: any, 
       { label: "tools", kind: monaco.languages.CompletionItemKind.Field, documentation: "Enable/disable tool usage", insertText: "tools: ", range: paramRange },
       { label: "tools-turns-max", kind: monaco.languages.CompletionItemKind.Field, documentation: "Maximum tool usage turns", insertText: "tools-turns-max: ", range: paramRange },
       { label: "run-once", kind: monaco.languages.CompletionItemKind.Field, documentation: "Execute operation only once", insertText: "run-once: ", range: paramRange },
+      { label: "context", kind: monaco.languages.CompletionItemKind.Field, documentation: "Context assembly mode: auto (default) includes preceding blocks when only prompt is provided; none disables implicit preceding-context injection.", insertText: "context: ", range: paramRange },
       // Snippets (adjust insertText and potentially range if triggeredBySpace)
       {
         label: "full-llm-operation (prompt)",

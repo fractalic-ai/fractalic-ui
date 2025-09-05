@@ -45,7 +45,8 @@ export const llmOperationSchema = z.object({
   'stop-sequences': z.array(z.string()).optional(),
   tools: toolsValidator.optional(),
   'tools-turns-max': z.number().min(1).optional(),
-  'run-once': booleanStringValidator.optional()
+  'run-once': booleanStringValidator.optional(),
+  context: z.enum(["auto", "none"]).optional()
 }).refine(
   (data) => data.prompt || data.block,
   {
