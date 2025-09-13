@@ -25,6 +25,7 @@ import { useTrace } from '@/contexts/TraceContext';
 import ToolsManager from './ToolsManager';
 import MCPManager from './MCPManager';
 import ToolsMarketplace from './ToolsMarketplace';
+import MCPRegistry from './MCPRegistry';
 import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 
 type FilterOption = 'all' | 'md' | 'md-ctx';
@@ -182,7 +183,7 @@ export default function GitDiffViewer() {
   const [selectedCommit, setSelectedCommit] = useState<any[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [mode, setMode] = useState<'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace'>('edit');
+  const [mode, setMode] = useState<'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace' | 'mcpRegistry'>('edit');
   const [diffContent, setDiffContent] = useState<{ original: string; modified: string }>({
     original: '',
     modified: '',
@@ -1054,7 +1055,8 @@ export default function GitDiffViewer() {
         />
         {mode === 'mcp' && <MCPManager />}
         {mode === 'marketplace' && <ToolsMarketplace currentFilePath={currentFilePath} />}
-        {mode !== 'mcp' && mode !== 'marketplace' && (
+        {mode === 'mcpRegistry' && <MCPRegistry />}
+        {mode !== 'mcp' && mode !== 'marketplace' && mode !== 'mcpRegistry' && (
           <ResizablePanelGroup
             direction="horizontal"
             className="flex-grow overflow-hidden"

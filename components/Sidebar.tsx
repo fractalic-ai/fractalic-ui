@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { PenSquare, GitBranch, Server, Wrench, ShoppingBag } from 'lucide-react'
+import { PenSquare, GitBranch, Server, Wrench, ShoppingBag, Globe } from 'lucide-react'
 
 interface SidebarProps {
-  mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace';
-  setMode: (mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace') => void;
+  mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace' | 'mcpRegistry';
+  setMode: (mode: 'edit' | 'git' | 'mcp' | 'toolsManager' | 'marketplace' | 'mcpRegistry') => void;
   isPanelVisible: boolean
   togglePanel: () => void
   className?: string
@@ -104,6 +104,23 @@ export default function Sidebar({ mode, setMode, isPanelVisible, togglePanel, cl
           </TooltipTrigger>
           <TooltipContent side="right" className="bg-blue-900 border-blue-800 text-white">
             <p>Tools & MCPs Marketplace</p>
+          </TooltipContent>
+        </Tooltip>
+        
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleModeClick('mcpRegistry')}
+              className={`w-12 h-12 ${mode === 'mcpRegistry' ? 'text-white' : 'text-gray-400'}`}
+            >
+              <Globe className="h-6 w-6" />
+              <span className="sr-only">MCP Official Registry</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="bg-blue-900 border-blue-800 text-white">
+            <p>MCP Official Registry</p>
           </TooltipContent>
         </Tooltip>
       </div>
