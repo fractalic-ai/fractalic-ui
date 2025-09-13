@@ -16,6 +16,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import MarkdownViewer from './MarkdownViewer';
 
+// Cache for GitHub API responses (5 minutes TTL)
+const API_CACHE = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Component props interface
 interface ToolsMarketplaceProps {
   currentFilePath?: string;
@@ -68,9 +72,18 @@ interface TreeNode {
 const fetchRepositoryStructure = async (): Promise<any[]> => {
   const url = 'https://api.github.com/repos/fractalic-ai/fractalic-tools/git/trees/main?recursive=1';
   
+  // Check cache first
+  const cached = API_CACHE.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('[ToolsMarketplace] Using cached repository structure');
+    return cached.data;
+  }
+  
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    console.log('[ToolsMarketplace] Fetching repository structure from GitHub API');
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
@@ -78,9 +91,29 @@ const fetchRepositoryStructure = async (): Promise<any[]> => {
       }
     });
     clearTimeout(timeoutId);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    
+    if (!response.ok) {
+      // Provide more detailed error information
+      const errorText = await response.text().catch(() => 'Unknown error');
+      const rateLimitRemaining = response.headers.get('x-ratelimit-remaining');
+      const rateLimitReset = response.headers.get('x-ratelimit-reset');
+      
+      if (response.status === 403 && rateLimitRemaining === '0') {
+        const resetTime = rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000).toLocaleTimeString() : 'unknown';
+        throw new Error(`GitHub API rate limit exceeded. Limit resets at ${resetTime}. Try again later.`);
+      }
+      
+      throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+    }
+    
     const data = await response.json();
-    return data.tree || [];
+    const tree = data.tree || [];
+    
+    // Cache the result
+    API_CACHE.set(url, { data: tree, timestamp: Date.now() });
+    console.log('[ToolsMarketplace] Repository structure fetched and cached');
+    
+    return tree;
   } catch (error) {
     throw error instanceof Error ? error : new Error('Failed to fetch repository structure');
   }
