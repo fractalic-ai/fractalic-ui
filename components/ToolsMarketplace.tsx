@@ -17,8 +17,51 @@ import { useToast } from "@/hooks/use-toast";
 import MarkdownViewer from './MarkdownViewer';
 
 // Cache for GitHub API responses (5 minutes TTL)
-const API_CACHE = new Map<string, { data: any; timestamp: number }>();
+// Using localStorage for persistence across page refreshes
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_KEY = 'fractalic-tools-cache';
+
+// Helper functions for persistent cache
+const getCachedData = (url: string): { data: any; timestamp: number } | null => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    const cacheData = JSON.parse(cached);
+    const urlCache = cacheData[url];
+    
+    if (!urlCache) return null;
+    
+    // Check if cache is still valid
+    if (Date.now() - urlCache.timestamp > CACHE_TTL) {
+      // Remove expired cache entry
+      delete cacheData[url];
+      localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+      return null;
+    }
+    
+    return urlCache;
+  } catch (error) {
+    console.warn('Failed to read from cache:', error);
+    return null;
+  }
+};
+
+const setCachedData = (url: string, data: any): void => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    const cacheData = cached ? JSON.parse(cached) : {};
+    
+    cacheData[url] = {
+      data,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (error) {
+    console.warn('Failed to write to cache:', error);
+  }
+};
 
 // Component props interface
 interface ToolsMarketplaceProps {
@@ -72,10 +115,10 @@ interface TreeNode {
 const fetchRepositoryStructure = async (): Promise<any[]> => {
   const url = 'https://api.github.com/repos/fractalic-ai/fractalic-tools/git/trees/main?recursive=1';
   
-  // Check cache first
-  const cached = API_CACHE.get(url);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log('[ToolsMarketplace] Using cached repository structure');
+  // Check persistent cache first
+  const cached = getCachedData(url);
+  if (cached) {
+    console.log('[ToolsMarketplace] Using cached repository structure (persistent)');
     return cached.data;
   }
   
@@ -109,9 +152,9 @@ const fetchRepositoryStructure = async (): Promise<any[]> => {
     const data = await response.json();
     const tree = data.tree || [];
     
-    // Cache the result
-    API_CACHE.set(url, { data: tree, timestamp: Date.now() });
-    console.log('[ToolsMarketplace] Repository structure fetched and cached');
+    // Cache the result persistently
+    setCachedData(url, tree);
+    console.log('[ToolsMarketplace] Repository structure fetched and cached (persistent)');
     
     return tree;
   } catch (error) {
@@ -556,7 +599,33 @@ const ToolsMarketplace: React.FC<ToolsMarketplaceProps> = ({ currentFilePath }) 
   const [toolToInstall, setToolToInstall] = useState<FractalicTool | null>(null);
   const [targetDirectory, setTargetDirectory] = useState<string>('');
   const [showBatchInstallDialog, setShowBatchInstallDialog] = useState(false);
+  const [usingCachedData, setUsingCachedData] = useState(false);
   const { toast } = useToast();
+
+  // Clean up expired cache entries on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const cacheData = JSON.parse(cached);
+        const now = Date.now();
+        let hasExpired = false;
+        
+        Object.keys(cacheData).forEach(url => {
+          if (now - cacheData[url].timestamp > CACHE_TTL) {
+            delete cacheData[url];
+            hasExpired = true;
+          }
+        });
+        
+        if (hasExpired) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to clean cache:', error);
+    }
+  }, []);
 
   // Debug effect to track dialog state changes
   useEffect(() => {
@@ -568,10 +637,18 @@ const ToolsMarketplace: React.FC<ToolsMarketplaceProps> = ({ currentFilePath }) 
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setUsingCachedData(false);
     
     (async () => {
       try {
-        // Fetch repository structure (no longer need README descriptions)
+        // Check if we have cached data before making API call
+        const url = 'https://api.github.com/repos/fractalic-ai/fractalic-tools/git/trees/main?recursive=1';
+        const cached = getCachedData(url);
+        if (cached) {
+          setUsingCachedData(true);
+        }
+        
+        // Fetch repository structure
         const repoStructure = await fetchRepositoryStructure();
         const parsedTree = buildTreeFromRepo(repoStructure);
         
@@ -1173,6 +1250,12 @@ const ToolsMarketplace: React.FC<ToolsMarketplaceProps> = ({ currentFilePath }) 
         <Wrench className="h-6 w-6 text-blue-400" />
         <h2 className="text-xl font-bold text-white flex-1">Tools & MCPs Marketplace</h2>
         {loading && <RotateCw className="h-5 w-5 animate-spin text-blue-400" />}
+        {usingCachedData && !loading && (
+          <div className="flex items-center gap-2 text-green-400">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm">Using cached data</span>
+          </div>
+        )}
         {installing && (
           <div className="flex items-center gap-2 text-blue-400">
             <RotateCw className="h-4 w-4 animate-spin" />

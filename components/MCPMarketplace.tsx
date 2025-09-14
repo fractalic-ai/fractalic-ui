@@ -14,357 +14,17 @@ import type { MCPLibrary } from './MCPManager';
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
-// --- Helper and fetch functions (from MCPManager) ---
-const FALLBACK_MCP_LIBRARIES: MCPLibrary[] = [
-  {
-    name: "Tavily MCP Server",
-    id: "tavily-mcp-server",
-    description: "Enable real-time web search and data extraction capabilities for LLMs. Integrates Tavily's advanced search API for up-to-date information.",
-    category: "Web Search",
-    install: "npx @tavily-ai/tavily-mcp@latest",
-    docs: "https://github.com/tavily-ai/tavily-mcp",
-    icon: "https://github.com/tavily-ai.png?size=40",
-    author: "tavily-ai",
-    repository: "tavily-mcp",
-    tags: ["search", "web", "api"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "tavily-mcp-server": {
-          command: "npx",
-          args: ["@tavily-ai/tavily-mcp@latest"],
-          env: {
-            TAVILY_API_KEY: "your-tavily-api-key-here"
-          }
-        }
-      }
-    }
-  },
-  {
-    name: "File Manager MCP",
-    id: "file-manager-mcp",
-    description: "Comprehensive file system operations including read, write, create, delete, and directory management capabilities.",
-    category: "File System",
-    install: "npx file-manager-mcp",
-    docs: "https://github.com/example/file-manager-mcp",
-    icon: "https://github.com/example.png?size=40",
-    author: "example",
-    repository: "file-manager-mcp",
-    tags: ["files", "filesystem", "management"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "file-manager-mcp": {
-          command: "npx",
-          args: ["file-manager-mcp"],
-          env: {}
-        }
-      }
-    }
-  },
-  {
-    name: "Database Connector",
-    id: "database-connector",
-    description: "Connect to various databases including PostgreSQL, MySQL, SQLite, and MongoDB with query execution capabilities.",
-    category: "Database",
-    install: "npm install database-connector-mcp",
-    docs: "https://github.com/dbtools/database-connector",
-    icon: "https://github.com/dbtools.png?size=40",
-    author: "dbtools",
-    repository: "database-connector",
-    tags: ["database", "sql", "query"],
-    version: "latest",
-    license: "Apache-2.0",
-    config: {
-      mcpServers: {
-        "database-connector": {
-          command: "node",
-          args: ["database-connector-mcp"],
-          env: {
-            DB_CONNECTION_STRING: "your-db-connection-string"
-          }
-        }
-      }
-    }
-  },
-  {
-    name: "Web Scraper Pro",
-    id: "web-scraper-pro",
-    description: "Advanced web scraping capabilities with support for dynamic content, authentication, and data extraction.",
-    category: "Web Search",
-    install: "npx web-scraper-pro-mcp",
-    docs: "https://github.com/webscraper/pro-mcp",
-    icon: "https://github.com/webscraper.png?size=40",
-    author: "webscraper",
-    repository: "pro-mcp",
-    tags: ["scraping", "web", "data"],
-    version: "latest",
-    license: "MIT",
-    config: {
-      mcpServers: {
-        "web-scraper-pro": {
-          command: "npx",
-          args: ["web-scraper-pro-mcp"],
-          env: {}
-        }
-      }
-    }
-  },
-  {
-    name: "System Monitor",
-    id: "system-monitor",
-    description: "Monitor system resources, processes, and performance metrics in real-time.",
-    category: "System",
-    install: "npx system-monitor-mcp",
-    docs: "https://github.com/sysmon/system-monitor-mcp",
-    icon: "https://github.com/sysmon.png?size=40",
-    author: "sysmon",
-    repository: "system-monitor-mcp",
-    tags: ["system", "monitoring", "performance"],
-    version: "latest",
-    license: "GPL-3.0",
-    config: {
-      mcpServers: {
-        "system-monitor": {
-          command: "npx",
-          args: ["system-monitor-mcp"],
-          env: {}
-        }
-      }
-    }
-  }
-];
+// --- Helper functions REMOVED ---
+// MCPMarketplace should not make GitHub API calls
+// Functions removed: fetchMCPLibrariesFromAPI, fetchAwesomeMCPServers, parseMarkdownToMCPLibraries
+// No fallback data - removed per architectural requirements
+// MCPMarketplace should not contain any hardcoded data
 
-const fetchMCPLibrariesFromAPI = async (): Promise<MCPLibrary[]> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch('/api/mcp-libraries', {
-      signal: controller.signal,
-      headers: { 'Accept': 'application/json' },
-    });
-    clearTimeout(timeoutId);
-    if (!response.ok) throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    const data = await response.json();
-    if (!data.success) throw new Error(data.error || 'API returned error status');
-    return data.libraries;
-  } catch (error) {
-    throw error;
-  }
-};
+// All GitHub API functions removed to prevent rate limits
 
-const fetchAwesomeMCPServers = async (): Promise<string> => {
-  const urls = [
-    'https://raw.githubusercontent.com/punkpeye/awesome-mcp-servers/main/README.md',
-    'https://api.github.com/repos/punkpeye/awesome-mcp-servers/contents/README.md'
-  ];
-  let lastError: Error | null = null;
-  for (const url of urls) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'Accept': url.includes('api.github.com') ? 'application/vnd.github.v3.raw' : 'text/plain',
-          'User-Agent': 'MCPMarketplace/1.0',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      const text = await response.text();
-      if (!text || text.length < 100) throw new Error('Received empty or invalid content');
-      return text;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-    }
-  }
-  throw lastError || new Error('All fetch attempts failed');
-};
+// fetchAwesomeMCPServers function removed to prevent GitHub rate limits
 
-const parseMarkdownToMCPLibraries = (markdown: string): MCPLibrary[] => {
-  const libraries: MCPLibrary[] = [];
-  const lines = markdown.split('\n');
-  
-  console.log('Starting to parse markdown, total lines:', lines.length);
-  
-  let currentCategory = 'General';
-  let inServerSection = false;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Skip empty lines, HTML anchor tags, and other non-content lines
-    if (!line || 
-        line.startsWith('<a name=') || 
-        line.startsWith('<a id=') ||
-        line.startsWith('<!--') ||
-        line.startsWith('[!') ||
-        line.includes('🏎️') || 
-        line.includes('📇') ||
-        line.includes('Back to top')) {
-      continue;
-    }
-    
-    // Check if we're in the servers section - look for "Servers" in headers
-    if (line.startsWith('## ') && line.toLowerCase().includes('server')) {
-      inServerSection = true;
-      currentCategory = 'Servers';
-      console.log('Found servers section');
-      continue;
-    }
-    
-    // Skip table of contents and other sections before servers
-    if (!inServerSection) continue;
-    
-    // Extract category from headers (### or #### level)
-    if (line.startsWith('### ') || line.startsWith('#### ')) {
-      // Clean category name by removing emojis, HTML, and anchor links
-      currentCategory = line
-        .replace(/^#+\s*/, '')
-        .replace(/[📁🔧⚡🌐🔍💾🛠️📊🎯🔒🎮📝🌍🏎️📇🏠☁️🍎🪟🐧🎨🎵🔗📈📄🌟]/g, '')
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/\[[^\]]*\]\([^)]*\)/g, '') // Remove markdown links
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .trim();
-      
-      // Skip if it looks like an anchor or empty
-      if (currentCategory.includes('name=') || !currentCategory || currentCategory.length < 2) {
-        continue;
-      }
-      
-      console.log('Updated category to:', currentCategory);
-      continue;
-    }
-    
-    // Parse server entries - look for markdown links in list format
-    const serverMatch = line.match(/^\s*[-*]\s*\[([^\]]+)\]\(([^)]+)\)\s*[-–—]?\s*(.*)$/);
-    
-    if (serverMatch) {
-      const [, name, url, description] = serverMatch;
-      
-      // Skip entries that are clearly not MCP servers
-      const skipPatterns = [
-        /tutorials?/i,
-        /quickstart/i,
-        /reddit/i,
-        /discord/i,
-        /community/i,
-        /setup.*claude/i,
-        /getting.?started/i,
-        /how.?to/i,
-        /^docs?$/i,
-        /^guide$/i
-      ];
-      
-      const shouldSkip = skipPatterns.some(pattern => 
-        pattern.test(name) || pattern.test(description)
-      );
-      
-      if (shouldSkip) {
-        console.log('Skipping non-server entry:', name);
-        continue;
-      }
-      
-      // Enhanced description cleaning
-      let cleanDescription = description
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/\[[^\]]*\]\([^)]*\)/g, '') // Remove markdown links
-        .replace(/�\s*/g, '') // Remove replacement characters
-        .replace(/&[a-z]+;/gi, '') // Remove HTML entities
-        .replace(/^\s*[-–—]\s*/, '') // Remove leading dashes
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .trim();
-      
-      // If description is empty, unclear, or looks like HTML/anchor, use a default
-      if (!cleanDescription || 
-          cleanDescription.includes('name=') || 
-          cleanDescription.length < 10 ||
-          /^[^a-zA-Z]*$/.test(cleanDescription)) {
-        cleanDescription = 'No description available';
-      }
-      
-      console.log('Found server:', name, 'in category:', currentCategory);
-      
-      // Generate ID from name
-      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      
-      // Check for duplicates before adding
-      const duplicate = libraries.find(existing => 
-        existing.name === name.trim() || 
-        existing.docs === url ||
-        existing.id === id
-      );
-      
-      if (duplicate) {
-        console.log('Skipping duplicate:', name.trim(), 'already exists as:', duplicate.name);
-        continue;
-      }
-      
-      // Generate install command based on GitHub URL
-      let install = '';
-      if (url.includes('github.com')) {
-        const repoPath = url.replace('https://github.com/', '').replace(/\/$/, '');
-        const repoParts = repoPath.split('/');
-        if (repoParts.length >= 2) {
-          // Use the repository name for npx command
-          install = `npx ${repoParts[1]}`;
-        }
-      } else {
-        install = `npm install ${id}`;
-      }
-      
-      // Generate icon URL from GitHub
-      let icon = '';
-      let author = '';
-      let repository = '';
-      if (url.includes('github.com')) {
-        const repoPath = url.replace('https://github.com/', '').replace(/\/$/, '');
-        const repoParts = repoPath.split('/');
-        if (repoParts.length >= 2) {
-          author = repoParts[0];
-          repository = repoParts[1];
-          icon = `https://github.com/${repoParts[0]}.png?size=40`;
-        }
-      }
-      
-      // Generate sample config JSON
-      const config = {
-        mcpServers: {
-          [id]: {
-            command: install.startsWith('npx') ? install.split(' ')[1] : 'node',
-            args: install.startsWith('npx') ? [] : [install.split(' ').slice(1).join(' ')],
-            env: {}
-          }
-        }
-      };
-      
-      libraries.push({
-        name: name.trim(),
-        id,
-        description: cleanDescription,
-        category: currentCategory,
-        install,
-        docs: url,
-        icon,
-        author,
-        repository,
-        config,
-        tags: [currentCategory.toLowerCase()],
-        version: "latest",
-        license: "Unknown"
-      });
-      
-      console.log('Added library:', name.trim(), 'ID:', id, 'Category:', currentCategory);
-    }
-  }
-  
-  console.log('Parsing complete. Found', libraries.length, 'libraries');
-  return libraries;
-};
+// parseMarkdownToMCPLibraries function removed to prevent GitHub rate limits
 
 // --- MCP Marketplace Component ---
 const highlightMatch = (text: string, terms: string[]): React.ReactNode => {
@@ -458,33 +118,25 @@ const MCPMarketplace: React.FC = () => {
     }
   }, [copying, toast]);
 
-  // Load libraries from API, then fallback to markdown, then fallback to hardcoded
+  // No data loading - MCPMarketplace disabled per architectural requirements
+  // MCPMarketplace should not make any GitHub API calls or contain fallback data
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     (async () => {
       try {
-        let libs = await fetchMCPLibrariesFromAPI();
-        if (!libs || libs.length === 0) throw new Error('Empty API result');
+        // No data available - component disabled per architecture
         if (!cancelled) {
-          setLibraries(libs);
-          setDataSource('github');
+          setLibraries([]);
+          setDataSource('fallback');
+          setError('MCPMarketplace is disabled. Use ToolsMarketplace for fractalic-tools instead.');
         }
       } catch {
-        try {
-          const md = await fetchAwesomeMCPServers();
-          const libs = parseMarkdownToMCPLibraries(md);
-          if (!libs || libs.length === 0) throw new Error('Markdown parse failed');
-          if (!cancelled) {
-            setLibraries(libs);
-            setDataSource('github');
-          }
-        } catch {
-          if (!cancelled) {
-            setLibraries(FALLBACK_MCP_LIBRARIES);
-            setDataSource('fallback');
-          }
+        if (!cancelled) {
+          setLibraries([]);
+          setDataSource('fallback');
+          setError('MCPMarketplace is disabled per architectural requirements');
         }
       } finally {
         if (!cancelled) setLoading(false);

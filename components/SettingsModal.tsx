@@ -155,9 +155,33 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
   // Add fetchedModels as dependency so provider names are matched after models are loaded
   }, [isOpen, fetchedModels]);
 
-  // Fetch model list from LiteLLM registry when modal opens
+  // Fetch model list from LiteLLM registry when modal opens with 1-hour caching
   useEffect(() => {
     if (isOpen) {
+      // Cache key for LiteLLM models
+      const cacheKey = 'litellm_models_cache';
+      const cacheTimeKey = 'litellm_models_cache_time';
+      const cacheValidityMs = 60 * 60 * 1000; // 1 hour
+      
+      // Check if we have valid cached data
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTime = localStorage.getItem(cacheTimeKey);
+      const now = Date.now();
+      
+      if (cachedData && cacheTime && (now - parseInt(cacheTime)) < cacheValidityMs) {
+        // Use cached data
+        try {
+          const parsedData = JSON.parse(cachedData);
+          setModelRegistry(parsedData.registry);
+          setFetchedModels(parsedData.models);
+          console.log('Using cached LiteLLM models data');
+          return;
+        } catch (error) {
+          console.warn('Failed to parse cached LiteLLM data, fetching fresh:', error);
+        }
+      }
+      
+      // Fetch fresh data from GitHub
       fetch("https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json")
         .then(async (resp) => {
           if (!resp.ok) throw new Error(`Failed to fetch model registry: ${resp.status}`);
@@ -171,6 +195,18 @@ export default function SettingsModal({ isOpen, setIsOpen, setGlobalSettings }: 
               provider: info.litellm_provider || "unknown"
             }));
           setFetchedModels(models);
+          
+          // Cache the data with timestamp
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({
+              registry: registryData,
+              models: models
+            }));
+            localStorage.setItem(cacheTimeKey, now.toString());
+            console.log('Cached LiteLLM models data for 1 hour');
+          } catch (error) {
+            console.warn('Failed to cache LiteLLM data:', error);
+          }
         })
         .catch((err) => {
           console.error("Failed to fetch model registry:", err);
