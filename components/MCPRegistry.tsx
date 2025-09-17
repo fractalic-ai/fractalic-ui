@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ import { Globe, Package, GitBranch, Download, Search, ExternalLink, ChevronRight
 import { useAppConfig, getApiUrl } from '@/hooks/use-app-config';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import MCPInstallDialog from './MCPInstallDialog';
 
 interface RegistryServer {
   name: string;
@@ -52,10 +54,19 @@ interface RegistryServer {
     };
     publisherProvided?: Record<string, any>;
   };
+  _meta?: {
+    'io.modelcontextprotocol.registry/official'?: {
+      id?: string;
+      published_at?: string;
+      updated_at?: string;
+      is_latest?: boolean;
+    };
+  };
 }
 
 export default function MCPRegistry() {
   const { config } = useAppConfig();
+  const { toast } = useToast();
   const [servers, setServers] = useState<RegistryServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +74,8 @@ export default function MCPRegistry() {
   const [selectedServerDetails, setSelectedServerDetails] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [installingServer, setInstallingServer] = useState<string | null>(null);
+  const [showInstallDialog, setShowInstallDialog] = useState(false);
+  const [serverToInstall, setServerToInstall] = useState<RegistryServer | null>(null);
 
   useEffect(() => {
     fetchRegistryServers();
@@ -114,64 +127,207 @@ export default function MCPRegistry() {
 
   const fetchServerDetails = async (server: RegistryServer) => {
     try {
+      // Use the official UUID from _meta if available, otherwise fallback to name
+      const serverId = server._meta?.['io.modelcontextprotocol.registry/official']?.id ||
+                       server.meta?.official?.id ||
+                       server.name;
+
       // Use Next.js rewrite proxy to avoid CORS issues
-      const response = await fetch(`/api/mcp_registry/servers/${encodeURIComponent(server.name)}`);
+      const response = await fetch(`/api/mcp_registry/servers/${encodeURIComponent(serverId)}`);
       if (response.ok) {
         const data = await response.json();
         setSelectedServerDetails(data);
       } else {
+        console.warn(`Failed to fetch details for ${server.name}, using basic info`);
         setSelectedServerDetails(server);
       }
     } catch (err) {
+      console.warn(`Error fetching details for ${server.name}:`, err);
       setSelectedServerDetails(server);
     }
   };
 
-  const handleInstall = async (server: RegistryServer) => {
-    setInstallingServer(server.name);
+  const handleInstall = (server: RegistryServer) => {
+    // Открываем диалог установки с переданным сервером
+    setServerToInstall(server);
+    setShowInstallDialog(true);
+  };
+
+  const handleInstallServer = async (installConfig: any) => {
+    if (!serverToInstall) return;
+
+    console.log('Installing server:', serverToInstall.name);
+    console.log('Install config:', installConfig);
+
+    setInstallingServer(serverToInstall.name);
+
+    const apiUrl = `${getApiUrl('mcp_manager', config)}/add_server`;
+    console.log('Sending to API URL:', apiUrl);
+
     try {
-      // Create installation specification with all available data
-      const installSpec = {
-        server_name: server.name,
-        server_info: server,
-        detailed_config: selectedServerDetails
-      };
-      
-      // TODO: This will call backend when installation endpoint is implemented
-      console.log('Installation specification for backend:', installSpec);
-      
-      // Show user what would be installed
-      const serverType = server.packages?.[0]?.transport?.type || server.remotes?.[0]?.type || 'unknown';
-      const hasEnvVars = server.packages?.some(pkg => pkg.environmentVariables && pkg.environmentVariables.length > 0);
-      
-      let message = `Ready to install: ${server.name}\n\n`;
-      message += `Type: ${serverType}\n`;
-      message += `Status: ${server.status}\n`;
-      if (server.version) message += `Version: ${server.version}\n`;
-      if (hasEnvVars) message += `⚠️ Requires environment variable configuration\n`;
-      message += `\nBackend installation endpoint needed to proceed.`;
-      
-      alert(message);
-      
-      // Future implementation when backend endpoint exists:
-      // const response = await fetch(`${getApiUrl('backend', config)}/mcp/servers/install`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(installSpec),
-      // });
-      
+      // Parse the JSON config to extract server configuration
+      let serverConfig: any;
+
+      if (installConfig.type === 'json' && installConfig.jsonConfig) {
+        const parsedJson = JSON.parse(installConfig.jsonConfig);
+
+        if (parsedJson.mcpServers) {
+          // Extract the first (and should be only) server from mcpServers
+          const serverKeys = Object.keys(parsedJson.mcpServers);
+          if (serverKeys.length === 0) {
+            throw new Error('No servers found in configuration');
+          }
+
+          const serverKey = serverKeys[0];
+          const serverData = parsedJson.mcpServers[serverKey];
+
+          // Create config in format expected by FastMCP backend
+          serverConfig = {
+            name: serverKey,
+            command: serverData.command,
+            args: serverData.args || [],
+            transport: serverData.transport || 'stdio',
+            env: serverData.env || {},
+            enabled: true
+          };
+        } else {
+          throw new Error('Invalid JSON format: mcpServers not found');
+        }
+      } else {
+        // Direct server config (fallback)
+        serverConfig = installConfig;
+      }
+
+      console.log('Processed server config:', serverConfig);
+
+      // Send config to backend
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(serverConfig),
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend error response:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Success response:', data);
+
+      toast({
+        title: "Success",
+        description: `MCP server ${serverToInstall.name} installed`,
+      });
+
+      // Закрываем диалог
+      setShowInstallDialog(false);
+      setServerToInstall(null);
+
     } catch (err) {
-      console.error('Error preparing installation:', err);
-      alert(`Failed to prepare installation for ${server.name}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error('Server installation error:', err);
+      toast({
+        title: "Installation Error",
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: "destructive",
+      });
+      throw err; // Re-throw error for dialog handling
     } finally {
       setInstallingServer(null);
     }
   };
 
-  const filteredServers = servers.filter(server =>
-    server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    server.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Enhanced search with AND logic for space-separated terms
+  const filteredServers = useMemo(() => {
+    // First, deduplicate servers by name (in case there are duplicates from API)
+    const uniqueServers = servers.reduce((acc, server) => {
+      const existing = acc.find(s => s.name === server.name);
+      if (!existing) {
+        acc.push(server);
+      }
+      return acc;
+    }, [] as RegistryServer[]);
+
+    if (!searchQuery.trim()) return uniqueServers;
+
+    const terms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+    return uniqueServers.filter(server => {
+      const searchableText = [
+        server.name,
+        server.description,
+        ...(server.packages?.map(pkg => pkg.identifier) || []),
+        server.repository?.url || ''
+      ].join(' ').toLowerCase();
+
+      // All terms must be found somewhere in the searchable text (AND logic)
+      return terms.every(term => searchableText.includes(term));
+    });
+  }, [servers, searchQuery]);
+
+  // Function to highlight matching terms
+  const highlightText = (text: string, searchTerms: string[]): React.ReactNode => {
+    if (!searchTerms.length || !searchQuery.trim()) return text;
+
+    const terms = searchTerms.filter(Boolean);
+    if (terms.length === 0) return text;
+
+    // Sort terms by length (longest first) to avoid partial matches
+    const sortedTerms = [...terms].sort((a, b) => b.length - a.length);
+    let result: React.ReactNode[] = [];
+    let remainingText = text;
+    let keyIndex = 0;
+
+    while (remainingText.length > 0) {
+      let matchFound = false;
+      let earliestMatchIndex = remainingText.length;
+      let matchedTerm = '';
+      let matchedLength = 0;
+
+      // Find the earliest match among all terms
+      for (const term of sortedTerms) {
+        if (!term) continue;
+        const lowerText = remainingText.toLowerCase();
+        const lowerTerm = term.toLowerCase();
+        const matchIndex = lowerText.indexOf(lowerTerm);
+
+        if (matchIndex !== -1 && matchIndex < earliestMatchIndex) {
+          earliestMatchIndex = matchIndex;
+          matchedTerm = remainingText.substr(matchIndex, term.length);
+          matchedLength = term.length;
+          matchFound = true;
+        }
+      }
+
+      if (matchFound) {
+        // Add text before the match
+        if (earliestMatchIndex > 0) {
+          result.push(remainingText.substring(0, earliestMatchIndex));
+        }
+
+        // Add the highlighted match
+        result.push(
+          <mark key={keyIndex++} className="bg-yellow-300 text-black rounded px-0.5">
+            {matchedTerm}
+          </mark>
+        );
+
+        // Update remaining text
+        remainingText = remainingText.substring(earliestMatchIndex + matchedLength);
+      } else {
+        // No more matches, add remaining text
+        result.push(remainingText);
+        break;
+      }
+    }
+
+    return result.length > 1 ? result : text;
+  };
 
   const handleServerSelect = (server: RegistryServer) => {
     setSelectedServer(server);
@@ -264,45 +420,50 @@ export default function MCPRegistry() {
                       <p className="text-sm">No servers found</p>
                     </div>
                   ) : (
-                    filteredServers.map((server, index) => (
-                      <div
-                        key={`${server.name}-${index}`}
-                        className={`p-4 border border-border/40 rounded-lg cursor-pointer transition-all hover:border-orange-500/30 hover:bg-orange-500/5 ${
-                          selectedServer?.name === server.name ? 'border-orange-500/50 bg-orange-500/10' : ''
-                        }`}
-                        onClick={() => handleServerSelect(server)}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Server className="h-4 w-4 text-orange-500" />
-                            <h3 className="font-medium text-sm truncate">{server.name}</h3>
+                    filteredServers.map((server, index) => {
+                      const searchTerms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                      return (
+                        <div
+                          key={server.name}
+                          className={`p-4 border border-border/40 rounded-lg cursor-pointer transition-all hover:border-orange-500/30 hover:bg-orange-500/5 ${
+                            selectedServer?.name === server.name ? 'border-orange-500/50 bg-orange-500/10' : ''
+                          }`}
+                          onClick={() => handleServerSelect(server)}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Server className="h-4 w-4 text-orange-500" />
+                              <h3 className="font-medium text-sm truncate">
+                                {highlightText(server.name, searchTerms)}
+                              </h3>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${getStatusColor(server.status)}`}
+                            >
+                              {server.status}
+                            </Badge>
                           </div>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${getStatusColor(server.status)}`}
-                          >
-                            {server.status}
-                          </Badge>
+                          <p className="text-xs text-gray-300 line-clamp-2 mb-2">
+                            {highlightText(server.description, searchTerms)}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            {server.version && (
+                              <span className="flex items-center gap-1">
+                                <Package className="h-3 w-3" />
+                                v{server.version}
+                              </span>
+                            )}
+                            {server.packages && server.packages.length > 0 && (
+                              <span>{server.packages.length} package{server.packages.length !== 1 ? 's' : ''}</span>
+                            )}
+                            {server.remotes && server.remotes.length > 0 && (
+                              <span>{server.remotes.length} remote{server.remotes.length !== 1 ? 's' : ''}</span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-300 line-clamp-2 mb-2">
-                          {server.description}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
-                          {server.version && (
-                            <span className="flex items-center gap-1">
-                              <Package className="h-3 w-3" />
-                              v{server.version}
-                            </span>
-                          )}
-                          {server.packages && server.packages.length > 0 && (
-                            <span>{server.packages.length} package{server.packages.length !== 1 ? 's' : ''}</span>
-                          )}
-                          {server.remotes && server.remotes.length > 0 && (
-                            <span>{server.remotes.length} remote{server.remotes.length !== 1 ? 's' : ''}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>
@@ -314,7 +475,7 @@ export default function MCPRegistry() {
           {/* Server Details */}
           <ResizablePanel defaultSize={70} minSize={50} className="min-w-0">
             <div className="h-full w-full flex flex-col bg-background">
-            {selectedServer ? (
+              {selectedServer ? (
               <>
                 {/* Server Header */}
                 <div className="p-6 border-b border-border/40 bg-card/20">
@@ -689,6 +850,14 @@ export default function MCPRegistry() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {/* Install Dialog */}
+      <MCPInstallDialog
+        open={showInstallDialog}
+        onOpenChange={setShowInstallDialog}
+        server={serverToInstall}
+        onInstall={handleInstallServer}
+      />
     </div>
   );
 }
