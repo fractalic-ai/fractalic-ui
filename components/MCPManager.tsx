@@ -570,6 +570,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onDelete,
   onToolExpand,
   onParamChange,
+  onOAuthStart,
   initialLoading,
   fetchCompleteStatus,
   config
@@ -582,6 +583,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onDelete: (serverName: string) => void;
   onToolExpand: (toolName: string, expanded: boolean) => void;
   onParamChange: (toolName: string, paramName: string, value: any) => void;
+  onOAuthStart: (serverName: string) => void;
   initialLoading: boolean;
   fetchCompleteStatus: () => void;
   config: any;
@@ -843,14 +845,15 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                     ) : (
                       <span className="font-medium text-blue-400">Available</span>
                     )}
-                    {!server.oauth?.has_access_token && (
+                    {(!server.oauth?.has_access_token || server.oauth?.refresh_needed || 
+                      (server.oauth?.access_token_remaining_seconds !== undefined && server.oauth.access_token_remaining_seconds <= 0)) && (
                       <Button
                         size="sm"
                         variant="outline"
                         className="text-xs px-2 py-1 h-6"
                         onClick={() => onOAuthStart(server.name)}
                       >
-                        Setup
+                        {!server.oauth?.has_access_token ? 'Setup' : 'Refresh'}
                       </Button>
                     )}
                   </div>
@@ -1618,27 +1621,113 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
 
   // Handle OAuth setup for a server
   const handleOAuthStart = useCallback(async (serverName: string) => {
+    console.log('OAuth start handler called for:', serverName);
     try {
+      console.log('Making OAuth request to:', `${getApiUrl('mcp_manager', config)}/oauth/start/${serverName}`);
+      
       const response = await fetch(`${getApiUrl('mcp_manager', config)}/oauth/start/${serverName}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
       
+      console.log('OAuth response status:', response.status);
+      console.log('OAuth response ok:', response.ok);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('OAuth request failed with error data:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log('OAuth response result:', result);
       
+      // Handle error response
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // Handle auth_url redirection (traditional OAuth flow)
       if (result.auth_url) {
-        // Open OAuth URL in a new window
+        console.log('Opening OAuth URL:', result.auth_url);
         window.open(result.auth_url, 'oauth', 'width=600,height=700');
         
         toast({
           title: "OAuth Setup Started",
           description: `Please complete authentication for ${serverName} in the popup window.`,
           variant: "default",
+        });
+      } 
+      // Handle polling-based authentication (when success=true but no auth_url)
+      else if (result.success) {
+        console.log('Starting OAuth polling for:', serverName);
+        
+        toast({
+          title: "Authorization Started",
+          description: `Authentication process initiated for ${serverName}. Checking status...`,
+          variant: "default",
+        });
+        
+        // Start polling OAuth status
+        const startTime = Date.now();
+        const maxPollingTime = 2 * 60 * 1000; // 2 minutes timeout
+        const pollInterval = 2000; // Poll every 2 seconds
+        
+        const pollOAuthStatus = async (): Promise<void> => {
+          try {
+            // Check if timeout exceeded
+            if (Date.now() - startTime > maxPollingTime) {
+              throw new Error('OAuth polling timeout after 2 minutes');
+            }
+            
+            const statusResponse = await fetch(`${getApiUrl('mcp_manager', config)}/oauth/status/${serverName}`);
+            
+            if (!statusResponse.ok) {
+              throw new Error(`OAuth status check failed: ${statusResponse.status}`);
+            }
+            
+            const statusData = await statusResponse.json();
+            console.log('OAuth status poll result:', statusData);
+            
+            // Check if authentication is complete
+            if (statusData.has_token || statusData.has_refresh_token) {
+              console.log('OAuth authentication completed successfully');
+              
+              toast({
+                title: "OAuth Setup Complete",
+                description: `Authentication successful for ${serverName}!`,
+                variant: "default",
+              });
+              
+              // Refresh server status to show updated OAuth state
+              await fetchCompleteStatus();
+              return;
+            }
+            
+            // Continue polling if authentication not yet complete
+            setTimeout(pollOAuthStatus, pollInterval);
+            
+          } catch (error) {
+            console.error('OAuth polling failed:', error);
+            
+            toast({
+              title: "OAuth Polling Failed",
+              description: `Failed to check OAuth status for ${serverName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              variant: "destructive",
+            });
+          }
+        };
+        
+        // Start polling after a short delay
+        setTimeout(pollOAuthStatus, pollInterval);
+      } 
+      // Handle unexpected response format
+      else {
+        console.warn('Unexpected OAuth response format:', result);
+        toast({
+          title: "OAuth Setup Issue",
+          description: `Unexpected response format for ${serverName}`,
+          variant: "destructive",
         });
       }
     } catch (error) {
@@ -1650,7 +1739,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
         variant: "destructive",
       });
     }
-  }, [config, toast]);
+  }, [config, toast, fetchCompleteStatus]);
 
   // Handle adding a new server
   const handleAddServer = useCallback(async (serverConfig: any) => {
@@ -2245,6 +2334,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   onDelete={handleDeleteServer}
                   onToolExpand={handleToolExpand}
                   onParamChange={handleParamChange}
+                  onOAuthStart={handleOAuthStart}
                   initialLoading={initialLoading}
                   fetchCompleteStatus={fetchCompleteStatus}
                   config={config}

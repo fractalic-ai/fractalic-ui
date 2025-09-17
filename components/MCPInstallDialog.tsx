@@ -165,8 +165,15 @@ export const MCPInstallDialog: React.FC<MCPInstallDialogProps> = ({
         })
       };
 
-      // Clean server name for use as config key
-      const serverKey = server.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+      // Extract short name from registry format (e.g., "io.github.username/server-name" -> "server-name")
+      // If name contains '/', take only the part after the last '/'
+      // Otherwise use the full name
+      const shortName = server.name.includes('/')
+        ? server.name.split('/').pop()
+        : server.name;
+
+      // Clean the short name for use as config key (replace any remaining invalid chars)
+      const serverKey = shortName?.replace(/[^a-zA-Z0-9_-]/g, '_') || 'unnamed_server';
 
       const config = {
         type: 'json',
