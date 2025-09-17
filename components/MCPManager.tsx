@@ -202,11 +202,13 @@ const formatTimestamp = (timestamp: number): string => {
 const ServerCard = React.memo(function ServerCard({ 
   server, 
   isSelected, 
-  onSelect
+  onSelect,
+  onOAuthStart
 }: {
   server: MCPServer;
   isSelected: boolean;
   onSelect: (serverName: string) => void;
+  onOAuthStart: (serverName: string) => void;
 }) {
   // Debug logging to track re-renders (can be removed in production)
   // console.log('ServerCard render:', server.name, {
@@ -535,11 +537,13 @@ const ToolCard = React.memo(function ToolCard({
 const ServerList = React.memo(function ServerList({
   servers,
   selectedServerName,
-  onSelect
+  onSelect,
+  onOAuthStart
 }: {
   servers: MCPServer[];
   selectedServerName: string | null;
   onSelect: (serverName: string) => void;
+  onOAuthStart: (serverName: string) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -549,6 +553,7 @@ const ServerList = React.memo(function ServerList({
           server={server}
           isSelected={selectedServerName === server.name}
           onSelect={onSelect}
+          onOAuthStart={onOAuthStart}
         />
       ))}
     </div>
@@ -843,7 +848,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                         size="sm"
                         variant="outline"
                         className="text-xs px-2 py-1 h-6"
-                        onClick={() => handleOAuthStart(server.name)}
+                        onClick={() => onOAuthStart(server.name)}
                       >
                         Setup
                       </Button>
@@ -2217,6 +2222,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   servers={filteredServers}
                   selectedServerName={selectedServerName}
                   onSelect={handleServerSelect}
+                  onOAuthStart={handleOAuthStart}
                 />
               </div>
             </ScrollArea>
