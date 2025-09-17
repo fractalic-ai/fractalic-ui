@@ -25,34 +25,53 @@ interface RegistryServer {
   };
   version?: string;
   packages?: Array<{
-    registryType?: string;
-    registryBaseUrl?: string;
+    registry_type?: string;
+    registry_base_url?: string;
     identifier?: string;
     version?: string;
-    fileSHA256?: string;
-    runTimeHint?: string;
+    file_sha256?: string;
+    runtime_hint?: string;
     transport?: {
       type?: string;
       url?: string;
       headers?: Array<{key: string, value: string}>;
     };
-    runtimeArguments?: Array<{name: string, description?: string, required?: boolean}>;
-    packageArguments?: Array<{name: string, description?: string, required?: boolean}>;
-    environmentVariables?: Array<{key: string, value?: string}>;
+    runtime_arguments?: Array<{name: string, description?: string, required?: boolean}>;
+    package_arguments?: Array<{name: string, description?: string, required?: boolean}>;
+    environment_variables?: Array<{
+      name?: string;
+      key?: string;
+      value?: string;
+      description?: string;
+      is_required?: boolean;
+      is_secret?: boolean;
+      default?: string;
+    }>;
   }>;
   remotes?: Array<{
     type?: string;
     url?: string;
     headers?: Array<{key: string, value: string}>;
   }>;
+  // Standard metadata field with underscore prefix
+  _meta?: {
+    'io.modelcontextprotocol.registry/official'?: {
+      id?: string;
+      published_at?: string;
+      updated_at?: string;
+      is_latest?: boolean;
+    };
+    [key: string]: any;
+  };
+  // Legacy meta field for backward compatibility
   meta?: {
     official?: {
       id?: string;
-      publishedAt?: string;
-      updatedAt?: string;
-      isLatest?: boolean;
+      published_at?: string;
+      updated_at?: string;
+      is_latest?: boolean;
     };
-    publisherProvided?: Record<string, any>;
+    publisher_provided?: Record<string, any>;
   };
   _meta?: {
     'io.modelcontextprotocol.registry/official'?: {
@@ -188,7 +207,13 @@ export default function MCPRegistry() {
             args: serverData.args || [],
             transport: serverData.transport || 'stdio',
             env: serverData.env || {},
-            enabled: true
+            enabled: true,
+            // Add URL if present (for HTTP-based servers)
+            ...(serverData.url && { url: serverData.url }),
+            // Add headers if present
+            ...(serverData.headers && { headers: serverData.headers }),
+            // Add description if present
+            ...(serverData.description && { description: serverData.description })
           };
         } else {
           throw new Error('Invalid JSON format: mcpServers not found');
