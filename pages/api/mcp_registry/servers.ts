@@ -8,16 +8,19 @@ export default async function handler(
   
   try {
     const allServers: any[] = [];
+    const serverNames = new Set<string>(); // Track unique server names for deduplication
     let cursor: string | null = null;
+    let previousCursor: string | null = null;
     let hasMore = true;
     let pageCount = 0;
-    
-    // Fetch all pages
-    while (hasMore && pageCount < 10) {
-      const url = cursor 
-        ? `https://registry.modelcontextprotocol.io/v0/servers?after=${cursor}`
-        : 'https://registry.modelcontextprotocol.io/v0/servers';
-        
+    const maxPages = 10; // Limit pages since pagination is broken
+
+    // Fetch all pages with limit=100 to get more servers per request
+    while (hasMore && pageCount < maxPages) {
+      const url = cursor
+        ? `https://registry.modelcontextprotocol.io/v0/servers?limit=100&after=${cursor}`
+        : 'https://registry.modelcontextprotocol.io/v0/servers?limit=100';
+
       console.log(`Fetching page ${pageCount + 1} from: ${url}`);
       const response = await fetch(url);
       console.log(`Page ${pageCount + 1} response status:`, response.status);
@@ -59,14 +62,29 @@ export default async function handler(
       });
       
       if (data.servers) {
-        allServers.push(...data.servers);
+        // Deduplicate servers as we collect them
+        for (const server of data.servers) {
+          if (!serverNames.has(server.name)) {
+            serverNames.add(server.name);
+            allServers.push(server);
+          }
+        }
       }
       
+      previousCursor = cursor;
       cursor = data.metadata?.next_cursor;
-      hasMore = !!cursor;
+
+      // Check if pagination is broken (same cursor returned)
+      if (cursor === previousCursor && cursor !== null) {
+        console.log(`Pagination broken - same cursor returned. Stopping.`);
+        hasMore = false;
+      } else {
+        hasMore = !!cursor;
+      }
+
       pageCount++;
-      
-      console.log(`Page ${pageCount} complete. Total servers: ${allServers.length}, Next cursor: ${cursor}, Has more: ${hasMore}`);
+
+      console.log(`Page ${pageCount} complete. Total unique servers: ${allServers.length}, Next cursor: ${cursor}, Has more: ${hasMore}`);
       
       // Add small delay to avoid rate limiting
       if (hasMore) {
@@ -78,11 +96,14 @@ export default async function handler(
     
     console.log(`=== FINAL RESULT ===`);
     console.log(`Total pages fetched: ${pageCount}`);
-    console.log(`Total servers collected: ${allServers.length}`);
+    console.log(`Total unique servers collected: ${allServers.length}`);
     console.log(`Active servers: ${activeServers.length}`);
-    if (pageCount === 1 && hasMore) {
-      console.log(`⚠️  Only got first page - pagination failed on page 2`);
+
+    // Note about API limitations
+    if (allServers.length < 100) {
+      console.log(`⚠️  MCP Registry API pagination is currently broken - only ${allServers.length} servers available`);
     }
+
     console.log(`==================`);
     
     // Return the complete dataset in the expected format

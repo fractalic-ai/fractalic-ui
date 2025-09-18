@@ -269,20 +269,11 @@ export default function MCPRegistry() {
 
   // Enhanced search with AND logic for space-separated terms
   const filteredServers = useMemo(() => {
-    // First, deduplicate servers by name (in case there are duplicates from API)
-    const uniqueServers = servers.reduce((acc, server) => {
-      const existing = acc.find(s => s.name === server.name);
-      if (!existing) {
-        acc.push(server);
-      }
-      return acc;
-    }, [] as RegistryServer[]);
-
-    if (!searchQuery.trim()) return uniqueServers;
+    if (!searchQuery.trim()) return servers;
 
     const terms = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    return uniqueServers.filter(server => {
+    return servers.filter(server => {
       const searchableText = [
         server.name,
         server.description,
@@ -384,11 +375,6 @@ export default function MCPRegistry() {
             <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-500 border-orange-500/20">
               {filteredServers.length} servers {servers.length !== filteredServers.length && `(${servers.length} total)`}
             </Badge>
-            {servers.length === 30 && (
-              <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                Partial data - registry pagination issues
-              </Badge>
-            )}
           </div>
           <Button
             variant="outline"
