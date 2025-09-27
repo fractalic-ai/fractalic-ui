@@ -571,6 +571,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onToolExpand,
   onParamChange,
   onOAuthStart,
+  onOAuthReset, // Added
   initialLoading,
   fetchCompleteStatus,
   config
@@ -584,6 +585,7 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
   onToolExpand: (toolName: string, expanded: boolean) => void;
   onParamChange: (toolName: string, paramName: string, value: any) => void;
   onOAuthStart: (serverName: string) => void;
+  onOAuthReset: (serverName: string) => void; // Added
   initialLoading: boolean;
   fetchCompleteStatus: () => void;
   config: any;
@@ -698,6 +700,24 @@ const ServerDetailsPanel = React.memo(function ServerDetailsPanel({
                   </>
                 )}
               </Button>
+              {server.has_oauth && (
+                <Button
+                  onClick={() => onOAuthReset(server.name)}
+                  disabled={actionLoading === 'oauth_reset' + server.name}
+                  size="sm"
+                  variant="outline"
+                  className="min-w-[100px]"
+                >
+                  {actionLoading === 'oauth_reset' + server.name ? (
+                    <RotateCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Reset OAuth
+                    </>
+                  )}
+                </Button>
+              )}
               <Button
                 onClick={fetchCompleteStatus}
                 disabled={initialLoading}
@@ -1741,6 +1761,35 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
     }
   }, [config, toast, fetchCompleteStatus]);
 
+  // Handle OAuth reset for a server
+  const handleOAuthReset = useCallback(async (serverName: string) => {
+    setActionLoading('oauth_reset' + serverName);
+    try {
+      const response = await fetch(`${getApiUrl('mcp_manager', config)}/oauth/reset/${serverName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      toast({
+        title: 'OAuth Reset',
+        description: `OAuth tokens reset for ${serverName}. Re-authenticate if needed.`,
+        variant: 'default'
+      });
+      // No need to refresh complete status - OAuth reset doesn't change server status
+    } catch (error) {
+      toast({
+        title: 'OAuth Reset Failed',
+        description: `Failed to reset OAuth for ${serverName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: 'destructive'
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [config, toast]);
+
   // Handle adding a new server
   const handleAddServer = useCallback(async (serverConfig: any) => {
     console.log('Adding new MCP server:', serverConfig);
@@ -1866,6 +1915,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
   const checkMcpManagerStatus = useCallback(async () => {
     // Prevent concurrent status checks
     if (statusCheckInProgress.current) {
+
       console.log('Status check already in progress, skipping...');
       return;
     }
@@ -2335,6 +2385,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
                   onToolExpand={handleToolExpand}
                   onParamChange={handleParamChange}
                   onOAuthStart={handleOAuthStart}
+                  onOAuthReset={handleOAuthReset} // Added
                   initialLoading={initialLoading}
                   fetchCompleteStatus={fetchCompleteStatus}
                   config={config}
