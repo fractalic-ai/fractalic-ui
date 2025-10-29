@@ -36,3 +36,32 @@
     opacity: 1 !important;
     pointer-events: auto !important;
   }
+
+  /* Ensure word wrap works on both sides of the diff */
+  .git-diff-editor .view-lines,
+  .git-diff-editor .view-line,
+  .git-diff-editor .view-line > span,
+  .git-diff-editor .view-line > span > span {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Target both sides of the diff editor specifically */
+  .git-diff-editor .monaco-diff-editor .editor.original .view-lines,
+  .git-diff-editor .monaco-diff-editor .editor.original .view-line,
+  .git-diff-editor .monaco-diff-editor .editor.modified .view-lines,
+  .git-diff-editor .monaco-diff-editor .editor.modified .view-line {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* More specific targeting for Monaco's internal structure */
+  .git-diff-editor .monaco-diff-editor .editor .overflow-guard .monaco-scrollable-element .lines-content,
+  .git-diff-editor .monaco-diff-editor .editor .overflow-guard .monaco-scrollable-element .view-lines,
+  .git-diff-editor .monaco-diff-editor .editor .overflow-guard .monaco-scrollable-element .view-line {
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }

@@ -120,11 +120,56 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const diffEditorRef = useRef<editor.IStandaloneDiffEditor | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [inspectorTraceData, setInspectorTraceData] = useState<any>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [isButtonClicked, setIsButtonClicked] = useState(false);
+
+  const applyDiffEditorSettings = useCallback((diffEditorInstance?: editor.IStandaloneDiffEditor | null) => {
+    const instance = diffEditorInstance ?? diffEditorRef.current;
+    if (!instance) {
+      return;
+    }
+
+    const wordWrapOption = wordWrap ? 'on' : 'off';
+    const lineNumbersOption = lineNumbers ? 'on' : 'off';
+
+    const originalEditor = instance.getOriginalEditor();
+    const modifiedEditor = instance.getModifiedEditor();
+
+    // Apply settings to both editors with wrapping column configured
+    const editorOptions: editor.IStandaloneEditorConstructionOptions = {
+      wordWrap: wordWrapOption,
+      lineNumbers: lineNumbersOption,
+      fontSize,
+      wrappingStrategy: 'advanced',
+      wrappingIndent: 'indent',
+      wordWrapColumn: 80,
+      automaticLayout: true,
+    };
+
+    console.log('[DiffEditor] Applying word wrap settings:', { wordWrap: wordWrapOption, options: editorOptions });
+
+    originalEditor.updateOptions(editorOptions);
+    modifiedEditor.updateOptions(editorOptions);
+
+    instance.updateOptions({
+      renderSideBySide: selectedView === 'sideBySide',
+      useInlineViewWhenSpaceIsLimited: false,
+    });
+
+    // Force layout refresh
+    setTimeout(() => {
+      instance.layout();
+    }, 0);
+  }, [wordWrap, lineNumbers, fontSize, selectedView]);
+
+  const handleDiffEditorMount = useCallback((diffEditorInstance: editor.IStandaloneDiffEditor) => {
+    diffEditorRef.current = diffEditorInstance;
+    applyDiffEditorSettings(diffEditorInstance);
+  }, [applyDiffEditorSettings]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -278,8 +323,15 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
         editorRef.current.dispose();
         editorRef.current = null;
       }
+      diffEditorRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (mode === 'git') {
+      applyDiffEditorSettings();
+    }
+  }, [mode, wordWrap, lineNumbers, fontSize, selectedView, applyDiffEditorSettings]);
 
   useEffect(() => {
     const processInspectorTrace = async () => {
@@ -391,12 +443,18 @@ const EditorComponent = React.memo(function EditorComponent(props: EditorProps) 
               fontSize: fontSize,
               lineNumbers: lineNumbers ? 'on' : 'off',
               wordWrap: wordWrap ? 'on' : 'off',
+              wrappingStrategy: 'advanced',
+              wrappingIndent: 'indent',
+              wordWrapColumn: 80,
               minimap: { enabled: false },
               scrollBeyondLastLine: false,
               renderSideBySide: selectedView === 'sideBySide',
+              useInlineViewWhenSpaceIsLimited: false,
               readOnly: true,
-              domReadOnly: false
+              domReadOnly: false,
+              automaticLayout: true,
             }}
+            onMount={handleDiffEditorMount}
           />
         </div>
       );
