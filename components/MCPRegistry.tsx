@@ -53,13 +53,14 @@ interface RegistryServer {
     url?: string;
     headers?: Array<{key: string, value: string}>;
   }>;
-  // Standard metadata field with underscore prefix
+  // Standard metadata field from new API structure
   _meta?: {
     'io.modelcontextprotocol.registry/official'?: {
       id?: string;
-      published_at?: string;
-      updated_at?: string;
-      is_latest?: boolean;
+      status?: 'active' | 'deprecated' | 'deleted';
+      publishedAt?: string;
+      updatedAt?: string;
+      isLatest?: boolean;
     };
     [key: string]: any;
   };
@@ -67,19 +68,11 @@ interface RegistryServer {
   meta?: {
     official?: {
       id?: string;
-      published_at?: string;
-      updated_at?: string;
-      is_latest?: boolean;
+      publishedAt?: string;
+      updatedAt?: string;
+      isLatest?: boolean;
     };
-    publisher_provided?: Record<string, any>;
-  };
-  _meta?: {
-    'io.modelcontextprotocol.registry/official'?: {
-      id?: string;
-      published_at?: string;
-      updated_at?: string;
-      is_latest?: boolean;
-    };
+    publisherProvided?: Record<string, any>;
   };
 }
 

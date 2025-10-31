@@ -29,7 +29,20 @@ export default async function handler(
     
     const data = await response.json();
     console.log('Server details received for:', serverId);
-    res.status(200).json(data);
+
+    // Handle new API structure: { server: {...}, _meta: {...} }
+    if (data.server && data._meta) {
+      const serverWithMeta = {
+        ...data.server,
+        _meta: data._meta,
+        // Extract status from new location for easier access
+        status: data._meta?.['io.modelcontextprotocol.registry/official']?.status || data.server.status || 'unknown'
+      };
+      res.status(200).json(serverWithMeta);
+    } else {
+      // Old structure or already processed
+      res.status(200).json(data);
+    }
   } catch (error) {
     console.error('Registry server details proxy error:', error);
     res.status(500).json({ 

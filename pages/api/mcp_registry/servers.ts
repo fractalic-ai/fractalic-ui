@@ -13,13 +13,14 @@ export default async function handler(
     let previousCursor: string | null = null;
     let hasMore = true;
     let pageCount = 0;
-    const maxPages = 10; // Limit pages since pagination is broken
+    const maxPages = 20; // Increased limit to handle larger registry (20 * 100 = 2000 servers max)
 
     // Fetch all pages with limit=100 to get more servers per request
+    // Use version=latest to filter only latest versions of each server
     while (hasMore && pageCount < maxPages) {
       const url = cursor
-        ? `https://registry.modelcontextprotocol.io/v0/servers?limit=100&after=${cursor}`
-        : 'https://registry.modelcontextprotocol.io/v0/servers?limit=100';
+        ? `https://registry.modelcontextprotocol.io/v0/servers?limit=100&version=latest&cursor=${cursor}`
+        : 'https://registry.modelcontextprotocol.io/v0/servers?limit=100&version=latest';
 
       console.log(`Fetching page ${pageCount + 1} from: ${url}`);
       const response = await fetch(url);
@@ -57,22 +58,35 @@ export default async function handler(
       const data = await response.json();
       console.log(`Page ${pageCount + 1} data:`, {
         servers_count: data.servers?.length || 0,
-        next_cursor: data.metadata?.next_cursor,
+        next_cursor: data.metadata?.nextCursor || data.metadata?.next_cursor,
         has_metadata: !!data.metadata
       });
-      
+
       if (data.servers) {
         // Deduplicate servers as we collect them
-        for (const server of data.servers) {
-          if (!serverNames.has(server.name)) {
-            serverNames.add(server.name);
-            allServers.push(server);
+        // New API structure: { server: {...}, _meta: {...} }
+        for (const item of data.servers) {
+          const server = item.server || item; // Support both old and new structure
+          const meta = item._meta;
+
+          // Merge server data with metadata
+          const serverWithMeta = {
+            ...server,
+            _meta: meta,
+            // Extract status from new location for easier access
+            status: meta?.['io.modelcontextprotocol.registry/official']?.status || server.status || 'unknown'
+          };
+
+          if (!serverNames.has(serverWithMeta.name)) {
+            serverNames.add(serverWithMeta.name);
+            allServers.push(serverWithMeta);
           }
         }
       }
-      
+
       previousCursor = cursor;
-      cursor = data.metadata?.next_cursor;
+      // API changed from snake_case to camelCase
+      cursor = data.metadata?.nextCursor || data.metadata?.next_cursor;
 
       // Check if pagination is broken (same cursor returned)
       if (cursor === previousCursor && cursor !== null) {
@@ -93,17 +107,11 @@ export default async function handler(
     }
     
     const activeServers = allServers.filter(s => s.status === 'active');
-    
+
     console.log(`=== FINAL RESULT ===`);
     console.log(`Total pages fetched: ${pageCount}`);
-    console.log(`Total unique servers collected: ${allServers.length}`);
+    console.log(`Total unique servers (latest versions): ${allServers.length}`);
     console.log(`Active servers: ${activeServers.length}`);
-
-    // Note about API limitations
-    if (allServers.length < 100) {
-      console.log(`⚠️  MCP Registry API pagination is currently broken - only ${allServers.length} servers available`);
-    }
-
     console.log(`==================`);
     
     // Return the complete dataset in the expected format

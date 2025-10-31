@@ -1834,22 +1834,24 @@ const MCPManager: React.FC<MCPManagerProps> = ({ className }) => {
 
       const result = await response.json();
       console.log('Server added successfully:', result);
-      
+
       // Show success message with toast notification
-      const serverName = serverConfig.name || 'server';
+      // Use the server name from backend response (for JSON configs) or fallback to provided name
+      const serverName = result.service || serverConfig.name || 'server';
       toast({
         title: "Server Added Successfully",
         description: `Server "${serverName}" has been successfully added to Fractalic!`,
         variant: "default",
       });
-      
+
       // Refresh server status to show the new server
       await fetchCompleteStatus();
-      
+
     } catch (error) {
       console.error('Failed to add server:', error);
-      
+
       // Show error message with toast notification
+      // For errors, use the config name as we don't have the parsed server name
       const serverName = serverConfig.name || 'server';
       toast({
         title: "Failed to Add Server",
